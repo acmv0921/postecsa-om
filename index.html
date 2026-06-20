@@ -277,7 +277,16 @@ let TAB_ACTUAL = 'i'; // tab activo: i|a|c
 // BASE DE DATOS LOCAL
 // ═══════════════════════════════════════════════
 const DB = {
-  getAll(){ try{const d=JSON.parse(localStorage.getItem(CLAVE_DB)||'{}'); return(typeof d==='object'&&d!==null)?d:{};}catch(e){console.error('DB.getAll error:',e);return{};} },
+  getAll(){
+    try{
+      const d=JSON.parse(localStorage.getItem(CLAVE_DB)||'{}');
+      if(typeof d!=='object'||d===null) return {};
+      // Filtrar entradas corruptas (sin num)
+      const limpio={};
+      Object.entries(d).forEach(([k,v])=>{ if(v&&typeof v==='object'&&v.num) limpio[k]=v; });
+      return limpio;
+    }catch(e){ console.error('DB.getAll error:',e); localStorage.removeItem(CLAVE_DB); return{}; }
+  },
   saveOM(om){ const d=DB.getAll(); d[om.num]=om; localStorage.setItem(CLAVE_DB,JSON.stringify(d)); },
   delOM(num){ const d=DB.getAll(); delete d[num]; localStorage.setItem(CLAVE_DB,JSON.stringify(d)); },
   getOM(num){ return DB.getAll()[num]||null; },
@@ -401,7 +410,7 @@ function showHome(){
   procesarCola();
 
   const oms = DB.getAll();
-  const lista = Object.values(oms).sort((a,b)=>(b.ts_inicio||0)-(a.ts_inicio||0));
+  const lista = Object.values(oms).filter(o=>o&&typeof o==='object').sort((a,b)=>(b.ts_inicio||0)-(a.ts_inicio||0));
   const online = navigator.onLine;
 
   let itemsHTML = '';
