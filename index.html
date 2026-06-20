@@ -1213,50 +1213,35 @@ function cerrarOM(){
 // ENVÍO A GAS GERENCIA — FIX: payload correcto
 // ═══════════════════════════════════════════════
 function enviarGerencia(om){
-  // El app Gerencia espera UNA FILA POR MATERIAL con campos:
-  // fecha, otNum, equipo, mecanico, desc, cant, um, precio
   const ins_total=[...(om.ins_i||[]),...(om.ins_a||[]),...(om.ins_c||[])];
   const fecha=new Date(om.ts_inicio).toLocaleDateString('es-CO');
   const mecanico=om.mecanico_nombre||om.mecanico||'';
   const equipo=om.equipo||'';
-  const otNum=om.num||'';
+  const otNum=String(om.num||'');
 
-  // Si no hay materiales, enviar al menos una fila de resumen de M.O.
-  const filas = ins_total.length ? ins_total.map(i=>({
-    action:'guardar_material',
-    fecha, otNum, equipo, mecanico,
-    desc: i.n||'',
-    cant: i.qty||1,
-    um:   i.u||'Und',
-    precio: i.p||0,
-  })) : [{
-    action:'guardar_material',
-    fecha, otNum, equipo, mecanico,
-    desc: 'Mano de obra — '+sPDF(om.falla),
-    cant: om.min_total||0,
-    um:   'min',
-    precio: MIN_RATE,
-  }];
+  const filas=ins_total.length
+    ?ins_total.map(i=>({accion:'guardar_material',fecha,otNum,equipo,mecanico,
+        desc:String(i.n||''),cant:Number(i.qty||1),um:String(i.u||'Und'),precio:Number(i.p||0)}))
+    :[{accion:'guardar_material',fecha,otNum,equipo,mecanico,
+        desc:'Mano de obra - '+String(om.falla||''),
+        cant:Number(om.min_total||0),um:'min',precio:MIN_RATE}];
 
   console.log('[GAS Gerencia] Enviando',filas.length,'filas');
+  console.log('[GAS Gerencia] Payload[0]:',JSON.stringify(filas[0]));
 
-  // Enviar cada fila (modo no-cors — sin confirmación)
-  const enviarFila=(fila)=>fetch(GAS_GERENCIA,{
-    method:'POST',
-    body: JSON.stringify(fila),
-    headers:{'Content-Type':'text/plain'},
-    mode:'no-cors'
-  }).catch(err=>{ console.warn('[GAS Gerencia] error fila:',err); });
-
-  Promise.all(filas.map(enviarFila))
-    .then(()=>toast('📤 '+filas.length+' registro'+( filas.length>1?'s':'')+' enviado'+( filas.length>1?'s':'')+' a Gerencia'))
-    .catch(()=>{
-      const cola=DB.getCola();
-      filas.forEach(f=>cola.push({...f,_ts_cola:ts()}));
-      DB.saveCola(cola);
-      toast('⚠️ Sin conexión — se reintentará al abrir la app');
-    });
+  Promise.all(filas.map(fila=>fetch(GAS_GERENCIA,{
+    method:'POST',body:JSON.stringify(fila),
+    headers:{'Content-Type':'text/plain'},mode:'no-cors'
+  }).catch(e=>console.warn('[GAS] err:',e))))
+  .then(()=>toast('Gerencia: '+filas.length+' fila(s) enviada(s)'))
+  .catch(err=>{
+    const cola=DB.getCola();
+    filas.forEach(f=>{ const c=Object.assign({},f); c._ts_cola=ts(); cola.push(c); });
+    DB.saveCola(cola);
+    toast('Sin conexion - reintentara luego');
+  });
 }
+
 
 function procesarCola(){
   const cola=DB.getCola();
