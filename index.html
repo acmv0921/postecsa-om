@@ -646,9 +646,15 @@ function iniciarOM(){
 // ═══════════════════════════════════════════════
 function showForm(){ try{ _showForm(); }catch(e){ console.error('showForm error:',e); document.getElementById('app').innerHTML='<div style="padding:20px;color:red"><b>Error al cargar formulario:</b><br>'+e.message+'<br><br><button onclick="showHome()">← Volver al inicio</button></div>'; } }
 function _showForm(){
-  const cI = (ACTS.i||[]).length + (FOTOS.i||[]).length;
-  const cA = (ACTS.a||[]).length + (FOTOS.a||[]).length;
-  const cC = (ACTS.c||[]).length + (FOTOS.c||[]).length;
+  // Contar combinando memoria + OM guardado
+  const _cnt=(et)=>{
+    const seen=new Set();
+    let n=0;
+    [...(ACTS[et]||[]),...(OM['acts_'+et]||[])].forEach(a=>{if(a&&(a.id?!seen.has(a.id):(seen.add(Math.random()),true))){if(a.id)seen.add(a.id);n++;}});
+    [...(FOTOS[et]||[]),...(OM['fotos_'+et]||[])].forEach(f=>{if(f&&f.data&&!seen.has(f.data)){seen.add(f.data);n++;}});
+    return n;
+  };
+  const cI=_cnt('i'), cA=_cnt('a'), cC=_cnt('c');
 
   const etapa = OM.etapa||'INICIO';
   const puedeAvanzar = etapa==='INICIO'||etapa==='AVANCE';
@@ -1725,28 +1731,35 @@ function _subirPDFDrive(txtResumen){
 
     toast('Subiendo PDF a Drive...');
 
-    // mode:'cors' para poder leer la respuesta con el link de Drive
-    fetch(GAS_GERENCIA,{
-      method:'POST',
-      body:JSON.stringify({accion:'subir_pdf',pdf:pdfB64,nombre}),
-      headers:{'Content-Type':'text/plain'},
-      mode:'cors',
-      redirect:'follow',
-    }).then(r=>r.json()).then(res=>{
-      console.log('[Drive] respuesta:',res);
-      if(res.ok&&res.link){
-        toast('PDF subido a Drive');
-        _enviarWA(txtResumen,res.link);
-      } else {
-        console.warn('[Drive] error:',res.error);
-        toast('Sin link — enviando resumen');
-        _enviarWA(txtResumen,null);
-      }
-    }).catch(err=>{
-      console.warn('[Drive] fetch err:',err);
-      toast('Sin link — enviando resumen');
-      _enviarWA(txtResumen,null);
-    });
+    // Subir via formulario oculto (bypasea CORS) y luego GET para recuperar link
+    toast('Subiendo PDF a Drive...');
+    const formData = new FormData();
+    formData.append('accion', 'subir_pdf');
+    formData.append('pdf', pdfB64);
+    formData.append('nombre', nombre);
+    formData.append('otNum', String(OM.num||''));
+
+    fetch(GAS_GERENCIA, {
+      method: 'POST',
+      body: formData,
+      mode: 'no-cors',
+    }).then(()=>{
+      // Dar 3s al GAS para procesar, luego hacer GET para recuperar el link
+      setTimeout(()=>{
+        fetch(GAS_GERENCIA+'?accion=get_pdf_link&otNum='+encodeURIComponent(String(OM.num||'')))
+          .then(r=>r.json())
+          .then(res=>{
+            if(res.ok && res.link){
+              toast('PDF en Drive listo');
+              _enviarWA(txtResumen, res.link);
+            } else {
+              toast('Enviando resumen');
+              _enviarWA(txtResumen, null);
+            }
+          })
+          .catch(()=>_enviarWA(txtResumen, null));
+      }, 3000);
+    }).catch(()=>_enviarWA(txtResumen, null));
 
   }catch(e){
     console.warn('_subirPDFDrive err:',e);
