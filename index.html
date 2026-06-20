@@ -458,6 +458,13 @@ function limpiarFotosAntiguas(){
 function showHome(){
   OM={}; ACTS={i:[],a:[],c:[]}; FOTOS={i:[],a:[],c:[]}; FIR={}; INS={i:[],a:[],c:[]}; CHK={a:[],c:[]};
   BIB = DB.getBib();
+  // Cargar mecánicos guardados por el usuario
+  try{
+    const mecGuardados=JSON.parse(localStorage.getItem('pst_mecanicos')||'[]');
+    mecGuardados.forEach(m=>{
+      if(m&&m.cc&&m.nombre&&!MECANICOS.find(x=>x.cc===m.cc)) MECANICOS.push(m);
+    });
+  }catch(e){}
   procesarCola();
 
   const oms = DB.getAll();
@@ -548,7 +555,8 @@ function showNuevaOM(){
   CHK={a:[],c:[]};
   TAB_ACTUAL='i';
 
-  const mecOpts = MECANICOS.map(m=>`<option value="${m.cc}">${m.nombre} (${m.cargo})</option>`).join('');
+  const mecOpts = MECANICOS.map(m=>`<option value="${m.cc}">${m.nombre} (${m.cargo})</option>`).join('')
+    + '<option value="__nuevo__">➕ Agregar mecánico nuevo...</option>';
   const areaOpts = Object.keys(AREAS_EQUIPOS).map(a=>`<option value="${a}">${a}</option>`).join('');
   const fallaOpts = FALLAS.map(f=>`<option value="${f}">${f}</option>`).join('');
 
@@ -568,7 +576,21 @@ function showNuevaOM(){
       <input type="text" id="om-num" placeholder="Ej: 2026-001" inputmode="numeric" style="font-size:20px;font-weight:700;color:var(--naranja)">
 
       <label>Mecánico responsable *</label>
-      <select id="om-mecanico"><option value="">— Seleccionar —</option>${mecOpts}</select>
+      <select id="om-mecanico" onchange="chkNuevoMec(this.value)"><option value="">— Seleccionar —</option>${mecOpts}</select>
+      <div id="nuevo-mec-wrap" style="display:none;margin-top:8px;background:var(--fondo);border-radius:8px;padding:12px">
+        <label style="margin-top:0">Nombre completo</label>
+        <input type="text" id="nuevo-mec-nombre" placeholder="Ej: PEDRO GÓMEZ LÓPEZ" style="text-transform:uppercase">
+        <label>Cédula</label>
+        <input type="text" id="nuevo-mec-cc" placeholder="Número de cédula" inputmode="numeric">
+        <label>Cargo</label>
+        <select id="nuevo-mec-cargo">
+          <option value="MECÁNICO">MECÁNICO</option>
+          <option value="AUX MECÁNICO">AUX MECÁNICO</option>
+          <option value="ELECTRICISTA">ELECTRICISTA</option>
+          <option value="OPERARIO">OPERARIO</option>
+        </select>
+        <button class="btn btn-primary btn-small" style="margin-top:10px" onclick="guardarNuevoMec()">✅ Guardar mecánico</button>
+      </div>
 
       <label>Área *</label>
       <select id="om-area" onchange="actualizarEquipos()">
@@ -598,6 +620,37 @@ function showNuevaOM(){
       </button>
     </div>
   `);
+}
+
+function chkNuevoMec(val){
+  const wrap=document.getElementById('nuevo-mec-wrap');
+  if(wrap) wrap.style.display=val==='__nuevo__'?'block':'none';
+}
+
+function guardarNuevoMec(){
+  const nombre=document.getElementById('nuevo-mec-nombre').value.trim().toUpperCase();
+  const cc=document.getElementById('nuevo-mec-cc').value.trim();
+  const cargo=document.getElementById('nuevo-mec-cargo').value;
+  if(!nombre){toast('⚠️ Ingrese el nombre');return;}
+  if(!cc){toast('⚠️ Ingrese la cédula');return;}
+  // Verificar que no exista
+  if(MECANICOS.find(m=>m.cc===cc)){toast('⚠️ Ya existe un mecánico con esa cédula');return;}
+  // Agregar al array global
+  MECANICOS.push({cc,nombre,cargo});
+  // Guardar en localStorage
+  try{localStorage.setItem('pst_mecanicos',JSON.stringify(MECANICOS));}catch(e){}
+  // Actualizar el select
+  const sel=document.getElementById('om-mecanico');
+  if(sel){
+    // Remover opción __nuevo__ y agregar el nuevo antes
+    const opts=Array.from(sel.options).filter(o=>o.value!=='__nuevo__');
+    sel.innerHTML=opts.map(o=>`<option value="${o.value}">${o.text}</option>`).join('')
+      +'<option value="'+cc+'" selected>'+nombre+' ('+cargo+')</option>'
+      +'<option value="__nuevo__">➕ Agregar mecánico nuevo...</option>';
+    sel.value=cc;
+  }
+  document.getElementById('nuevo-mec-wrap').style.display='none';
+  toast('✅ Mecánico '+nombre+' agregado');
 }
 
 function actualizarEquipos(){
@@ -823,10 +876,12 @@ function renderTab(et){
 
     <!-- FOTOS -->
     <div class="card">
-      <div class="card-title"><span class="ico" style="background:#E8EAF6">📷</span>FOTOS ${ets.toUpperCase()} <span style="margin-left:auto;font-size:12px;color:var(--naranja)">${fotos.length} foto${fotos.length!==1?'s':''}</span></div>
+      <div class="card-title"><span class="ico" style="background:#E8EAF6">📷</span>FOTOS ${ets.toUpperCase()}
+        <span id="foto-badge-${et}" style="margin-left:auto;background:${fotos.length>=3?'var(--verde)':'var(--rojo)'};color:#fff;border-radius:20px;padding:3px 10px;font-size:13px;font-weight:700">${fotos.length} / mín. 3</span>
+      </div>
+      ${fotos.length<3?`<div style="background:#FFEBEE;border-radius:8px;padding:10px;margin-bottom:8px;font-size:13px;color:var(--rojo);font-weight:600">⚠️ Se requieren mínimo 3 fotos para continuar (${fotos.length} cargada${fotos.length!==1?'s':''})</div>`:''}
       <div class="foto-grid" id="foto-grid-${et}">${fotosHTML}</div>
-      <div id="foto-count-${et}" style="font-size:12px;color:var(--txt2);text-align:center;margin-top:4px">${fotos.length} foto${fotos.length!==1?'s':''}</div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px">
         <button class="btn btn-gris btn-small" onclick="document.getElementById('fi-cam-${et}').click()">📷 Cámara</button>
         <button class="btn btn-outline btn-small" onclick="document.getElementById('fi-gal-${et}').click()">🖼 Galería</button>
       </div>
@@ -1097,8 +1152,12 @@ function procFotos(et,files){
                 <img class="foto-thumb" src="${f.data}" alt="Foto ${i+1}">
                 <button onclick="delFoto('${et}',${i})" style="position:absolute;top:2px;right:2px;background:rgba(0,0,0,.6);color:#fff;border:none;border-radius:50%;width:20px;height:20px;font-size:12px;cursor:pointer">×</button>
               </div>`).join('');
-          const cnt=document.getElementById('foto-count-'+et);
-          if(cnt) cnt.textContent=_gf.length+' foto'+(_gf.length!==1?'s':'');
+          // Actualizar badge contador
+          const badge=document.getElementById('foto-badge-'+et);
+          if(badge){
+            badge.textContent=_gf.length+' / mín. 3';
+            badge.style.background=_gf.length>=3?'var(--verde)':'var(--rojo)';
+          }
           } else if(document.getElementById('tab-content')){
             document.getElementById('tab-content').innerHTML = renderTab(et);
             setTimeout(()=>initFirmas(),150);
@@ -1197,8 +1256,19 @@ function confirmarF(k){
 // AVANZAR ETAPA
 // ═══════════════════════════════════════════════
 function avanzarEtapa(nuevaEtapa){
+  // Validar mínimo 3 fotos en la etapa actual antes de avanzar
+  const etActual = nuevaEtapa==='AVANCE'?'i':nuevaEtapa==='CIERRE'?'a':'i';
+  const seen=new Set(),fotosEt=[];
+  [...(FOTOS[etActual]||[]),...(OM['fotos_'+etActual]||[])].forEach(f=>{
+    if(f&&f.data&&!seen.has(f.data)){seen.add(f.data);fotosEt.push(f);}
+  });
+  if(fotosEt.length < 3){
+    const etNom = etActual==='i'?'Inicio':etActual==='a'?'Avance':'Cierre';
+    toast('⚠️ Mínimo 3 fotos requeridas en '+etNom+' ('+fotosEt.length+' cargada'+(fotosEt.length!==1?'s':'')+')');
+    return;
+  }
+
   try{
-    // Guardar TODO antes de cambiar etapa
     capturar();
   }catch(e){ console.warn('capturar() error:',e); }
 
@@ -1219,7 +1289,15 @@ function avanzarEtapa(nuevaEtapa){
 // CERRAR OM
 // ═══════════════════════════════════════════════
 function cerrarOM(){
-  // Guardar estado final antes de cerrar
+  // Validar mínimo 3 fotos en cierre
+  const seen=new Set(),fotosC=[];
+  [...(FOTOS.c||[]),...(OM.fotos_c||[])].forEach(f=>{
+    if(f&&f.data&&!seen.has(f.data)){seen.add(f.data);fotosC.push(f);}
+  });
+  if(fotosC.length < 3){
+    toast('⚠️ Mínimo 3 fotos requeridas en Cierre ('+fotosC.length+' cargada'+(fotosC.length!==1?'s':'')+')');
+    return;
+  }
   capturar();
   OM.etapa='CERRADA';
   OM.ts_cierre_final=ts();
