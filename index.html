@@ -508,7 +508,10 @@ function showHome(){
         <h1>POSTECSA · OM</h1>
         <p>Órdenes de Mantenimiento v${VERSION}</p>
       </div>
-      <div class="hdr-badge">${lista.length} OM</div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <div class="hdr-badge">${lista.length} OM</div>
+        <button onclick="showGestionar()" style="background:rgba(255,255,255,.2);border:none;color:#fff;border-radius:8px;padding:6px 10px;font-size:13px;cursor:pointer;white-space:nowrap">🗂 Gestionar</button>
+      </div>
     </div>
 
     <div class="card" style="margin-bottom:4px">
@@ -550,6 +553,121 @@ function abrirOM(num){
 // ═══════════════════════════════════════════════
 // NUEVA OM
 // ═══════════════════════════════════════════════
+function showGestionar(){
+  const oms = DB.getAll();
+  const cerradas = Object.values(oms)
+    .filter(o=>o&&o.etapa==='CERRADA')
+    .sort((a,b)=>(b.ts_inicio||0)-(a.ts_inicio||0));
+  const abiertas = Object.values(oms)
+    .filter(o=>o&&o.etapa!=='CERRADA')
+    .sort((a,b)=>(b.ts_inicio||0)-(a.ts_inicio||0));
+
+  const itemCerrada = (o)=>`
+    <div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--fondo)">
+      <input type="checkbox" class="chk-borrar" value="${sPDF(o.num)}"
+        style="width:20px;height:20px;accent-color:var(--rojo);flex-shrink:0">
+      <div style="flex:1;min-width:0">
+        <div style="font-weight:700;font-size:14px">#${sPDF(o.num)} · ${sPDF(o.equipo)}</div>
+        <div style="font-size:12px;color:var(--txt2)">${sPDF(o.area)} · ${fFecha(o.ts_inicio)}</div>
+        <div style="font-size:12px;color:var(--verde);font-weight:600">${fCOP(o.costo_mo||0)}</div>
+      </div>
+    </div>`;
+
+  R(`
+    <div class="hdr">
+      <button onclick="showHome()" style="background:rgba(255,255,255,.2);border:none;color:#fff;border-radius:8px;padding:8px 12px;font-size:14px;cursor:pointer">← Volver</button>
+      <div class="hdr-title" style="margin-left:8px">
+        <h1>Gestionar Órdenes</h1>
+        <p>${cerradas.length} cerrada${cerradas.length!==1?'s':''} · ${abiertas.length} abierta${abiertas.length!==1?'s':''}</p>
+      </div>
+    </div>
+
+    ${cerradas.length>0?`
+    <div class="card">
+      <div class="card-title"><span class="ico" style="background:#FFEBEE">🗑</span>ÓRDENES CERRADAS
+        <span style="margin-left:auto;font-size:12px;color:var(--txt2)">${cerradas.length} registros</span>
+      </div>
+
+      <div style="display:flex;gap:8px;margin-bottom:12px">
+        <button onclick="selTodosCerrados(true)" class="btn btn-outline btn-xs" style="flex:1">☑ Todos</button>
+        <button onclick="selTodosCerrados(false)" class="btn btn-gris btn-xs" style="flex:1">☐ Ninguno</button>
+      </div>
+
+      <div id="lista-cerradas">
+        ${cerradas.map(o=>itemCerrada(o)).join('')}
+      </div>
+
+      <button class="btn btn-danger" style="margin-top:14px" onclick="borrarSeleccionados()">
+        🗑 BORRAR SELECCIONADOS
+      </button>
+      <button class="btn btn-danger" style="margin-top:8px;background:#7B1FA2" onclick="borrarTodoCerradas()">
+        ⚠️ BORRAR TODAS LAS CERRADAS
+      </button>
+    </div>`:`
+    <div class="card" style="text-align:center;padding:30px">
+      <div style="font-size:36px">✅</div>
+      <p style="margin-top:8px;color:var(--txt2)">No hay órdenes cerradas</p>
+    </div>`}
+
+    ${abiertas.length>0?`
+    <div class="card">
+      <div class="card-title"><span class="ico" style="background:#FFF3E0">📋</span>ÓRDENES ABIERTAS</div>
+      ${abiertas.map(o=>`
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--fondo)">
+          <div>
+            <div style="font-weight:700">#${sPDF(o.num)} · ${sPDF(o.equipo)}</div>
+            <div style="font-size:12px;color:var(--txt2)">${sPDF(o.etapa)} · ${fFecha(o.ts_inicio)}</div>
+          </div>
+          <button onclick="confirmarBorrarUna('${sPDF(o.num)}')"
+            style="background:var(--rojo);color:#fff;border:none;border-radius:6px;padding:6px 10px;font-size:12px;cursor:pointer">
+            🗑 Borrar
+          </button>
+        </div>`).join('')}
+    </div>`:''}
+
+    <div style="height:40px"></div>
+  `);
+}
+
+function selTodosCerrados(sel){
+  document.querySelectorAll('.chk-borrar').forEach(c=>c.checked=sel);
+}
+
+function borrarSeleccionados(){
+  const seleccionados=[...document.querySelectorAll('.chk-borrar:checked')].map(c=>c.value);
+  if(!seleccionados.length){ toast('⚠️ Seleccione al menos una OM'); return; }
+  const conf=confirm('¿Borrar '+seleccionados.length+' orden'+(seleccionados.length>1?'es':'')+' de mantenimiento?\n\nEsta acción NO se puede deshacer.');
+  if(!conf) return;
+  const conf2=confirm('⚠️ CONFIRMACIÓN FINAL\n\nSe eliminarán permanentemente:\n'+seleccionados.map(n=>'• OM #'+n).join('\n')+'\n\n¿Está seguro?');
+  if(!conf2) return;
+  seleccionados.forEach(num=>DB.delOM(num));
+  toast('✅ '+seleccionados.length+' OM borrada'+(seleccionados.length>1?'s':''));
+  showGestionar();
+}
+
+function borrarTodoCerradas(){
+  const oms=DB.getAll();
+  const cerradas=Object.values(oms).filter(o=>o&&o.etapa==='CERRADA');
+  if(!cerradas.length){ toast('No hay OMs cerradas'); return; }
+  const conf=confirm('⚠️ BORRAR TODAS LAS ÓRDENES CERRADAS\n\n'+cerradas.length+' orden'+(cerradas.length>1?'es':'')+' se eliminarán permanentemente.\n\n¿Continuar?');
+  if(!conf) return;
+  const conf2=confirm('⚠️ CONFIRMACIÓN FINAL\n\n¿Está completamente seguro de borrar las '+cerradas.length+' órdenes cerradas?\n\nEsta acción NO se puede deshacer.');
+  if(!conf2) return;
+  cerradas.forEach(o=>DB.delOM(o.num));
+  toast('✅ '+cerradas.length+' OM'+(cerradas.length>1?'s':'')+' cerrada'+(cerradas.length>1?'s':'')+' eliminada'+(cerradas.length>1?'s':''));
+  showHome();
+}
+
+function confirmarBorrarUna(num){
+  const om=DB.getOM(num);
+  if(!om){ toast('OM no encontrada'); return; }
+  const conf=confirm('¿Borrar OM #'+num+' ('+String(om.equipo||'')+')?\n\nEsta acción NO se puede deshacer.');
+  if(!conf) return;
+  DB.delOM(num);
+  toast('✅ OM #'+num+' eliminada');
+  showGestionar();
+}
+
 function showNuevaOM(){
   OM={ts_inicio:ts(),etapa:'INICIO'};
   ACTS={i:[],a:[],c:[]};
