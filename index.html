@@ -705,12 +705,12 @@ function volverHome(){
 function renderTab(et){
   const ets = et==='i'?'Inicio':et==='a'?'Avance':'Cierre';
   const acts = ACTS[et]||[];
-  // Fotos: combinar memoria + OM guardado, deduplicar
-  const _fotMem=FOTOS[et]||[];
-  const _fotOM=OM['fotos_'+et]||[];
+  // Fotos: combinar memoria + OM, deduplicar por etapa
   const _fotSeen=new Set();
   const fotos=[];
-  [..._fotMem,..._fotOM].forEach(f=>{ if(f&&f.data&&!_fotSeen.has(f.data)){_fotSeen.add(f.data);fotos.push(f);} });
+  [...(FOTOS[et]||[]),...(OM['fotos_'+et]||[])].forEach(f=>{
+    if(f&&f.data&&!_fotSeen.has(f.data)){_fotSeen.add(f.data);fotos.push(f);}
+  });
   const insLst = INS[et]||[];
 
   // Lista actividades
@@ -765,7 +765,7 @@ function renderTab(et){
       <div class="firma-actions">
         <button class="btn btn-xs btn-gris" onclick="limpiarFirma('${kMec}')">🗑 Limpiar</button>
         <button class="btn btn-xs btn-success" onclick="confirmarF('${kMec}')">✅ Confirmar</button>
-        ${FIR[kMec]?'<span class="firma-ok">✓ Guardada</span>':''}
+        ${(FIR[kMec]||(OM.firmas&&OM.firmas[kMec]))?'<span class="firma-ok">✓ Guardada</span>':''}
       </div>
       <label style="margin-top:14px">Nombre del Supervisor</label>
       <input type="text" id="${kSupNom}" placeholder="Nombre completo del supervisor" value="${supNomGuardado}" oninput="guardarSupNom('${kSupNom}',this.value)">
@@ -1067,13 +1067,17 @@ function procFotos(et,files){
           // Actualizar grid de fotos directamente sin re-renderizar todo
           const grid = document.getElementById('foto-grid-'+et);
           if(grid){
-            grid.innerHTML = (FOTOS[et]||[]).map((f,i)=>`
+            const _gs=new Set(),_gf=[];
+          [...(FOTOS[et]||[]),...(OM['fotos_'+et]||[])].forEach(f=>{
+            if(f&&f.data&&!_gs.has(f.data)){_gs.add(f.data);_gf.push(f);}
+          });
+          grid.innerHTML = _gf.map((f,i)=>`
               <div style="position:relative">
                 <img class="foto-thumb" src="${f.data}" alt="Foto ${i+1}">
                 <button onclick="delFoto('${et}',${i})" style="position:absolute;top:2px;right:2px;background:rgba(0,0,0,.6);color:#fff;border:none;border-radius:50%;width:20px;height:20px;font-size:12px;cursor:pointer">×</button>
               </div>`).join('');
-            const cnt = document.getElementById('foto-count-'+et);
-            if(cnt) cnt.textContent = (FOTOS[et]||[]).length + ' foto' + ((FOTOS[et]||[]).length!==1?'s':'');
+          const cnt=document.getElementById('foto-count-'+et);
+          if(cnt) cnt.textContent=_gf.length+' foto'+(_gf.length!==1?'s':'');
           } else if(document.getElementById('tab-content')){
             document.getElementById('tab-content').innerHTML = renderTab(et);
             setTimeout(()=>initFirmas(),150);
@@ -1635,39 +1639,73 @@ function compartirWA(){
   },200);
 }
 
+function _generarPDFBase64(){
+  // Igual que _generarPDF pero retorna base64 en vez de descargar
+  try{
+    const {jsPDF}=window.jspdf;
+    // Guardar el método save original y reemplazarlo temporalmente
+    const docTmp=new jsPDF({orientation:'portrait',unit:'mm',format:'a4'});
+    // Usar output() para obtener base64 sin descargar
+    // Re-usar la lógica de _generarPDF generando el doc y retornando base64
+    // Para no duplicar código, llamamos _generarPDF con flag de no-descarga
+    // Implementación simplificada: resumen ejecutivo para Drive
+    const W=210,M=14,CW=W-M*2;
+    const N=[230,81,0],GO=[33,33,33],GM=[84,110,122],GL=[207,216,220],GF=[245,245,245],VE=[46,125,50],BL=[255,255,255];
+    const doc=docTmp; let y=0;
+    const nP=(h=14)=>{ if(y+h>276){doc.addPage();y=16;} };
+    // Header
+    doc.setFillColor(...N);doc.rect(0,0,W,32,'F');
+    try{doc.addImage(LOGO_SRC,'JPEG',M,7,52,17.7);}catch(e){}
+    doc.setFontSize(13);doc.setFont('helvetica','bold');doc.setTextColor(...BL);
+    doc.text('ORDEN DE MANTENIMIENTO',M+57,13);
+    doc.setFontSize(8);doc.setFont('helvetica','normal');doc.setTextColor(255,208,160);
+    doc.text('POSTEC DE OCCIDENTE S.A.S.',M+57,19);
+    doc.setFillColor(...BL);doc.roundedRect(W-44,4,30,24,2,2,'F');
+    doc.setFontSize(7.5);doc.setFont('helvetica','normal');doc.setTextColor(...GM);
+    doc.text('N° OM',W-29,11,'center');
+    doc.setFontSize(13);doc.setFont('helvetica','bold');doc.setTextColor(...N);
+    doc.text(String(OM.num||''),W-29,22,'center');
+    y=40;
+    // Datos
+    const kv=(k,v)=>{nP(8);doc.setFontSize(8);doc.setFont('helvetica','bold');doc.setTextColor(...GM);doc.text(k,M,y);doc.setFont('helvetica','normal');doc.setTextColor(...GO);doc.text(String(v||''),M+45,y);y+=7;};
+    kv('Equipo',OM.equipo||'');kv('Area',OM.area||'');kv('Mecanico',OM.mecanico_nombre||OM.mecanico||'');
+    kv('Falla',OM.falla||'');kv('Estado',OM.estado_equipo||'OPERATIVO');
+    kv('Inicio',fFecha(OM.ts_inicio));kv('Cierre',fFecha(OM.ts_cierre_final||OM.ts_cierre||0));
+    y+=4;
+    const {min,costo}=getCosto();
+    const ins=[...(INS.i||OM.ins_i||[]),...(INS.a||OM.ins_a||[]),...(INS.c||OM.ins_c||[])];
+    const cm=ins.reduce((s,i)=>s+(fNum(i.p)*fNum(i.qty)),0);
+    doc.setFontSize(12);doc.setFont('helvetica','bold');doc.setTextColor(...VE);
+    doc.text('COSTO TOTAL: '+fCOP(costo+cm),M,y);
+    // Fotos
+    const addF=(et,lab)=>{
+      const seen=new Set(),uniq=[];
+      [...(FOTOS[et]||[]),...(OM['fotos_'+et]||[])].forEach(f=>{if(f&&f.data&&!seen.has(f.data)){seen.add(f.data);uniq.push(f);}});
+      if(!uniq.length)return;
+      doc.addPage();y=16;
+      doc.setFontSize(10);doc.setFont('helvetica','bold');doc.setTextColor(...N);doc.text('FOTOS '+lab.toUpperCase(),M,y);y+=8;
+      const iW=(CW-4)/3,iH=iW*0.75;let col=0;
+      uniq.forEach((f,i)=>{
+        if(col===0&&i>0){y+=iH+8;}nP(iH+10);
+        try{doc.addImage(f.data,'JPEG',M+col*(iW+2),y,iW,iH);}catch(e){}
+        col++;if(col===3){col=0;y+=iH+8;}
+      });
+      if(col>0)y+=iH+8;
+    };
+    addF('i','Inicio');addF('a','Avance');addF('c','Cierre');
+    return doc.output('datauristring').split(',')[1];
+  }catch(e){console.error('_generarPDFBase64 err:',e);return null;}
+}
+
 function _subirPDFDrive(txtResumen){
   try{
     const {jsPDF}=window.jspdf;
     if(!jsPDF){ _enviarWA(txtResumen,null); return; }
 
-    // Generar PDF como base64 (sin descargar)
-    const doc=new jsPDF({orientation:'portrait',unit:'mm',format:'a4'});
-    // PDF minimo con datos clave para el link de Drive
-    const W=210,M=14;
-    doc.setFillColor(230,81,0);doc.rect(0,0,W,28,'F');
-    doc.setFontSize(13);doc.setFont('helvetica','bold');doc.setTextColor(255,255,255);
-    doc.text('POSTEC DE OCCIDENTE S.A.S.',M,12);
-    doc.text('ORDEN DE MANTENIMIENTO N° '+String(OM.num||''),M,20);
-    doc.setFontSize(9);doc.setFont('helvetica','normal');doc.setTextColor(33,33,33);
-    let y=36;
-    const kv=(k,v)=>{
-      doc.setFont('helvetica','bold');doc.text(k+':',M,y);
-      doc.setFont('helvetica','normal');doc.text(String(v||''),M+45,y);y+=6;
-    };
-    kv('Fecha',    new Date(OM.ts_inicio||Date.now()).toLocaleDateString('es-CO'));
-    kv('Equipo',   OM.equipo||'');
-    kv('Mecanico', OM.mecanico_nombre||OM.mecanico||'');
-    kv('Area',     OM.area||'');
-    kv('Falla',    OM.falla||'');
-    kv('Estado',   OM.estado_equipo||'OPERATIVO');
-    y+=4;
-    const {min,costo}=getCosto();
-    const ins=[...(INS.i||OM.ins_i||[]),...(INS.a||OM.ins_a||[]),...(INS.c||OM.ins_c||[])];
-    const cm=ins.reduce((s,i)=>s+(fNum(i.p)*fNum(i.qty)),0);
-    doc.setFont('helvetica','bold');doc.setFontSize(11);doc.setTextColor(46,125,50);
-    doc.text('COSTO TOTAL: '+fCOP(costo+cm),M,y);
-
-    const pdfB64=doc.output('datauristring').split(',')[1];
+    // Generar el PDF completo igual que _generarPDF pero retornar base64
+    const _docGuardado=_generarPDFBase64();
+    if(!_docGuardado){ _enviarWA(txtResumen,null); return; }
+    const pdfB64=_docGuardado;
     const nombre='OM_'+String(OM.num||'')+'_POSTECSA.pdf';
 
     toast('Subiendo PDF a Drive...');
@@ -1702,9 +1740,12 @@ function _subirPDFDrive(txtResumen){
 }
 
 function _enviarWA(txt,linkPDF){
+  // Preferir solo el link del informe si está disponible
   const msg = linkPDF
-    ? txt+'\n\nPDF: '+linkPDF
-    : txt+'\n\n(Descargue el PDF desde la app)';
+    ? '*POSTECSA - OM #'+String(OM.num||'')+'*\n'+
+      'Equipo: '+String(OM.equipo||'')+'\n'+
+      'Informe PDF: '+linkPDF
+    : txt;
   window.open('https://wa.me/?text='+encodeURIComponent(msg),'_blank');
 }
 
