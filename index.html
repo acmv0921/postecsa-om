@@ -1478,8 +1478,27 @@ document.addEventListener('DOMContentLoaded',()=>{
     navigator.serviceWorker.register('sw.js').catch(e=>console.warn('SW:',e));
   }
 
+  // Trampa global de errores — muestra en pantalla
+  window.onerror = function(msg, src, line, col, err) {
+    document.getElementById('app').innerHTML =
+      '<div style="padding:20px;background:#fff;color:#c00;font-family:monospace;font-size:13px">' +
+      '<b>ERROR JS:</b><br>' + msg + '<br><br>' +
+      '<b>Línea:</b> ' + line + ':' + col + '<br>' +
+      '<b>Archivo:</b> ' + src + '<br><br>' +
+      (err ? '<b>Stack:</b><br>' + err.stack : '') +
+      '</div>';
+    return true;
+  };
   // Iniciar app
-  showHome();
+  try {
+    showHome();
+  } catch(e) {
+    document.getElementById('app').innerHTML =
+      '<div style="padding:20px;background:#fff;color:#c00;font-family:monospace;font-size:13px">' +
+      '<b>ERROR en showHome():</b><br>' + e.message + '<br><br>' +
+      '<b>Stack:</b><br>' + (e.stack||'sin stack') +
+      '</div>';
+  }
 });
 </script>
 </body>
