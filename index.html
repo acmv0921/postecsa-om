@@ -395,10 +395,10 @@ function capturar(){
   OM.acts_a = mrgArr(ACTS.a, OM.acts_a);
   OM.acts_c = mrgArr(ACTS.c, OM.acts_c);
 
-  // Fotos: mismo patrón merge — preservar si memoria vacía
-  OM.fotos_i = mrgArr(FOTOS.i, OM.fotos_i);
-  OM.fotos_a = mrgArr(FOTOS.a, OM.fotos_a);
-  OM.fotos_c = mrgArr(FOTOS.c, OM.fotos_c);
+  // Fotos: cada etapa por separado via _fotosEtapa — nunca mezcla
+  OM.fotos_i = _fotosEtapa('i');
+  OM.fotos_a = _fotosEtapa('a');
+  OM.fotos_c = _fotosEtapa('c');
 
   // Firmas: merge (nunca borrar firma ya confirmada)
   OM.firmas = {...(OM.firmas||{}), ...FIR};
@@ -430,7 +430,11 @@ function capturar(){
 function restaurar(om){
   OM = om;
   ACTS = { i:[...(om.acts_i||[])], a:[...(om.acts_a||[])], c:[...(om.acts_c||[])] };
-  FOTOS = { i:[...(om.fotos_i||[])], a:[...(om.fotos_a||[])], c:[...(om.fotos_c||[])] };
+  FOTOS = {
+    i:(om.fotos_i||[]).map(f=>({data:f.data,ts:f.ts,et:'i'})),
+    a:(om.fotos_a||[]).map(f=>({data:f.data,ts:f.ts,et:'a'})),
+    c:(om.fotos_c||[]).map(f=>({data:f.data,ts:f.ts,et:'c'})),
+  };
   FIR = {...(om.firmas||{})};
   INS = { i:[...(om.ins_i||[])], a:[...(om.ins_a||[])], c:[...(om.ins_c||[])] };
   CHK = { a:[...(om.chk_a||[])], c:[...(om.chk_c||[])] };
@@ -779,12 +783,7 @@ function volverHome(){
 function renderTab(et){
   const ets = et==='i'?'Inicio':et==='a'?'Avance':'Cierre';
   const acts = ACTS[et]||[];
-  // Fotos: combinar memoria + OM, deduplicar por etapa
-  const _fotSeen=new Set();
-  const fotos=[];
-  [...(FOTOS[et]||[]),...(OM['fotos_'+et]||[])].forEach(f=>{
-    if(f&&f.data&&!_fotSeen.has(f.data)){_fotSeen.add(f.data);fotos.push(f);}
-  });
+  const fotos=_fotosEtapa(et);
   const insLst = INS[et]||[];
 
   // Lista actividades
@@ -879,7 +878,7 @@ function renderTab(et){
       <div class="card-title"><span class="ico" style="background:#E8EAF6">📷</span>FOTOS ${ets.toUpperCase()}
         <span id="foto-badge-${et}" style="margin-left:auto;background:${fotos.length>=3?'var(--verde)':'var(--rojo)'};color:#fff;border-radius:20px;padding:3px 10px;font-size:13px;font-weight:700">${fotos.length} / mín. 3</span>
       </div>
-      ${fotos.length<3?`<div style="background:#FFEBEE;border-radius:8px;padding:10px;margin-bottom:8px;font-size:13px;color:var(--rojo);font-weight:600">⚠️ Se requieren mínimo 3 fotos para continuar (${fotos.length} cargada${fotos.length!==1?'s':''})</div>`:''}
+      <div id="foto-aviso-${et}" style="display:${fotos.length<3?'block':'none'};background:#FFEBEE;border-radius:8px;padding:10px;margin-bottom:8px;font-size:13px;color:var(--rojo);font-weight:600">⚠️ Se requieren mínimo 3 fotos (${fotos.length} cargada${fotos.length!==1?'s':''})</div>
       <div class="foto-grid" id="foto-grid-${et}">${fotosHTML}</div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px">
         <button class="btn btn-gris btn-small" onclick="document.getElementById('fi-cam-${et}').click()">📷 Cámara</button>
@@ -1095,6 +1094,33 @@ function delIns(et,idx){
 // ═══════════════════════════════════════════════
 // FOTOS — FIX: guardar inmediatamente al agregar
 // ═══════════════════════════════════════════════
+function _fotosEtapa(et){
+  const seen=new Set(),fotos=[];
+  [...(FOTOS[et]||[]),...(OM['fotos_'+et]||[])].forEach(f=>{
+    if(f&&f.data&&!seen.has(f.data)){seen.add(f.data);fotos.push({data:f.data,ts:f.ts||0,et});}
+  });
+  return fotos;
+}
+
+function _actualizarGridFotos(et){
+  const fotos=_fotosEtapa(et);
+  const grid=document.getElementById('foto-grid-'+et);
+  if(grid){
+    grid.innerHTML=fotos.map((f,i)=>`
+      <div style="position:relative">
+        <img class="foto-thumb" src="${f.data}" alt="Foto ${i+1}">
+        <button onclick="delFoto('${et}',${i})" style="position:absolute;top:2px;right:2px;background:rgba(0,0,0,.6);color:#fff;border:none;border-radius:50%;width:20px;height:20px;font-size:12px;cursor:pointer">×</button>
+      </div>`).join('');
+    const badge=document.getElementById('foto-badge-'+et);
+    if(badge){badge.textContent=fotos.length+' / mín. 3';badge.style.background=fotos.length>=3?'var(--verde)':'var(--rojo)';}
+    const aviso=document.getElementById('foto-aviso-'+et);
+    if(aviso) aviso.style.display=fotos.length<3?'block':'none';
+  } else if(document.getElementById('tab-content')){
+    document.getElementById('tab-content').innerHTML=renderTab(et);
+    setTimeout(()=>initFirmas(),150);
+  }
+}
+
 function procFotos(et,files){
   if(!files||!files.length) return;
   let procesadas=0;
@@ -1136,32 +1162,10 @@ function procFotos(et,files){
           }
         }
 
-        // Re-render SIEMPRE (fuera del try/catch) para mostrar la foto en pantalla
         procesadas++;
         if(procesadas===files.length){
-          toast(`✅ ${procesadas} foto${procesadas>1?'s':''} guardada${procesadas>1?'s':''}`);
-          // Actualizar grid de fotos directamente sin re-renderizar todo
-          const grid = document.getElementById('foto-grid-'+et);
-          if(grid){
-            const _gs=new Set(),_gf=[];
-          [...(FOTOS[et]||[]),...(OM['fotos_'+et]||[])].forEach(f=>{
-            if(f&&f.data&&!_gs.has(f.data)){_gs.add(f.data);_gf.push(f);}
-          });
-          grid.innerHTML = _gf.map((f,i)=>`
-              <div style="position:relative">
-                <img class="foto-thumb" src="${f.data}" alt="Foto ${i+1}">
-                <button onclick="delFoto('${et}',${i})" style="position:absolute;top:2px;right:2px;background:rgba(0,0,0,.6);color:#fff;border:none;border-radius:50%;width:20px;height:20px;font-size:12px;cursor:pointer">×</button>
-              </div>`).join('');
-          // Actualizar badge contador
-          const badge=document.getElementById('foto-badge-'+et);
-          if(badge){
-            badge.textContent=_gf.length+' / mín. 3';
-            badge.style.background=_gf.length>=3?'var(--verde)':'var(--rojo)';
-          }
-          } else if(document.getElementById('tab-content')){
-            document.getElementById('tab-content').innerHTML = renderTab(et);
-            setTimeout(()=>initFirmas(),150);
-          }
+          toast(procesadas+' foto'+(procesadas>1?'s':'')+' guardada'+(procesadas>1?'s':''));
+          _actualizarGridFotos(et);
         }
       };
       img.src=e.target.result;
