@@ -1602,22 +1602,103 @@ function _generarPDF(){
 // WHATSAPP
 // ═══════════════════════════════════════════════
 function compartirWA(){
-  const {min,costo,all}=getCosto();
+  const {min,costo}=getCosto();
   const ins=[...(INS.i||OM.ins_i||[]),...(INS.a||OM.ins_a||[]),...(INS.c||OM.ins_c||[])];
   const cm=ins.reduce((s,i)=>s+(fNum(i.p)*fNum(i.qty)),0);
-  const txt=`*POSTECSA · OM #${OM.num}*\n`+
-    `📅 ${fFecha(OM.ts_inicio)}\n`+
-    `🔧 Equipo: ${OM.equipo}\n`+
-    `📍 Área: ${OM.area}\n`+
-    `👤 Mecánico: ${OM.mecanico_nombre||OM.mecanico}\n`+
-    `⚠️ Falla: ${OM.falla}\n`+
-    `⏱ Tiempo: ${min} min\n`+
-    `💰 Costo M.O.: ${fCOP(costo)}\n`+
-    `📦 Materiales: ${fCOP(cm)}\n`+
-    `✅ *TOTAL: ${fCOP(costo+cm)}*\n`+
-    `🔌 Estado: ${OM.estado_equipo||'OPERATIVO'}`;
-  const url='https://wa.me/?text='+encodeURIComponent(txt);
-  window.open(url,'_blank');
+
+  // Texto resumen
+  const txt='*POSTECSA - OM #'+String(OM.num||'')+'*\n'+
+    'Equipo: '+String(OM.equipo||'')+'\n'+
+    'Mecanico: '+String(OM.mecanico_nombre||OM.mecanico||'')+'\n'+
+    'Falla: '+String(OM.falla||'')+'\n'+
+    'Tiempo: '+min+' min\n'+
+    'Costo MO: '+fCOP(costo)+'\n'+
+    'Materiales: '+fCOP(cm)+'\n'+
+    'TOTAL: '+fCOP(costo+cm)+'\n'+
+    'Estado: '+String(OM.estado_equipo||'OPERATIVO');
+
+  // Intentar subir PDF a Drive y compartir link
+  toast('Generando PDF...');
+  setTimeout(()=>{
+    try{
+      const {jsPDF}=window.jspdf;
+      if(!jsPDF){ _enviarWA(txt,null); return; }
+
+      // Generar PDF en base64
+      _generarPDF(); // genera y descarga
+      // También subir a Drive via GAS
+      _subirPDFDrive(txt);
+    }catch(e){
+      console.warn('PDF WA err:',e);
+      _enviarWA(txt,null);
+    }
+  },200);
+}
+
+function _subirPDFDrive(txtResumen){
+  try{
+    const {jsPDF}=window.jspdf;
+    if(!jsPDF){ _enviarWA(txtResumen,null); return; }
+
+    // Generar PDF como base64 (sin descargar)
+    const doc=new jsPDF({orientation:'portrait',unit:'mm',format:'a4'});
+    // PDF minimo con datos clave para el link de Drive
+    const W=210,M=14;
+    doc.setFillColor(230,81,0);doc.rect(0,0,W,28,'F');
+    doc.setFontSize(13);doc.setFont('helvetica','bold');doc.setTextColor(255,255,255);
+    doc.text('POSTEC DE OCCIDENTE S.A.S.',M,12);
+    doc.text('ORDEN DE MANTENIMIENTO N° '+String(OM.num||''),M,20);
+    doc.setFontSize(9);doc.setFont('helvetica','normal');doc.setTextColor(33,33,33);
+    let y=36;
+    const kv=(k,v)=>{
+      doc.setFont('helvetica','bold');doc.text(k+':',M,y);
+      doc.setFont('helvetica','normal');doc.text(String(v||''),M+45,y);y+=6;
+    };
+    kv('Fecha',    new Date(OM.ts_inicio||Date.now()).toLocaleDateString('es-CO'));
+    kv('Equipo',   OM.equipo||'');
+    kv('Mecanico', OM.mecanico_nombre||OM.mecanico||'');
+    kv('Area',     OM.area||'');
+    kv('Falla',    OM.falla||'');
+    kv('Estado',   OM.estado_equipo||'OPERATIVO');
+    y+=4;
+    const {min,costo}=getCosto();
+    const ins=[...(INS.i||OM.ins_i||[]),...(INS.a||OM.ins_a||[]),...(INS.c||OM.ins_c||[])];
+    const cm=ins.reduce((s,i)=>s+(fNum(i.p)*fNum(i.qty)),0);
+    doc.setFont('helvetica','bold');doc.setFontSize(11);doc.setTextColor(46,125,50);
+    doc.text('COSTO TOTAL: '+fCOP(costo+cm),M,y);
+
+    const pdfB64=doc.output('datauristring').split(',')[1];
+    const nombre='OM_'+String(OM.num||'')+'_POSTECSA.pdf';
+
+    toast('Subiendo PDF a Drive...');
+
+    fetch(GAS_GERENCIA,{
+      method:'POST',
+      body:JSON.stringify({accion:'subir_pdf',pdf:pdfB64,nombre}),
+      headers:{'Content-Type':'text/plain'},
+    }).then(r=>r.json()).then(res=>{
+      if(res.ok&&res.link){
+        _enviarWA(txtResumen,res.link);
+      } else {
+        console.warn('Drive err:',res.error);
+        _enviarWA(txtResumen,null);
+      }
+    }).catch(err=>{
+      console.warn('Drive fetch err:',err);
+      _enviarWA(txtResumen,null);
+    });
+
+  }catch(e){
+    console.warn('_subirPDFDrive err:',e);
+    _enviarWA(txtResumen,null);
+  }
+}
+
+function _enviarWA(txt,linkPDF){
+  const msg = linkPDF
+    ? txt+'\n\nPDF: '+linkPDF
+    : txt+'\n\n(Descargue el PDF desde la app)';
+  window.open('https://wa.me/?text='+encodeURIComponent(msg),'_blank');
 }
 
 // ═══════════════════════════════════════════════
