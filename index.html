@@ -1672,19 +1672,26 @@ function _subirPDFDrive(txtResumen){
 
     toast('Subiendo PDF a Drive...');
 
+    // mode:'cors' para poder leer la respuesta con el link de Drive
     fetch(GAS_GERENCIA,{
       method:'POST',
       body:JSON.stringify({accion:'subir_pdf',pdf:pdfB64,nombre}),
       headers:{'Content-Type':'text/plain'},
+      mode:'cors',
+      redirect:'follow',
     }).then(r=>r.json()).then(res=>{
+      console.log('[Drive] respuesta:',res);
       if(res.ok&&res.link){
+        toast('PDF subido a Drive');
         _enviarWA(txtResumen,res.link);
       } else {
-        console.warn('Drive err:',res.error);
+        console.warn('[Drive] error:',res.error);
+        toast('Sin link — enviando resumen');
         _enviarWA(txtResumen,null);
       }
     }).catch(err=>{
-      console.warn('Drive fetch err:',err);
+      console.warn('[Drive] fetch err:',err);
+      toast('Sin link — enviando resumen');
       _enviarWA(txtResumen,null);
     });
 
