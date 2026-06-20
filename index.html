@@ -1358,323 +1358,258 @@ function generarPDF(){
 function _generarPDF(){
   const {jsPDF}=window.jspdf;
   const doc=new jsPDF({orientation:'portrait',unit:'mm',format:'a4'});
-  const W=210, M=14, CW=W-M*2;
-  // Paleta profesional
-  const NARANJA=[230,81,0], GRIS_OSC=[40,40,40], GRIS_MED=[90,90,90],
-        GRIS_LIN=[210,210,210], FONDO_SEC=[248,248,248], VERDE=[34,100,48];
+  const W=210,M=14,CW=W-M*2;
+  const N=[230,81,0],GO=[33,33,33],GM=[84,110,122],GL=[207,216,220],GF=[245,245,245],VE=[46,125,50],BL=[255,255,255];
   let y=0;
 
-  // ── Helpers ──────────────────────────────────────────────────────────────
-  const resetColor=()=>doc.setTextColor(...GRIS_OSC);
-  const newPageCheck=(h=15)=>{ if(y+h>278){doc.addPage();y=18;} };
+  const rC=()=>doc.setTextColor(...GO);
+  const nP=(h=14)=>{ if(y+h>276){doc.addPage();y=16;} };
 
-  // Texto con salto de página automático
-  const T=(txt,x,sz=9,bold=false,color=GRIS_OSC)=>{
-    doc.setFontSize(sz); doc.setFont('helvetica',bold?'bold':'normal');
+  const TX=(txt,x,w,sz=9,bold=false,color=GO)=>{
+    doc.setFontSize(sz);doc.setFont('helvetica',bold?'bold':'normal');
     doc.setTextColor(...color);
-    const lines=doc.splitTextToSize(sPDF(txt),W-x-M);
-    lines.forEach(l=>{ newPageCheck(sz*0.45+1); doc.text(l,x,y); y+=sz*0.42; });
+    const lines=doc.splitTextToSize(String(txt==null?'':txt).replace(/[\x00-\x1F]/g,''),w);
+    lines.forEach(l=>{ nP(sz*0.42+1); doc.text(l,x,y); y+=sz*0.42; });
   };
 
-  // Sección título — línea izquierda naranja + texto
   const SEC=(titulo)=>{
-    newPageCheck(12);
-    y+=4;
-    doc.setFillColor(...NARANJA);
-    doc.rect(M,y-4,3,7,'F');
-    doc.setFontSize(10); doc.setFont('helvetica','bold');
-    doc.setTextColor(...NARANJA);
-    doc.text(titulo.toUpperCase(),M+6,y);
-    resetColor();
-    doc.setDrawColor(...GRIS_LIN);
-    doc.setLineWidth(0.3);
-    doc.line(M+6,y+1.5,W-M,y+1.5);
-    y+=7;
+    nP(14); y+=5;
+    doc.setFillColor(...N); doc.rect(M,y-4.5,3,8,'F');
+    doc.setFontSize(10);doc.setFont('helvetica','bold');doc.setTextColor(...N);
+    doc.text(titulo,M+7,y);
+    doc.setDrawColor(...GL);doc.setLineWidth(0.3);
+    doc.line(M+7,y+1.5,W-M,y+1.5);
+    rC(); y+=9;
   };
 
-  // Fila clave-valor en dos columnas
-  const KV=(k,v,col2=85)=>{
-    newPageCheck(6);
-    doc.setFontSize(8.5); doc.setFont('helvetica','bold'); doc.setTextColor(...GRIS_MED);
-    doc.text(sPDF(k),M,y);
-    doc.setFont('helvetica','normal'); doc.setTextColor(...GRIS_OSC);
-    const lines=doc.splitTextToSize(sPDF(v),CW-col2+M);
-    lines.forEach((l,i)=>{ doc.text(l,col2,y+(i*4)); });
-    y+=Math.max(5,lines.length*4+1);
+  const KV=(k,v,xL,xR,wR)=>{
+    nP(8);
+    doc.setFontSize(7.5);doc.setFont('helvetica','bold');doc.setTextColor(...GM);
+    doc.text(String(k),xL,y);
+    doc.setFont('helvetica','normal');doc.setTextColor(...GO);
+    const ls=doc.splitTextToSize(String(v==null?'—':v),wR);
+    ls.forEach((l,i)=>doc.text(l,xR,y+i*4));
+    y+=Math.max(7,ls.length*4+1);
   };
 
-  // Fila de tabla
-  const TR=(cols,widths,header=false,bg=null)=>{
-    newPageCheck(7);
-    let x=M;
-    if(bg){ doc.setFillColor(...bg); doc.rect(M,y-4.5,CW,6.5,'F'); }
-    cols.forEach((c,i)=>{
-      doc.setFontSize(8); doc.setFont('helvetica',header?'bold':'normal');
-      doc.setTextColor(...(header?[255,255,255]:GRIS_OSC));
-      const w=widths[i];
-      const lines=doc.splitTextToSize(sPDF(c),w-2);
-      doc.text(lines[0]||'',x+1,y);
-      x+=w;
+  // ENCABEZADO
+  doc.setFillColor(...N); doc.rect(0,0,W,32,'F');
+  try{
+    const logoData='data:image/jpeg;base64,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';
+    doc.addImage(logoData,'JPEG',M,7,52,17.7);
+  }catch(e){
+    doc.setFillColor(...BL);doc.roundedRect(M,5,24,22,2,2,'F');
+    doc.setFontSize(8);doc.setFont('helvetica','bold');doc.setTextColor(...N);
+    doc.text('POSTECSA',M+12,18,'center');
+  }
+  doc.setFontSize(13);doc.setFont('helvetica','bold');doc.setTextColor(...BL);
+  doc.text('ORDEN DE MANTENIMIENTO',M+57,13);
+  doc.setFontSize(8);doc.setFont('helvetica','normal');doc.setTextColor(255,208,160);
+  doc.text('POSTEC DE OCCIDENTE S.A.S.  \u00b7  Gesti\u00f3n de Mantenimiento y Confiabilidad',M+57,19);
+  doc.setFillColor(...BL);doc.roundedRect(W-44,4,30,24,2,2,'F');
+  doc.setFontSize(7.5);doc.setFont('helvetica','normal');doc.setTextColor(...GM);
+  doc.text('N\u00b0 OM',W-29,11,'center');
+  doc.setFontSize(13);doc.setFont('helvetica','bold');doc.setTextColor(...N);
+  doc.text(String(OM.num||''),W-29,22,'center');
+  y=40;
+
+  // DATOS GENERALES
+  SEC('DATOS GENERALES');
+  const col2=M+94, yG=y;
+  [['FECHA DE INICIO',fFecha(OM.ts_inicio)],
+   ['MEC\u00c1NICO RESPONSABLE',OM.mecanico_nombre||OM.mecanico||''],
+   ['SUPERVISOR (AVANCE)',OM.sup_nom_a||'\u2014'],
+   ['TIPO DE FALLA',OM.falla||'']
+  ].forEach(([k,v])=>KV(k,v,M,M+38,52));
+  const yLEnd=y; y=yG;
+  [['FECHA DE CIERRE',fFecha(OM.ts_cierre_final||OM.ts_cierre||0)],
+   ['\u00c1REA',OM.area||''],
+   ['EQUIPO',OM.equipo||''],
+   ['ESTADO AL CIERRE',OM.estado_equipo||'OPERATIVO']
+  ].forEach(([k,v])=>KV(k,v,col2,col2+34,52));
+  y=Math.max(y,yLEnd)+3;
+  doc.setDrawColor(...GL);doc.setLineWidth(0.2);doc.line(M,y,W-M,y); y+=5;
+
+  // OBSERVACIONES
+  if(OM.obs_i||OM.obs_a||OM.obs_c){
+    SEC('OBSERVACIONES');
+    [['INICIO',OM.obs_i],['AVANCE',OM.obs_a],['CIERRE',OM.obs_c]].forEach(([et,obs])=>{
+      if(!obs) return;
+      nP(8);
+      doc.setFontSize(7.5);doc.setFont('helvetica','bold');doc.setTextColor(...N);
+      doc.text(et,M,y);
+      doc.setFont('helvetica','normal');doc.setTextColor(...GO);
+      const ls=doc.splitTextToSize(String(obs),CW-22);
+      ls.forEach((l,i)=>{ nP(5); doc.text(l,M+22,y+i*4); });
+      y+=Math.max(7,ls.length*4+2);
+      doc.setDrawColor(...GL);doc.line(M,y-1,W-M,y-1);
     });
-    y+=5.5;
-  };
-
-  // ── ENCABEZADO ────────────────────────────────────────────────────────────
-  // Banda naranja completa
-  doc.setFillColor(...NARANJA);
-  doc.rect(0,0,W,30,'F');
-  // Logo área
-  doc.setFillColor(255,255,255);
-  doc.roundedRect(M,4,22,22,2,2,'F');
-  doc.setFontSize(8); doc.setFont('helvetica','bold'); doc.setTextColor(...NARANJA);
-  doc.text('POSTECSA',M+11,17,'center');
-  // Título
-  doc.setFontSize(14); doc.setFont('helvetica','bold'); doc.setTextColor(255,255,255);
-  doc.text('ORDEN DE MANTENIMIENTO',M+26,11);
-  doc.setFontSize(9); doc.setFont('helvetica','normal');
-  doc.text('POSTEC DE OCCIDENTE S.A.S. — Gestión de Mantenimiento y Confiabilidad',M+26,17);
-  // OM número en caja blanca derecha
-  doc.setFillColor(255,255,255);
-  doc.roundedRect(W-46,4,32,22,2,2,'F');
-  doc.setFontSize(8); doc.setFont('helvetica','normal'); doc.setTextColor(...GRIS_MED);
-  doc.text('N° OM',W-30,11,'center');
-  doc.setFontSize(14); doc.setFont('helvetica','bold'); doc.setTextColor(...NARANJA);
-  doc.text(sPDF(OM.num),W-30,20,'center');
-  y=38;
-
-  // ── DATOS GENERALES ───────────────────────────────────────────────────────
-  SEC('Datos Generales');
-  // Grid 2 columnas
-  const col1=M, col2=90, colW=CW/2-3;
-  const datosL=[
-    ['Fecha de inicio', fFecha(OM.ts_inicio)],
-    ['Mecánico responsable', OM.mecanico_nombre||OM.mecanico||''],
-    ['Tipo de falla', OM.falla||''],
-    ['Prioridad', OM.prioridad||''],
-  ];
-  const datosR=[
-    ['Área', OM.area||''],
-    ['Equipo', OM.equipo||''],
-    ['Estado al cierre', OM.estado_equipo||'—'],
-    ['Fecha de cierre', fFecha(OM.ts_cierre_final||OM.ts_cierre)],
-  ];
-  const yStart=y;
-  datosL.forEach(([k,v])=>{
-    doc.setFontSize(8); doc.setFont('helvetica','bold'); doc.setTextColor(...GRIS_MED);
-    doc.text(k,col1,y);
-    doc.setFont('helvetica','normal'); doc.setTextColor(...GRIS_OSC);
-    doc.splitTextToSize(sPDF(v),colW).forEach((l,i)=>doc.text(l,col1,y+4+i*4));
-    y+=10;
-  });
-  const yEnd=y; y=yStart;
-  datosR.forEach(([k,v])=>{
-    doc.setFontSize(8); doc.setFont('helvetica','bold'); doc.setTextColor(...GRIS_MED);
-    doc.text(k,col2,y);
-    doc.setFont('helvetica','normal'); doc.setTextColor(...GRIS_OSC);
-    doc.splitTextToSize(sPDF(v),colW).forEach((l,i)=>doc.text(l,col2,y+4+i*4));
-    y+=10;
-  });
-  y=Math.max(y,yEnd)+2;
-
-  // Línea separadora
-  doc.setDrawColor(...GRIS_LIN); doc.setLineWidth(0.2);
-  doc.line(M,y,W-M,y); y+=5;
-
-  // Supervisor
-  if(OM.sup_nom_a||OM.sup_nom_c){
-    if(OM.sup_nom_a) KV('Supervisor (Avance)',OM.sup_nom_a);
-    if(OM.sup_nom_c) KV('Supervisor (Cierre)',OM.sup_nom_c);
-    y+=2;
+    y+=3;
   }
 
-  // ── OBSERVACIONES ─────────────────────────────────────────────────────────
-  const hayObs=OM.obs_i||OM.obs_a||OM.obs_c;
-  if(hayObs){
-    SEC('Observaciones');
-    if(OM.obs_i){ T('Inicio: '+sPDF(OM.obs_i),M,8.5); y+=2; }
-    if(OM.obs_a){ T('Avance: '+sPDF(OM.obs_a),M,8.5); y+=2; }
-    if(OM.obs_c){ T('Cierre: '+sPDF(OM.obs_c),M,8.5); y+=2; }
-    y+=2;
-  }
-
-  // ── ACTIVIDADES ───────────────────────────────────────────────────────────
+  // ACTIVIDADES
   const allActs=[
-    ...(ACTS.i||OM.acts_i||[]).map(a=>({...a,etapa:'Inicio'})),
-    ...(ACTS.a||OM.acts_a||[]).map(a=>({...a,etapa:'Avance'})),
-    ...(ACTS.c||OM.acts_c||[]).map(a=>({...a,etapa:'Cierre'})),
+    ...(ACTS.i.length?ACTS.i:(OM.acts_i||[])).map(a=>Object.assign({},a,{etapa:'Inicio'})),
+    ...(ACTS.a.length?ACTS.a:(OM.acts_a||[])).map(a=>Object.assign({},a,{etapa:'Avance'})),
+    ...(ACTS.c.length?ACTS.c:(OM.acts_c||[])).map(a=>Object.assign({},a,{etapa:'Cierre'})),
   ];
-  // Deduplicar por id
   const seenA=new Set();
-  const actsU=allActs.filter(a=>{ if(!a.id||seenA.has(a.id))return !a.id; seenA.add(a.id);return true; });
+  const actsU=allActs.filter(a=>{if(!a)return false;if(a.id){if(seenA.has(a.id))return false;seenA.add(a.id);}return true;});
 
   if(actsU.length){
-    SEC('Actividades de Mantenimiento');
-    // Cabecera tabla
-    doc.setFillColor(...GRIS_OSC);
-    doc.rect(M,y-4.5,CW,6.5,'F');
-    TR(['Etapa','Descripción','Responsable','Tiempo','Costo M.O.'],[22,70,38,18,32],true);
-    // Filas alternadas
+    SEC('ACTIVIDADES DE MANTENIMIENTO');
+    const AX=[M,M+20,M+92,M+132,M+149];
+    doc.setFillColor(...GO);doc.rect(M,y-5,CW,7,'F');
+    doc.setFontSize(8);doc.setFont('helvetica','bold');doc.setTextColor(...BL);
+    ['ETAPA','DESCRIPCI\u00d3N','RESPONSABLE','MIN','COSTO M.O.'].forEach((h,i)=>doc.text(h,AX[i]+1,y));
+    y+=4;
+    let totMin=0;
     actsU.forEach((a,i)=>{
-      newPageCheck(7);
-      const bg=i%2===0?FONDO_SEC:null;
-      if(bg){doc.setFillColor(...bg);doc.rect(M,y-4.5,CW,6.5,'F');}
-      TR([
-        a.etapa||'',
-        sPDF(a.desc),
-        sPDF(a.resp||''),
-        (a.min||0)+' min',
-        fCOP((a.min||0)*MIN_RATE),
-      ],[22,70,38,18,32]);
+      nP(7);
+      if(i%2===0){doc.setFillColor(...GF);doc.rect(M,y-4.5,CW,6.5,'F');}
+      doc.setFontSize(8);doc.setFont('helvetica','normal');doc.setTextColor(...GO);
+      doc.text(String(a.etapa||''),AX[0]+1,y);
+      const dL=doc.splitTextToSize(String(a.desc||''),69);
+      doc.text(dL[0]+(dL.length>1?'...':''),AX[1]+1,y);
+      doc.text(String(a.resp||'').split(' ').slice(0,2).join(' '),AX[2]+1,y);
+      doc.text(String(a.min||0),AX[3]+1,y);
+      doc.text(fCOP((a.min||0)*MIN_RATE),W-M-1,y,'right');
+      totMin+=fNum(a.min);
+      doc.setDrawColor(...GL);doc.line(M,y+2,W-M,y+2);
+      y+=6.5;
     });
-    // Total tiempo
-    const totMin=actsU.reduce((s,a)=>s+fNum(a.min),0);
-    newPageCheck(7);
-    doc.setFillColor(...NARANJA);
-    doc.setFillColor(240,240,240);
-    doc.rect(M,y-4.5,CW,6.5,'F');
-    doc.setFontSize(8); doc.setFont('helvetica','bold'); doc.setTextColor(...GRIS_OSC);
-    doc.text('TOTAL',M+1,y);
-    doc.text(totMin+' min',M+130,y);
-    doc.text(fCOP(totMin*MIN_RATE),M+148,y);
-    resetColor(); y+=7;
+    nP(8);
+    doc.setFillColor(238,238,238);doc.rect(M,y-4.5,CW,7,'F');
+    doc.setFontSize(8.5);doc.setFont('helvetica','bold');doc.setTextColor(...GO);
+    doc.text('TOTAL',AX[2]+1,y);
+    doc.text(totMin+' min',AX[3]+1,y);
+    doc.setTextColor(...VE);
+    doc.text(fCOP(totMin*MIN_RATE),W-M-1,y,'right');
+    rC(); y+=9;
   }
 
-  // ── MATERIALES ────────────────────────────────────────────────────────────
+  // MATERIALES
   const ins_all=[
-    ...(INS.i||OM.ins_i||[]),
-    ...(INS.a||OM.ins_a||[]),
-    ...(INS.c||OM.ins_c||[]),
+    ...(INS.i.length?INS.i:(OM.ins_i||[])),
+    ...(INS.a.length?INS.a:(OM.ins_a||[])),
+    ...(INS.c.length?INS.c:(OM.ins_c||[])),
   ];
   if(ins_all.length){
-    SEC('Materiales e Insumos');
-    doc.setFillColor(...GRIS_OSC);
-    doc.rect(M,y-4.5,CW,6.5,'F');
-    TR(['Material / Insumo','Unidad','Cantidad','Precio Unit.','Subtotal'],[75,22,22,30,31],true);
-    let totalMat=0;
+    SEC('MATERIALES E INSUMOS');
+    const MX=[M,M+76,M+94,M+112,M+144];
+    doc.setFillColor(...GO);doc.rect(M,y-5,CW,7,'F');
+    doc.setFontSize(8);doc.setFont('helvetica','bold');doc.setTextColor(...BL);
+    ['MATERIAL / INSUMO','UM','CANT.','PRECIO UNIT.','SUBTOTAL'].forEach((h,i)=>doc.text(h,MX[i]+1,y));
+    y+=4;
+    let totMat=0;
     ins_all.forEach((ins,i)=>{
-      const sub=fNum(ins.p)*fNum(ins.qty);
-      totalMat+=sub;
-      newPageCheck(7);
-      const bg=i%2===0?FONDO_SEC:null;
-      if(bg){doc.setFillColor(...bg);doc.rect(M,y-4.5,CW,6.5,'F');}
-      TR([sPDF(ins.n),ins.u||'',String(ins.qty||0),fCOP(ins.p||0),fCOP(sub)],[75,22,22,30,31]);
+      nP(7);
+      const sub=fNum(ins.p)*fNum(ins.qty); totMat+=sub;
+      if(i%2===0){doc.setFillColor(...GF);doc.rect(M,y-4.5,CW,6.5,'F');}
+      doc.setFontSize(8);doc.setFont('helvetica','normal');doc.setTextColor(...GO);
+      const nl=doc.splitTextToSize(String(ins.n||''),73);
+      doc.text(nl[0]+(nl.length>1?'...':''),MX[0]+1,y);
+      doc.text(String(ins.u||''),MX[1]+1,y);
+      doc.text(String(ins.qty||0),MX[2]+1,y);
+      doc.text(fCOP(ins.p||0),MX[3]+31,y,'right');
+      doc.text(fCOP(sub),W-M-1,y,'right');
+      doc.setDrawColor(...GL);doc.line(M,y+2,W-M,y+2);
+      y+=6.5;
     });
-    // Total
-    newPageCheck(7);
-    doc.setFillColor(240,240,240); doc.rect(M,y-4.5,CW,6.5,'F');
-    doc.setFontSize(8); doc.setFont('helvetica','bold'); doc.setTextColor(...GRIS_OSC);
-    doc.text('TOTAL MATERIALES',M+1,y);
-    doc.text(fCOP(totalMat),M+149,y);
-    resetColor(); y+=7;
+    nP(8);
+    doc.setFillColor(238,238,238);doc.rect(M,y-4.5,CW,7,'F');
+    doc.setFontSize(8.5);doc.setFont('helvetica','bold');doc.setTextColor(...GO);
+    doc.text('TOTAL MATERIALES',MX[3]+1,y);
+    doc.setTextColor(...VE);
+    doc.text(fCOP(totMat),W-M-1,y,'right');
+    rC(); y+=9;
   }
 
-  // ── RESUMEN DE COSTOS ─────────────────────────────────────────────────────
-  newPageCheck(45);
-  SEC('Resumen de Costos');
+  // RESUMEN COSTOS
+  nP(40); SEC('RESUMEN DE COSTOS');
   const {min,costo}=getCosto();
-  const ins_t=[...(INS.i||OM.ins_i||[]),...(INS.a||OM.ins_a||[]),...(INS.c||OM.ins_c||[])];
+  const ins_t=[...(INS.i.length?INS.i:(OM.ins_i||[])),...(INS.a.length?INS.a:(OM.ins_a||[])),...(INS.c.length?INS.c:(OM.ins_c||[]))];
   const cm=ins_t.reduce((s,i)=>s+(fNum(i.p)*fNum(i.qty)),0);
+  doc.setFillColor(...GF);doc.roundedRect(M,y-2,CW,34,2,2,'F');
+  doc.setDrawColor(...GL);doc.setLineWidth(0.3);doc.roundedRect(M,y-2,CW,34,2,2,'S');
+  const cx=M+6;
+  doc.setFontSize(8);doc.setFont('helvetica','bold');doc.setTextColor(...GM);
+  doc.text('Mano de obra',cx,y+5);
+  doc.text('Materiales e insumos',cx,y+12);
+  doc.text('Tarifa aplicada',cx,y+19);
+  doc.setFont('helvetica','normal');doc.setTextColor(...GO);
+  doc.text(fCOP(costo)+'  ('+min+' min)',cx+48,y+5);
+  doc.text(fCOP(cm),cx+48,y+12);
+  doc.text('$132,63/min  \u00b7  SMMLV 2026 + 52,21% prestacional',cx+48,y+19);
+  doc.setDrawColor(...GL);doc.line(cx,y+22,W-M-4,y+22);
+  doc.setFontSize(11);doc.setFont('helvetica','bold');doc.setTextColor(...VE);
+  doc.text('COSTO TOTAL',cx,y+30);
+  doc.text(fCOP(costo+cm),W-M-4,y+30,'right');
+  rC(); y+=40;
 
-  // Caja costos
-  doc.setFillColor(...FONDO_SEC);
-  doc.roundedRect(M,y-2,CW,30,2,2,'F');
-  doc.setDrawColor(...GRIS_LIN); doc.setLineWidth(0.3);
-  doc.roundedRect(M,y-2,CW,30,2,2,'S');
-
-  doc.setFontSize(8.5); resetColor();
-  const cx=M+6, cy=y+5;
-  doc.setFont('helvetica','normal'); doc.setTextColor(...GRIS_MED);
-  doc.text('Mano de obra',cx,cy);
-  doc.text('Materiales',cx,cy+7);
-  doc.text('Tarifa aplicada',cx,cy+14);
-  doc.setFont('helvetica','bold'); doc.setTextColor(...GRIS_OSC);
-  doc.text(fCOP(costo)+'  ('+min+' min)',cx+55,cy);
-  doc.text(fCOP(cm),cx+55,cy+7);
-  doc.text('$132,63/min  ·  SMMLV 2026 + 52,21% prestacional',cx+55,cy+14);
-
-  // Línea divisora
-  doc.setDrawColor(...GRIS_LIN); doc.line(M+5,cy+17,M+CW-5,cy+17);
-  doc.setFontSize(11); doc.setFont('helvetica','bold'); doc.setTextColor(...VERDE);
-  doc.text('COSTO TOTAL',cx,cy+23);
-  doc.text(fCOP(costo+cm),cx+55,cy+23);
-  resetColor(); y+=36;
-
-  // ── FIRMAS ────────────────────────────────────────────────────────────────
-  const hayFirmas=(FIR.mec_a||OM.firmas?.mec_a||FIR.mec_c||OM.firmas?.mec_c);
-  if(hayFirmas){
-    newPageCheck(45);
-    SEC('Firmas de Conformidad');
-    const fBox=(k,lab,xPos)=>{
+  // FIRMAS
+  const fKeys=[['mec_a','Firma Mec\u00e1nico \u2014 Avance'],['mec_c','Firma Mec\u00e1nico \u2014 Cierre']];
+  if(fKeys.some(([k])=>FIR[k]||OM.firmas?.[k])){
+    nP(42); SEC('FIRMAS DE CONFORMIDAD');
+    const bW=(CW-6)/2;
+    fKeys.forEach(([k,lab],i)=>{
+      const xB=M+i*(bW+6);
+      doc.setFillColor(...GF);doc.roundedRect(xB,y-2,bW,32,2,2,'F');
+      doc.setDrawColor(...GL);doc.roundedRect(xB,y-2,bW,32,2,2,'S');
+      doc.setFontSize(7.5);doc.setFont('helvetica','bold');doc.setTextColor(...GM);
+      doc.text(lab,xB+4,y+4);
       const src=FIR[k]||(OM.firmas&&OM.firmas[k]);
-      doc.setDrawColor(...GRIS_LIN); doc.setLineWidth(0.3);
-      doc.roundedRect(xPos,y,CW/2-4,30,2,2,'S');
-      doc.setFontSize(7.5); doc.setFont('helvetica','bold'); doc.setTextColor(...GRIS_MED);
-      doc.text(lab,xPos+4,y+5);
-      if(src){
-        try{ doc.addImage(src,'PNG',xPos+4,y+7,CW/2-12,20); }
-        catch(e){ console.warn('Firma err:',k,e); }
-      } else {
-        doc.setTextColor(...GRIS_LIN);
-        doc.text('Sin firma registrada',xPos+(CW/4-2),y+19,'center');
+      if(src){try{doc.addImage(src,'PNG',xB+4,y+6,bW-8,20);}catch(e){}}
+      else{doc.setTextColor(...GL);doc.setFontSize(8);doc.text('Sin firma registrada',xB+bW/2,y+18,'center');}
+      const nom=i===0?OM.sup_nom_a:OM.sup_nom_c;
+      if(nom){
+        doc.setDrawColor(...GL);doc.line(xB+4,y+27,xB+bW-4,y+27);
+        doc.setFontSize(7.5);doc.setFont('helvetica','normal');doc.setTextColor(...GO);
+        doc.text(String(nom),xB+bW/2,y+31,'center');
       }
-      resetColor();
-    };
-    fBox('mec_a','Firma Mecánico — Avance',M);
-    fBox('mec_c','Firma Mecánico — Cierre',M+CW/2+4);
-    y+=35;
-  }
-
-  // ── FOTOGRAFÍAS ───────────────────────────────────────────────────────────
-  const addFotos=(et,label)=>{
-    // Tomar de memoria Y de OM, deduplicar
-    const mem=FOTOS[et]||[];
-    const saved=OM['fotos_'+et]||[];
-    const seen=new Set();
-    const uniq=[];
-    [...mem,...saved].forEach(f=>{ if(f&&f.data&&!seen.has(f.data)){ seen.add(f.data); uniq.push(f); } });
-    if(!uniq.length) return;
-
-    doc.addPage(); y=18;
-    SEC(`Fotografías — ${label} (${uniq.length} foto${uniq.length!==1?'s':''})`);
-
-    const imgW=(CW-4)/3, imgH=imgW*0.75;
-    let col=0, xBase=M;
-
-    uniq.forEach((f,i)=>{
-      if(col===0 && i>0){ y+=imgH+10; }
-      newPageCheck(imgH+12);
-      if(col===0 && i>0) xBase=M;
-      const xPos=M+col*(imgW+2);
-      try{
-        doc.addImage(f.data,'JPEG',xPos,y,imgW,imgH);
-        doc.setFillColor(...FONDO_SEC);
-        doc.rect(xPos,y+imgH,imgW,6,'F');
-        doc.setFontSize(7); doc.setFont('helvetica','normal'); doc.setTextColor(...GRIS_MED);
-        doc.text(`Foto ${i+1}  ·  ${label}`,xPos+1,y+imgH+4);
-      }catch(e){ console.warn('Foto PDF:',i,e); }
-      col++;
-      if(col===3){ col=0; y+=imgH+10; }
     });
-    if(col>0) y+=imgH+10;
-  };
-  addFotos('i','Inicio');
-  addFotos('a','Avance');
-  addFotos('c','Cierre');
-
-  // ── FOOTER en todas las páginas ───────────────────────────────────────────
-  const totalPags=doc.getNumberOfPages();
-  for(let p=1;p<=totalPags;p++){
-    doc.setPage(p);
-    // Línea footer
-    doc.setDrawColor(...GRIS_LIN); doc.setLineWidth(0.3);
-    doc.line(M,284,W-M,284);
-    doc.setFontSize(7.5); doc.setFont('helvetica','normal'); doc.setTextColor(...GRIS_MED);
-    doc.text(`POSTEC DE OCCIDENTE S.A.S.  ·  OM #${sPDF(OM.num)}  ·  ${sPDF(OM.equipo)}`,M,288);
-    doc.text(`Pág. ${p} / ${totalPags}  ·  ${fFecha(ts())}`,W-M,288,'right');
+    y+=38;
   }
 
-  doc.save(`OM_${sPDF(OM.num)}_POSTECSA.pdf`);
-  toast('✅ PDF generado');
+  // FOTOGRAFIAS
+  const addFotos=(et,label)=>{
+    const seen=new Set(),uniq=[];
+    [...(FOTOS[et]||[]),...(OM['fotos_'+et]||[])].forEach(f=>{
+      if(f&&f.data&&!seen.has(f.data)){seen.add(f.data);uniq.push(f);}
+    });
+    if(!uniq.length) return;
+    doc.addPage(); y=16;
+    SEC('FOTOGRAF\u00cdAS \u2014 '+label.toUpperCase()+' ('+uniq.length+' foto'+(uniq.length!==1?'s':'')+')');
+    const iW=(CW-4)/3,iH=iW*0.75;
+    let col=0;
+    uniq.forEach((f,i)=>{
+      if(col===0&&i>0){y+=iH+9;}
+      nP(iH+10);
+      const xP=M+col*(iW+2);
+      try{
+        doc.addImage(f.data,'JPEG',xP,y,iW,iH);
+        doc.setFillColor(...GF);doc.rect(xP,y+iH,iW,6,'F');
+        doc.setFontSize(7);doc.setFont('helvetica','normal');doc.setTextColor(...GM);
+        doc.text('Foto '+(i+1)+'  \u00b7  '+label,xP+1,y+iH+4);
+      }catch(e){console.warn('Foto PDF:',i,e);}
+      col++;
+      if(col===3){col=0;y+=iH+9;}
+    });
+    if(col>0) y+=iH+9;
+  };
+  addFotos('i','Inicio');addFotos('a','Avance');addFotos('c','Cierre');
+
+  // FOOTER
+  const nPags=doc.getNumberOfPages();
+  for(let p=1;p<=nPags;p++){
+    doc.setPage(p);
+    doc.setDrawColor(...GL);doc.setLineWidth(0.3);doc.line(M,284,W-M,284);
+    doc.setFontSize(7.5);doc.setFont('helvetica','normal');doc.setTextColor(...GM);
+    doc.text('POSTEC DE OCCIDENTE S.A.S.  \u00b7  OM #'+String(OM.num||'')+'  \u00b7  '+String(OM.equipo||''),M,288);
+    doc.text('P\u00e1g. '+p+' / '+nPags+'  \u00b7  '+fFecha(ts()),W-M,288,'right');
+  }
+  doc.save('OM_'+String(OM.num||'')+'_POSTECSA.pdf');
+  toast('\u2705 PDF generado');
 }
 
 
