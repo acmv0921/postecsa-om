@@ -287,7 +287,27 @@ const DB = {
       return limpio;
     }catch(e){ console.error('DB.getAll error:',e); localStorage.removeItem(CLAVE_DB); return{}; }
   },
-  saveOM(om){ const d=DB.getAll(); d[om.num]=om; localStorage.setItem(CLAVE_DB,JSON.stringify(d)); },
+  saveOM(om){
+    const d=DB.getAll(); d[om.num]=om;
+    const str=JSON.stringify(d);
+    try{
+      localStorage.setItem(CLAVE_DB,str);
+    }catch(e){
+      if(e.name==='QuotaExceededError'){
+        // Intentar guardar sin fotos de etapas anteriores
+        console.warn('Cuota llena — guardando sin fotos antiguas');
+        const omReducido={...om};
+        // Mantener solo fotos de etapa actual
+        const etActual=TAB_ACTUAL||'i';
+        if(etActual!=='i') delete omReducido.fotos_i;
+        if(etActual!=='a') delete omReducido.fotos_a;
+        if(etActual!=='c') delete omReducido.fotos_c;
+        d[om.num]=omReducido;
+        try{ localStorage.setItem(CLAVE_DB,JSON.stringify(d)); }
+        catch(e2){ throw e2; }
+      } else { throw e; }
+    }
+  },
   delOM(num){ const d=DB.getAll(); delete d[num]; localStorage.setItem(CLAVE_DB,JSON.stringify(d)); },
   getOM(num){ return DB.getAll()[num]||null; },
   getBib(){ try{const b=JSON.parse(localStorage.getItem(CLAVE_BIB)||'[]'); return b.length?b:BIB_BASE;}catch{return BIB_BASE;} },
@@ -404,6 +424,22 @@ function restaurar(om){
 // ═══════════════════════════════════════════════
 // HOME — PANTALLA PRINCIPAL
 // ═══════════════════════════════════════════════
+function limpiarFotosAntiguas(){
+  // Eliminar fotos de OMs cerradas para liberar espacio
+  const d=DB.getAll();
+  let liberado=false;
+  Object.values(d).forEach(om=>{
+    if(om.etapa==='CERRADA'&&(om.fotos_i||om.fotos_a||om.fotos_c)){
+      delete om.fotos_i; delete om.fotos_a; delete om.fotos_c;
+      d[om.num]=om; liberado=true;
+    }
+  });
+  if(liberado){
+    try{ localStorage.setItem(CLAVE_DB,JSON.stringify(d)); toast('🗑 Fotos antiguas eliminadas para liberar espacio'); }
+    catch(e){ console.error('No se pudo liberar espacio:',e); }
+  }
+}
+
 function showHome(){
   OM={}; ACTS={i:[],a:[],c:[]}; FOTOS={i:[],a:[],c:[]}; FIR={}; INS={i:[],a:[],c:[]}; CHK={a:[],c:[]};
   BIB = DB.getBib();
@@ -993,14 +1029,30 @@ function procFotos(et,files){
         if(h>MAX){w=Math.round(w*MAX/h);h=MAX;}
         cv.width=w; cv.height=h;
         cv.getContext('2d').drawImage(img,0,0,w,h);
-        const data=cv.toDataURL('image/jpeg',0.72);
+        // Comprimir agresivamente: max 800px, calidad 0.45 (~50-80KB por foto)
+        const MAX2=800;
+        let w2=cv.width, h2=cv.height;
+        if(w2>MAX2){h2=Math.round(h2*MAX2/w2);w2=MAX2;}
+        if(h2>MAX2){w2=Math.round(w2*MAX2/h2);h2=MAX2;}
+        const cv2=document.createElement('canvas');
+        cv2.width=w2; cv2.height=h2;
+        cv2.getContext('2d').drawImage(cv,0,0,w2,h2);
+        const data=cv2.toDataURL('image/jpeg',0.45);
 
         if(!FOTOS[et]) FOTOS[et]=[];
         FOTOS[et].push({data,ts:ts()});
 
         // FIX CRÍTICO: guardar inmediatamente sin esperar capturar()
         OM['fotos_'+et]=[...FOTOS[et]];
-        DB.saveOM(OM);
+        try{ DB.saveOM(OM); }
+        catch(e){
+          if(e.name==='QuotaExceededError'){
+            // Eliminar fotos más antiguas hasta que quepa
+            toast('⚠️ Almacenamiento lleno — eliminando fotos antiguas...');
+            limpiarFotosAntiguas();
+            try{ DB.saveOM(OM); }catch(e2){ toast('❌ Sin espacio: '+e2.message); }
+          }
+        }
 
         procesadas++;
         if(procesadas===files.length){
