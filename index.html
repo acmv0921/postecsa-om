@@ -1281,9 +1281,10 @@ function procFotos(et,files){
         }
 
         procesadas++;
+        // Actualizar badge y grid INMEDIATAMENTE tras cada foto
+        _actualizarGridFotos(et);
         if(procesadas===files.length){
           toast(procesadas+' foto'+(procesadas>1?'s':'')+' guardada'+(procesadas>1?'s':''));
-          _actualizarGridFotos(et);
         }
       };
       img.src=e.target.result;
