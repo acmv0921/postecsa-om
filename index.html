@@ -1782,33 +1782,42 @@ function _generarPDF(){
     y+=38;
   }
 
-  // FOTOGRAFIAS
-  const addFotos=(et,label)=>{
-    const seen=new Set(),uniq=[];
+  // FOTOGRAFIAS — continuas, una sola sección
+  const todasFotos=[];
+  [['i','Inicio'],['a','Avance'],['c','Cierre']].forEach(([et,lab])=>{
+    const seen=new Set();
     [...(FOTOS[et]||[]),...(OM['fotos_'+et]||[])].forEach(f=>{
-      if(f&&f.data&&!seen.has(f.data)){seen.add(f.data);uniq.push(f);}
+      if(f&&f.data&&!seen.has(f.data)){seen.add(f.data);todasFotos.push({data:f.data,lab,num:seen.size});}
     });
-    if(!uniq.length) return;
-    doc.addPage(); y=16;
-    SEC('FOTOGRAF\u00cdAS \u2014 '+label.toUpperCase()+' ('+uniq.length+' foto'+(uniq.length!==1?'s':'')+')');
-    const iW=(CW-4)/3,iH=iW*0.75;
-    let col=0;
-    uniq.forEach((f,i)=>{
-      if(col===0&&i>0){y+=iH+9;}
+  });
+  if(todasFotos.length){
+    nP(20);
+    SEC('REGISTRO FOTOGRÁFICO ('+todasFotos.length+' foto'+(todasFotos.length!==1?'s':'')+' — Inicio · Avance · Cierre)');
+    const iW=(CW-4)/3,iH=iW*0.72;
+    let col=0,etActual='';
+    todasFotos.forEach((f,i)=>{
+      if(f.lab!==etActual){
+        if(col>0){y+=iH+8;col=0;}
+        etActual=f.lab;
+        nP(iH+18);
+        doc.setFontSize(8);doc.setFont('helvetica','bold');doc.setTextColor(...N);
+        doc.text('▶ '+etActual.toUpperCase(),M,y);
+        doc.setDrawColor(...GL);doc.line(M+22,y-1,W-M,y-1);
+        rC();y+=5;
+      }
       nP(iH+10);
       const xP=M+col*(iW+2);
       try{
         doc.addImage(f.data,'JPEG',xP,y,iW,iH);
-        doc.setFillColor(...GF);doc.rect(xP,y+iH,iW,6,'F');
-        doc.setFontSize(7);doc.setFont('helvetica','normal');doc.setTextColor(...GM);
-        doc.text('Foto '+(i+1)+'  \u00b7  '+label,xP+1,y+iH+4);
+        doc.setFillColor(245,245,245);doc.rect(xP,y+iH,iW,5,'F');
+        doc.setFontSize(6.5);doc.setFont('helvetica','normal');doc.setTextColor(...GM);
+        doc.text('Foto '+f.num+' · '+f.lab,xP+1,y+iH+3.5);
       }catch(e){console.warn('Foto PDF:',i,e);}
       col++;
-      if(col===3){col=0;y+=iH+9;}
+      if(col===3){col=0;y+=iH+7;}
     });
-    if(col>0) y+=iH+9;
-  };
-  addFotos('i','Inicio');addFotos('a','Avance');addFotos('c','Cierre');
+    if(col>0)y+=iH+7;
+  }
 
   // FOOTER
   const nPags=doc.getNumberOfPages();
