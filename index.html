@@ -1379,18 +1379,16 @@ function confirmarF(k){
 // AVANZAR ETAPA
 // ═══════════════════════════════════════════════
 function avanzarEtapa(nuevaEtapa){
-  // Validar mínimo 3 fotos en la etapa actual antes de avanzar
+  // Validar mínimo 3 fotos en etapa actual
   const etActual = nuevaEtapa==='AVANCE'?'i':nuevaEtapa==='CIERRE'?'a':'i';
-  const seen=new Set(),fotosEt=[];
-  [...(FOTOS[etActual]||[]),...(OM['fotos_'+etActual]||[])].forEach(f=>{
-    if(f&&f.data&&!seen.has(f.data)){seen.add(f.data);fotosEt.push(f);}
-  });
-  if(fotosEt.length < 3){
-    const etNom = etActual==='i'?'Inicio':etActual==='a'?'Avance':'Cierre';
-    toast('⚠️ Mínimo 3 fotos requeridas en '+etNom+' ('+fotosEt.length+' cargada'+(fotosEt.length!==1?'s':'')+')');
+  const fotosEt = _fotosEtapa(etActual);
+  const gridFotosA = document.querySelectorAll('#foto-grid-'+etActual+' img').length;
+  const totalFotosEt = Math.max(fotosEt.length, gridFotosA);
+  if(totalFotosEt < 3){
+    const etNom = etActual==='i'?'Inicio':'Avance';
+    toast('⚠️ Mínimo 3 fotos en '+etNom+' ('+totalFotosEt+' cargada'+(totalFotosEt!==1?'s':'')+')');
     return;
   }
-
   try{
     capturar();
   }catch(e){ console.warn('capturar() error:',e); }
@@ -1412,13 +1410,13 @@ function avanzarEtapa(nuevaEtapa){
 // CERRAR OM
 // ═══════════════════════════════════════════════
 function cerrarOM(){
-  // Validar mínimo 3 fotos en cierre
-  const seen=new Set(),fotosC=[];
-  [...(FOTOS.c||[]),...(OM.fotos_c||[])].forEach(f=>{
-    if(f&&f.data&&!seen.has(f.data)){seen.add(f.data);fotosC.push(f);}
-  });
-  if(fotosC.length < 3){
-    toast('⚠️ Mínimo 3 fotos requeridas en Cierre ('+fotosC.length+' cargada'+(fotosC.length!==1?'s':'')+')');
+  // Validar mínimo 3 fotos en cierre usando _fotosEtapa()
+  const fotosC = _fotosEtapa('c');
+  // También contar las que están visibles en el grid (por si acaso)
+  const gridFotos = document.querySelectorAll('#foto-grid-c img').length;
+  const totalFotos = Math.max(fotosC.length, gridFotos);
+  if(totalFotos < 3){
+    toast('⚠️ Mínimo 3 fotos en Cierre ('+totalFotos+' cargada'+(totalFotos!==1?'s':'')+')');
     return;
   }
   capturar();
