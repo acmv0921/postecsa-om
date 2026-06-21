@@ -546,7 +546,8 @@ function abrirOM(num){
   if(!om){ toast('❌ OM no encontrada'); return; }
   restaurar(om);
   if(om.etapa==='CERRADA'){ showExito(); return; }
-  TAB_ACTUAL = om.etapa==='AVANCE'?'a':'i';
+  // Ir siempre al tab de la etapa actual
+  TAB_ACTUAL = om.etapa==='CIERRE'?'c':om.etapa==='AVANCE'?'a':'i';
   showForm();
 }
 
@@ -1382,11 +1383,15 @@ function avanzarEtapa(nuevaEtapa){
   // Validar mínimo 3 fotos en etapa actual
   const etActual = nuevaEtapa==='AVANCE'?'i':nuevaEtapa==='CIERRE'?'a':'i';
   const fotosEt = _fotosEtapa(etActual);
-  const gridFotosA = document.querySelectorAll('#foto-grid-'+etActual+' img').length;
-  const totalFotosEt = Math.max(fotosEt.length, gridFotosA);
-  if(totalFotosEt < 3){
+  if(fotosEt.length < 3){
     const etNom = etActual==='i'?'Inicio':'Avance';
-    toast('⚠️ Mínimo 3 fotos en '+etNom+' ('+totalFotosEt+' cargada'+(totalFotosEt!==1?'s':'')+')');
+    // Navegar al tab con el problema
+    TAB_ACTUAL=etActual;
+    if(document.getElementById('tab-content')){
+      document.getElementById('tab-content').innerHTML=renderTab(etActual);
+      setTimeout(()=>initFirmas(),150);
+    }
+    toast('⚠️ Mínimo 3 fotos en '+etNom+' ('+fotosEt.length+' cargada'+(fotosEt.length!==1?'s':'')+')');
     return;
   }
   try{
@@ -1412,11 +1417,14 @@ function avanzarEtapa(nuevaEtapa){
 function cerrarOM(){
   // Validar mínimo 3 fotos en cierre usando _fotosEtapa()
   const fotosC = _fotosEtapa('c');
-  // También contar las que están visibles en el grid (por si acaso)
-  const gridFotos = document.querySelectorAll('#foto-grid-c img').length;
-  const totalFotos = Math.max(fotosC.length, gridFotos);
-  if(totalFotos < 3){
-    toast('⚠️ Mínimo 3 fotos en Cierre ('+totalFotos+' cargada'+(totalFotos!==1?'s':'')+')');
+  if(fotosC.length < 3){
+    // Cambiar al tab cierre para que el usuario vea dónde faltan las fotos
+    TAB_ACTUAL='c';
+    if(document.getElementById('tab-content')){
+      document.getElementById('tab-content').innerHTML=renderTab('c');
+      setTimeout(()=>initFirmas(),150);
+    }
+    toast('⚠️ Mínimo 3 fotos en Cierre ('+fotosC.length+' cargada'+(fotosC.length!==1?'s':'')+')');
     return;
   }
   capturar();
