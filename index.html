@@ -151,7 +151,9 @@ const LOGO_SRC = 'data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAMCAgI
 // CONSTANTES
 // ═══════════════════════════════════════════════
 const VERSION = '6.1';
-const CLAVE_DB = 'pst_om_v6';
+const CLAVE_DB='pst_om_v6';
+const CLAVE_ROL='pst_rol';
+const CLAVE_USER='pst_user_cc';
 const CLAVE_BIB = 'pst_bib';
 const CLAVE_COLA = 'pst_cola';
 const MIN_RATE = 132.63; // COP/min SMMLV 2026 + 52.21% prestacional
@@ -616,7 +618,9 @@ let FIR = {};         // firmas canvas: {mec_a, mec_c} — supervisor solo nombr
 let BIB = [];         // biblioteca de materiales
 let INS = {};         // insumos: {i:[],a:[],c:[]}
 let CHK = {};         // checklists: {a:[],c:[]}
-let TAB_ACTUAL = 'i'; // tab activo: i|a|c
+let TAB_ACTUAL='i';
+let ROL='';
+let USER_CC='';
 
 // ═══════════════════════════════════════════════
 // BASE DE DATOS LOCAL
@@ -800,8 +804,11 @@ function showHome(){
     });
   }catch(e){}
   procesarCola();
-
-  const oms = DB.getAll();
+  if(ROL==='supervisor'){showHomeSupervisor();return;}
+  showHomeMecanico();
+}
+function showHomeMecanico(){
+  const oms=DB.getAll();
   const lista = Object.values(oms).filter(o=>o&&typeof o==='object').sort((a,b)=>(b.ts_inicio||0)-(a.ts_inicio||0));
   const online = navigator.onLine;
 
@@ -836,14 +843,16 @@ function showHome(){
       <div class="hdr-logo"><img src="${LOGO_SRC}" alt="POSTECSA" draggable="false"></div>
       <div class="hdr-title">
         <h1>POSTECSA · OM</h1>
-        <p>Órdenes de Mantenimiento v${VERSION}</p>
+        <p style="font-size:10px;opacity:.85">${(MECANICOS.find(m=>m.cc===USER_CC)||{}).nombre||''} · v${VERSION}</p>
       </div>
       <div style="display:flex;gap:8px;align-items:center">
         <div class="hdr-badge">${lista.length} OM</div>
-        <button onclick="showGestionar()" style="background:rgba(255,255,255,.2);border:none;color:#fff;border-radius:8px;padding:6px 10px;font-size:13px;cursor:pointer;white-space:nowrap">🗂 Gestionar</button>
+        <button onclick="showGestionar()" style="background:rgba(255,255,255,.2);border:none;color:#fff;border-radius:8px;padding:6px 10px;font-size:13px;cursor:pointer">🗂</button>
+        <button onclick="showConfig()" style="background:rgba(255,255,255,.2);border:none;color:#fff;border-radius:8px;padding:6px 10px;font-size:13px;cursor:pointer">⚙️</button>
       </div>
     </div>
 
+    <div id="oms-asignadas-wrap"></div>
     <div class="card" style="margin-bottom:4px">
       <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;text-align:center">
         <div>
@@ -866,6 +875,7 @@ function showHome(){
     <div style="height:80px"></div>
     <button class="fab" onclick="showNuevaOM()">+</button>
   `);
+  cargarOMsAsignadas();
 }
 
 // ═══════════════════════════════════════════════
@@ -884,6 +894,260 @@ function abrirOM(num){
 // ═══════════════════════════════════════════════
 // NUEVA OM
 // ═══════════════════════════════════════════════
+
+function showSeleccionRol(){
+  R('<div style="min-height:100vh;background:linear-gradient(160deg,#E65100,#FF6D00);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px">'
+  +'<div style="background:#fff;border-radius:16px;padding:32px 24px;width:100%;max-width:360px;text-align:center;box-shadow:0 8px 32px rgba(0,0,0,.3)">'
+  +'<img src="'+LOGO_SRC+'" alt="POSTECSA" style="height:48px;margin-bottom:16px">'
+  +'<h2 style="font-size:18px;font-weight:800;color:#212121;margin-bottom:6px">POSTECSA \u00b7 OM</h2>'
+  +'<p style="font-size:13px;color:#546E7A;margin-bottom:28px">\u00bfC\u00f3mo vas a usar la aplicaci\u00f3n?</p>'
+  +'<button onclick="seleccionarRol(\'mecanico\')" style="width:100%;padding:18px;background:#E65100;color:#fff;border:none;border-radius:12px;font-size:16px;font-weight:700;cursor:pointer;margin-bottom:12px;display:flex;align-items:center;gap:12px">'
+  +'<span style="font-size:28px">\ud83d\udea7</span>'
+  +'<div style="text-align:left"><div>SOY MEC\u00c1NICO</div><div style="font-size:11px;opacity:.85;font-weight:400">Registro y cierre de \u00f3rdenes</div></div></button>'
+  +'<button onclick="seleccionarRol(\'supervisor\')" style="width:100%;padding:18px;background:#263238;color:#fff;border:none;border-radius:12px;font-size:16px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:12px">'
+  +'<span style="font-size:28px">\ud83d\udc54</span>'
+  +'<div style="text-align:left"><div>SOY SUPERVISOR</div><div style="font-size:11px;opacity:.85;font-weight:400">Crear y asignar \u00f3rdenes</div></div></button>'
+  +'<p style="font-size:11px;color:#90A4AE;margin-top:20px">Puedes cambiar esto despu\u00e9s en \u2699\ufe0f Configuraci\u00f3n</p>'
+  +'</div></div>');
+}
+
+function seleccionarRol(rol){
+  ROL=rol; localStorage.setItem('pst_rol',rol);
+  if(rol==='mecanico') showSeleccionMecanico();
+  else showHome();
+}
+
+function showSeleccionMecanico(){
+  var mecOpts=MECANICOS.map(function(m){return '<option value="'+m.cc+'">'+m.nombre+' ('+m.cargo+')</option>';}).join('');
+  R('<div style="min-height:100vh;background:linear-gradient(160deg,#E65100,#FF6D00);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px">'
+  +'<div style="background:#fff;border-radius:16px;padding:32px 24px;width:100%;max-width:360px;box-shadow:0 8px 32px rgba(0,0,0,.3)">'
+  +'<div style="text-align:center;margin-bottom:24px"><span style="font-size:48px">\ud83d\udea7</span>'
+  +'<h2 style="font-size:18px;font-weight:800;color:#212121;margin-top:8px">\u00bfQui\u00e9n eres?</h2>'
+  +'<p style="font-size:13px;color:#546E7A">Selecciona tu nombre para ver tus \u00f3rdenes asignadas</p></div>'
+  +'<label style="font-size:12px;font-weight:600;color:#546E7A;margin-bottom:4px;display:block">Mec\u00e1nico</label>'
+  +'<select id="sel-mec" onchange="chkNuevoMecRol(this.value)" style="width:100%;padding:12px;border:1.5px solid #B0BEC5;border-radius:8px;font-size:15px;margin-bottom:16px">'
+  +'<option value="">--- Seleccionar ---</option>'+mecOpts
+  +'<option value="__nuevo__">\u2795 Agregar mec\u00e1nico nuevo...</option></select>'
+  +'<div id="nw2" style="display:none;background:#F5F5F5;border-radius:8px;padding:12px;margin-bottom:12px">'
+  +'<input type="text" id="nn2" placeholder="Nombre completo" style="width:100%;padding:10px;border:1.5px solid #B0BEC5;border-radius:6px;font-size:14px;margin-bottom:8px;text-transform:uppercase">'
+  +'<input type="text" id="nc2" placeholder="C\u00e9dula" inputmode="numeric" style="width:100%;padding:10px;border:1.5px solid #B0BEC5;border-radius:6px;font-size:14px;margin-bottom:8px">'
+  +'<button onclick="guardarNuevoMecRol()" style="width:100%;padding:10px;background:#E65100;color:#fff;border:none;border-radius:6px;font-size:14px;font-weight:700;cursor:pointer">\u2705 Guardar</button></div>'
+  +'<button onclick="confirmarMecanico()" style="width:100%;padding:15px;background:#E65100;color:#fff;border:none;border-radius:12px;font-size:16px;font-weight:700;cursor:pointer">ENTRAR A LA APP \u2192</button>'
+  +'<button onclick="showSeleccionRol()" style="width:100%;padding:10px;background:none;border:none;color:#546E7A;font-size:13px;cursor:pointer;margin-top:8px">\u2190 Volver</button>'
+  +'</div></div>');
+}
+
+function chkNuevoMecRol(v){
+  var w=document.getElementById('nw2');
+  if(w) w.style.display=v==='__nuevo__'?'block':'none';
+}
+
+function guardarNuevoMecRol(){
+  var n=(document.getElementById('nn2').value||'').trim().toUpperCase();
+  var cc=(document.getElementById('nc2').value||'').trim();
+  if(!n||!cc){toast('Complete nombre y cedula');return;}
+  if(MECANICOS.find(function(m){return m.cc===cc;})){toast('Ya existe');return;}
+  MECANICOS.push({cc:cc,nombre:n,cargo:'MECANICO'});
+  try{localStorage.setItem('pst_mecanicos',JSON.stringify(MECANICOS));}catch(e){}
+  var sel=document.getElementById('sel-mec');
+  if(sel){var o=document.createElement('option');o.value=cc;o.textContent=n+' (MECANICO)';o.selected=true;sel.insertBefore(o,sel.lastElementChild);sel.value=cc;}
+  document.getElementById('nw2').style.display='none';
+  toast('Guardado: '+n);
+}
+
+function confirmarMecanico(){
+  var cc=(document.getElementById('sel-mec')||{}).value||'';
+  if(!cc||cc==='__nuevo__'){toast('Seleccione su nombre');return;}
+  USER_CC=cc; localStorage.setItem('pst_user_cc',cc);
+  showHome();
+}
+
+function showHomeSupervisor(){
+  R('<div class="hdr">'
+  +'<div class="hdr-logo"><img src="'+LOGO_SRC+'" alt="POSTECSA" draggable="false"></div>'
+  +'<div class="hdr-title"><h1>POSTECSA \u00b7 Supervisor</h1><p>\u00d3rdenes de Mantenimiento</p></div>'
+  +'<div style="display:flex;gap:6px">'
+  +'<button onclick="sincronizarSupervisor()" style="background:rgba(255,255,255,.2);border:none;color:#fff;border-radius:8px;padding:6px 10px;font-size:13px;cursor:pointer">\ud83d\udd04</button>'
+  +'<button onclick="showConfig()" style="background:rgba(255,255,255,.2);border:none;color:#fff;border-radius:8px;padding:6px 10px;font-size:13px;cursor:pointer">\u2699\ufe0f</button>'
+  +'</div></div>'
+  +'<div class="card"><button class="btn btn-primary" onclick="showCrearOM()">\u2795 CREAR Y ASIGNAR NUEVA OM</button></div>'
+  +'<div id="panel-supervisor"><div style="text-align:center;padding:40px;color:var(--txt2)"><div style="font-size:36px">\ud83d\udd04</div><p style="margin-top:8px">Cargando...</p></div></div>'
+  +'<div style="height:20px"></div>');
+  sincronizarSupervisor();
+}
+
+function sincronizarSupervisor(){
+  if(!navigator.onLine){toast('Sin conexion');return;}
+  fetch(GAS_GERENCIA+'?accion=todas_oms')
+    .then(function(r){return r.json();})
+    .then(function(res){
+      var panel=document.getElementById('panel-supervisor');
+      if(!panel) return;
+      if(!res.ok||!res.oms||!res.oms.length){
+        panel.innerHTML='<div class="card" style="text-align:center;padding:24px;color:var(--txt2)">Sin OMs registradas</div>';return;
+      }
+      var oms=res.oms.filter(function(o){return o.num&&o.num!=='N_OM';});
+      if(!oms.length){
+        panel.innerHTML='<div class="card" style="text-align:center;padding:24px;color:var(--txt2)"><div style="font-size:36px">\ud83d\udccb</div><p style="margin-top:8px">No hay \u00f3rdenes</p></div>';return;
+      }
+      var badge=function(e){
+        var c={PENDIENTE:{b:'#FFF3E0',t:'#E65100'},TOMADA:{b:'#E3F2FD',t:'#1565C0'},CERRADA:{b:'#E8F5E9',t:'#2E7D32'}};
+        var s=c[e]||{b:'#F5F5F5',t:'#546E7A'};
+        return '<span style="background:'+s.b+';color:'+s.t+';border-radius:20px;padding:3px 10px;font-size:11px;font-weight:700">'+e+'</span>';
+      };
+      var seccion=function(titulo,lista,col){
+        if(!lista.length) return '';
+        return '<div class="card" style="border-left:4px solid '+col+'">'
+          +'<div class="card-title" style="color:'+col+'">'+titulo
+          +' <span style="margin-left:auto">'+lista.length+'</span></div>'
+          +lista.map(function(o){
+            return '<div style="padding:10px 0;border-bottom:1px solid var(--fondo)">'
+              +'<div style="display:flex;justify-content:space-between;align-items:flex-start">'
+              +'<div>'
+              +'<div style="font-weight:700;font-size:14px">#'+sPDF(o.num)+' \u00b7 '+sPDF(o.equipo)+'</div>'
+              +'<div style="font-size:12px;color:var(--txt2)">'+sPDF(o.area)+' \u00b7 '+sPDF(o.falla)+'</div>'
+              +'<div style="font-size:12px;color:var(--txt2)">\ud83d\udea7 '+sPDF(o.mec_nom)+'</div>'
+              +'</div>'+badge(o.estado)+'</div></div>';
+          }).join('')+'</div>';
+      };
+      panel.innerHTML=
+        seccion('\ud83d\udd34 PENDIENTES',oms.filter(function(o){return o.estado==='PENDIENTE';}),'#E65100')
+        +seccion('\ud83d\udd35 EN TRABAJO',oms.filter(function(o){return o.estado==='TOMADA';}),'#1565C0')
+        +seccion('\ud83d\udfe2 CERRADAS',oms.filter(function(o){return o.estado==='CERRADA';}),'#2E7D32');
+    }).catch(function(){toast('Error al cargar');});
+}
+
+function showCrearOM(){
+  var mecOpts=MECANICOS.map(function(m){return '<option value="'+m.cc+'|'+m.nombre+'">'+m.nombre+' ('+m.cargo+')</option>';}).join('');
+  var areaOpts=Object.keys(AREAS_EQUIPOS).map(function(a){return '<option value="'+a+'">'+a+'</option>';}).join('');
+  var fallaOpts=FALLAS.map(function(f){return '<option value="'+f+'">'+f+'</option>';}).join('');
+  R('<div class="hdr">'
+  +'<button onclick="showHome()" style="background:rgba(255,255,255,.2);border:none;color:#fff;border-radius:8px;padding:8px 12px;font-size:14px;cursor:pointer">\u2190 Volver</button>'
+  +'<div class="hdr-title" style="margin-left:8px"><h1>Crear y Asignar OM</h1><p>El mec\u00e1nico la ver\u00e1 en su app</p></div></div>'
+  +'<div class="card">'
+  +'<label>N\u00famero de OM *</label><input type="text" id="sup-num" placeholder="Ej: 2026-092" inputmode="numeric" style="font-size:20px;font-weight:700;color:var(--naranja)">'
+  +'<label>Asignar a mec\u00e1nico *</label><select id="sup-mec"><option value="">--- Seleccionar ---</option>'+mecOpts+'</select>'
+  +'<label>\u00c1rea *</label><select id="sup-area" onchange="actualizarEquiposSup()"><option value="">--- Seleccionar \u00e1rea ---</option>'+areaOpts+'</select>'
+  +'<label>Equipo *</label><select id="sup-equipo"><option value="">--- Primero seleccione \u00e1rea ---</option></select>'
+  +'<label>Tipo de falla *</label><select id="sup-falla"><option value="">--- Seleccionar ---</option>'+fallaOpts+'</select>'
+  +'<label>Prioridad</label><select id="sup-prioridad"><option value="ALTA">\ud83d\udd34 ALTA</option><option value="MEDIA" selected>\ud83d\udfe1 MEDIA</option><option value="BAJA">\ud83d\udfe2 BAJA</option></select>'
+  +'<label>Observaciones iniciales</label><textarea id="sup-obs" placeholder="Descripci\u00f3n de la falla..."></textarea>'
+  +'<button class="btn btn-primary" style="margin-top:16px" onclick="crearOMSupervisor()">\ud83d\udce4 CREAR Y ENVIAR AL MEC\u00c1NICO</button>'
+  +'<button class="btn btn-gris" style="margin-top:8px" onclick="showHome()">Cancelar</button>'
+  +'</div>');
+}
+
+function actualizarEquiposSup(){
+  var area=document.getElementById('sup-area').value;
+  var sel=document.getElementById('sup-equipo');
+  var eq=AREAS_EQUIPOS[area]||[];
+  sel.innerHTML=eq.length?'<option value="">--- Seleccionar equipo ---</option>'+eq.map(function(e){return '<option value="'+e+'">'+e+'</option>';}).join(''):'<option value="">--- Primero seleccione \u00e1rea ---</option>';
+}
+
+function crearOMSupervisor(){
+  var num=(document.getElementById('sup-num').value||'').trim();
+  var mecVal=(document.getElementById('sup-mec').value||'');
+  var area=(document.getElementById('sup-area').value||'');
+  var equipo=(document.getElementById('sup-equipo').value||'');
+  var falla=(document.getElementById('sup-falla').value||'');
+  var prio=(document.getElementById('sup-prioridad').value||'MEDIA');
+  var obs=(document.getElementById('sup-obs').value||'');
+  if(!num){toast('Ingrese el numero de OM');return;}
+  if(!mecVal){toast('Seleccione el mecanico');return;}
+  if(!area){toast('Seleccione el area');return;}
+  if(!equipo){toast('Seleccione el equipo');return;}
+  if(!falla){toast('Seleccione el tipo de falla');return;}
+  if(!navigator.onLine){toast('Sin conexion');return;}
+  var parts=mecVal.split('|');
+  var mec_cc=parts[0], mec_nom=parts[1]||'';
+  toast('Enviando al mecanico...');
+  fetch(GAS_GERENCIA,{
+    method:'POST',
+    body:JSON.stringify({accion:'crear_om',num:num,fecha:new Date().toLocaleDateString('es-CO'),area:area,equipo:equipo,falla:falla,prioridad:prio,mec_cc:mec_cc,mec_nom:mec_nom,obs_i:obs}),
+    headers:{'Content-Type':'text/plain'}
+  }).then(function(r){return r.json();})
+    .then(function(res){
+      if(res.ok){toast('OM #'+num+' asignada a '+mec_nom);showHome();}
+      else toast('Error: '+(res.error||'desconocido'));
+    }).catch(function(){toast('Sin conexion');});
+}
+
+function cargarOMsAsignadas(){
+  if(!navigator.onLine||!USER_CC) return;
+  fetch(GAS_GERENCIA+'?accion=mis_oms&cc='+encodeURIComponent(USER_CC))
+    .then(function(r){return r.json();})
+    .then(function(res){
+      if(!res.ok||!res.oms||!res.oms.length) return;
+      var local=DB.getAll();
+      var nuevas=res.oms.filter(function(o){return !local[o.num];});
+      var wrap=document.getElementById('oms-asignadas-wrap');
+      if(!wrap||!nuevas.length) return;
+      wrap.innerHTML='<div class="card" style="border-left:4px solid #1565C0;margin-bottom:4px">'
+        +'<div class="card-title" style="color:#1565C0"><span class="ico" style="background:#E3F2FD">\ud83d\udccb</span>'
+        +'OMs ASIGNADAS POR SUPERVISOR'
+        +'<span style="margin-left:auto;background:#1565C0;color:#fff;border-radius:20px;padding:2px 10px;font-size:12px">'+nuevas.length+'</span></div>'
+        +nuevas.map(function(o){
+          return '<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--fondo)">'
+            +'<div style="flex:1">'
+            +'<div style="font-weight:700;font-size:14px">#'+sPDF(o.num)+' \u00b7 '+sPDF(o.equipo)+'</div>'
+            +'<div style="font-size:12px;color:var(--txt2)">'+sPDF(o.area)+' \u00b7 '+sPDF(o.falla)+'</div>'
+            +'<div style="font-size:11px;color:#1565C0;font-weight:600">'+sPDF(o.prioridad)+'</div>'
+            +'</div>'
+            +'<button onclick="tomarOM(\''+o.num+'\')"'
+            +' style="background:#1565C0;color:#fff;border:none;border-radius:8px;padding:10px 14px;font-size:13px;font-weight:700;cursor:pointer">'
+            +'\u25b6 Tomar</button></div>';
+        }).join('')
+        +'</div>';
+    }).catch(function(){});
+}
+
+function tomarOM(numOM){
+  if(!navigator.onLine){toast('Necesita conexion para tomar la OM');return;}
+  fetch(GAS_GERENCIA+'?accion=mis_oms&cc='+encodeURIComponent(USER_CC))
+    .then(function(r){return r.json();})
+    .then(function(res){
+      if(!res.ok||!res.oms) return;
+      var omData=res.oms.find(function(o){return o.num===numOM;});
+      if(!omData){toast('OM no encontrada');return;}
+      if(DB.getOM(omData.num)){abrirOM(omData.num);return;}
+      var om={
+        num:omData.num,area:omData.area,equipo:omData.equipo,
+        falla:omData.falla,prioridad:omData.prioridad,obs_i:omData.obs_i,
+        mecanico:omData.mec_cc,mecanico_nombre:omData.mec_nom,
+        etapa:'INICIO',ts_inicio:Date.now(),origen:'supervisor',
+      };
+      DB.saveOM(om);
+      fetch(GAS_GERENCIA,{method:'POST',body:JSON.stringify({accion:'tomar_om',num:om.num}),headers:{'Content-Type':'text/plain'},mode:'no-cors'}).catch(function(){});
+      restaurar(om); TAB_ACTUAL='i'; showForm();
+      toast('OM #'+om.num+' iniciada');
+    }).catch(function(){toast('Error al cargar OM');});
+}
+
+function showConfig(){
+  var rolActual=localStorage.getItem('pst_rol')||'';
+  var mec=MECANICOS.find(function(m){return m.cc===USER_CC;});
+  R('<div class="hdr">'
+  +'<button onclick="showHome()" style="background:rgba(255,255,255,.2);border:none;color:#fff;border-radius:8px;padding:8px 12px;font-size:14px;cursor:pointer">\u2190 Volver</button>'
+  +'<div class="hdr-title" style="margin-left:8px"><h1>\u2699\ufe0f Configuraci\u00f3n</h1></div></div>'
+  +'<div class="card"><div class="card-title">PERFIL ACTUAL</div>'
+  +'<div class="info-row"><span class="info-label">Rol</span><span class="info-val">'+(rolActual==='supervisor'?'\ud83d\udc54 Supervisor':'\ud83d\udea7 Mec\u00e1nico')+'</span></div>'
+  +(mec?'<div class="info-row"><span class="info-label">Mec\u00e1nico</span><span class="info-val">'+mec.nombre+'</span></div>':'')
+  +'<div class="info-row"><span class="info-label">Versi\u00f3n</span><span class="info-val">v'+VERSION+'</span></div></div>'
+  +'<div class="card"><div class="card-title">CAMBIAR PERFIL</div>'
+  +'<p style="font-size:13px;color:var(--txt2);margin-bottom:12px">Si cambias de rol la selecci\u00f3n se aplica al reiniciar.</p>'
+  +'<button class="btn btn-primary" onclick="cambiarRol()">\ud83d\udd04 Cambiar rol</button></div>'
+  +'<div class="card"><div class="card-title">DATOS</div>'
+  +'<button class="btn btn-gris" onclick="showGestionar()">\ud83d\uddc2 Gestionar OMs</button></div>');
+}
+
+function cambiarRol(){
+  if(!confirm('Cambiar de rol? Se cerrara la sesion actual.')) return;
+  localStorage.removeItem('pst_rol');
+  localStorage.removeItem('pst_user_cc');
+  ROL=''; USER_CC='';
+  showSeleccionRol();
+}
+
 function showGestionar(){
   const oms = DB.getAll();
   const cerradas = Object.values(oms)
@@ -2357,9 +2621,11 @@ document.addEventListener('DOMContentLoaded',()=>{
       '</div>';
     return true;
   };
-  // Iniciar app
+  ROL=localStorage.getItem('pst_rol')||'';
+  USER_CC=localStorage.getItem('pst_user_cc')||'';
   try {
-    showHome();
+    if(!ROL)showSeleccionRol();
+    else showHome();
   } catch(e) {
     document.getElementById('app').innerHTML =
       '<div style="padding:20px;background:#fff;color:#c00;font-family:monospace;font-size:13px">' +
