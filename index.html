@@ -2274,10 +2274,10 @@ function _generarPDF(){
   if(actsU.length){
     SEC('ACTIVIDADES DE MANTENIMIENTO');
     const AX=[M,M+20,M+92,M+132,M+149];
-    doc.setFillColor(...GO);doc.rect(M,y-5,CW,7,'F');
-    doc.setFontSize(8);doc.setFont('helvetica','bold');doc.setTextColor(...BL);
-    ['ETAPA','DESCRIPCI\u00d3N','RESPONSABLE','MIN','COSTO M.O.'].forEach((h,i)=>doc.text(h,AX[i]+1,y));
-    y+=4;
+    doc.setFillColor(33,33,33);doc.rect(M,y-2,CW,9,'F');
+    doc.setFontSize(7);doc.setFont('helvetica','bold');doc.setTextColor(...BL);
+    ['ETAPA','DESCRIPCI\u00d3N','RESPONSABLE','MIN','COSTO M.O.'].forEach((h,i)=>doc.text(h,AX[i]+1.5,y+4.5));
+    y+=8;
     let totMin=0;
     actsU.forEach((a,i)=>{
       nP(7);
@@ -2312,10 +2312,10 @@ function _generarPDF(){
   if(ins_all.length){
     SEC('MATERIALES E INSUMOS');
     const MX=[M,M+76,M+94,M+112,M+144];
-    doc.setFillColor(...GO);doc.rect(M,y-5,CW,7,'F');
-    doc.setFontSize(8);doc.setFont('helvetica','bold');doc.setTextColor(...BL);
-    ['MATERIAL / INSUMO','UM','CANT.','PRECIO UNIT.','SUBTOTAL'].forEach((h,i)=>doc.text(h,MX[i]+1,y));
-    y+=4;
+    doc.setFillColor(33,33,33);doc.rect(M,y-2,CW,9,'F');
+    doc.setFontSize(7);doc.setFont('helvetica','bold');doc.setTextColor(...BL);
+    ['MATERIAL / INSUMO','UM','CANT.','PRECIO UNIT.','SUBTOTAL'].forEach((h,i)=>doc.text(h,MX[i]+1.5,y+4.5));
+    y+=8;
     let totMat=0;
     ins_all.forEach((ins,i)=>{
       nP(7);
