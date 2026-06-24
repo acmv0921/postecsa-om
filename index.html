@@ -1029,6 +1029,7 @@ function showCrearOM(){
   +'<label>Asignar a mec\u00e1nico *</label><select id="sup-mec"><option value="">--- Seleccionar ---</option>'+mecOpts+'</select>'
   +'<label>\u00c1rea *</label><select id="sup-area" onchange="actualizarEquiposSup()"><option value="">--- Seleccionar \u00e1rea ---</option>'+areaOpts+'</select>'
   +'<label>Equipo *</label><select id="sup-equipo"><option value="">--- Primero seleccione \u00e1rea ---</option></select>'
+  +'<label>Tipo de mantenimiento *</label>'+'<select id="sup-tipo-mant"><option value="">--- Seleccionar ---</option><option value="CORRECTIVO">🔧 CORRECTIVO</option><option value="PREVENTIVO">🛡 PREVENTIVO</option><option value="PREDICTIVO">📊 PREDICTIVO</option><option value="PROGRAMADO">📅 PROGRAMADO</option></select>'
   +'<label>Tipo de falla *</label><select id="sup-falla"><option value="">--- Seleccionar ---</option>'+fallaOpts+'</select>'
   +'<label>Prioridad</label><select id="sup-prioridad"><option value="ALTA">\ud83d\udd34 ALTA</option><option value="MEDIA" selected>\ud83d\udfe1 MEDIA</option><option value="BAJA">\ud83d\udfe2 BAJA</option></select>'
   +'<label>Observaciones iniciales</label><textarea id="sup-obs" placeholder="Descripci\u00f3n de la falla..."></textarea>'
@@ -1050,6 +1051,7 @@ function crearOMSupervisor(){
   var area=(document.getElementById('sup-area').value||'');
   var equipo=(document.getElementById('sup-equipo').value||'');
   var falla=(document.getElementById('sup-falla').value||'');
+  var tipo_mant=(document.getElementById('sup-tipo-mant').value||'');
   var prio=(document.getElementById('sup-prioridad').value||'MEDIA');
   var obs=(document.getElementById('sup-obs').value||'');
   if(!num){toast('Ingrese el numero de OM');return;}
@@ -1057,6 +1059,7 @@ function crearOMSupervisor(){
   if(!area){toast('Seleccione el area');return;}
   if(!equipo){toast('Seleccione el equipo');return;}
   if(!falla){toast('Seleccione el tipo de falla');return;}
+  if(!tipo_mant){toast('Seleccione el tipo de mantenimiento');return;}
   if(!navigator.onLine){toast('Sin conexion');return;}
   var parts=mecVal.split('|');
   var mec_cc=parts[0], mec_nom=parts[1]||'';
