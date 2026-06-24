@@ -1063,7 +1063,7 @@ function crearOMSupervisor(){
   toast('Enviando al mecanico...');
   fetch(GAS_GERENCIA,{
     method:'POST',
-    body:JSON.stringify({accion:'crear_om',num:num,fecha:new Date().toLocaleDateString('es-CO'),area:area,equipo:equipo,falla:falla,prioridad:prio,mec_cc:mec_cc,mec_nom:mec_nom,obs_i:obs}),
+    body:JSON.stringify({accion:'crear_om',num:num,fecha:new Date().toLocaleDateString('es-CO'),area:area,equipo:equipo,falla:falla,tipo_mant:tipo_mant,prioridad:prio,mec_cc:mec_cc,mec_nom:mec_nom,obs_i:obs}),
     headers:{'Content-Type':'text/plain'}
   }).then(function(r){return r.json();})
     .then(function(res){
@@ -1112,7 +1112,7 @@ function tomarOM(numOM){
       if(DB.getOM(omData.num)){abrirOM(omData.num);return;}
       var om={
         num:omData.num,area:omData.area,equipo:omData.equipo,
-        falla:omData.falla,prioridad:omData.prioridad,obs_i:omData.obs_i,
+        falla:omData.falla,tipo_mant:omData.tipo_mant||'',prioridad:omData.prioridad,obs_i:omData.obs_i,
         mecanico:omData.mec_cc,mecanico_nombre:omData.mec_nom,
         etapa:'INICIO',ts_inicio:Date.now(),origen:'supervisor',
       };
