@@ -2443,20 +2443,37 @@ function _generarPDF(){
 // WHATSAPP
 // ═══════════════════════════════════════════════
 function compartirWA(){
-  // OPCIÓN C: descarga PDF al celular + sube a Drive + abre WA con link
-  toast('Generando informe PDF...');
-  setTimeout(()=>{
-    try{
-      _generarPDF(); // 1. Descarga el PDF al celular
-      _subirYcompartir(); // 2. Sube a Drive y abre WA con link
-    }catch(e){
-      console.warn('WA err:',e);
-      const {min,costo}=getCosto();
-      const ins=[...(INS.i||OM.ins_i||[]),...(INS.a||OM.ins_a||[]),...(INS.c||OM.ins_c||[])];
-      const cm=ins.reduce((s,i)=>s+(fNum(i.p)*fNum(i.qty)),0);
-      window.open('https://wa.me/?text='+encodeURIComponent('*POSTECSA OM #'+String(OM.num||'')+'*\nEquipo: '+String(OM.equipo||'')+'\nTotal: '+fCOP(costo+cm)),'_blank');
-    }
-  },300);
+  // 1. Descargar PDF al celular
+  toast('Generando PDF...');
+  setTimeout(function(){
+    try{ _generarPDF(); }catch(e){ console.warn('PDF err:',e); }
+  },100);
+
+  // 2. Abrir WhatsApp con mensaje completo
+  setTimeout(function(){
+    var min_costo=getCosto();
+    var min=min_costo.min, costo=min_costo.costo;
+    var ins=[].concat(INS.i||OM.ins_i||[]).concat(INS.a||OM.ins_a||[]).concat(INS.c||OM.ins_c||[]);
+    var cm=ins.reduce(function(s,i){return s+(fNum(i.p)*fNum(i.qty));},0);
+    var fecha=new Date(OM.ts_inicio||Date.now()).toLocaleDateString('es-CO');
+    var msg='*POSTECSA · OM #'+String(OM.num||'')+'*\n'
+      +'?? Tipo: '+String(OM.tipo_mant||'CORRECTIVO')+'\n'
+      +'?? Área: '+String(OM.area||'')+' · '+String(OM.equipo||'')+'\n'
+      +'?? Mecánico: '+String(OM.mecanico_nombre||OM.mecanico||'')+'\n'
+      +'⚠️ Falla: '+String(OM.falla||'')+'\n'
+      +'?? Fecha: '+fecha+'\n'
+      +'⏱ Tiempo: '+min+' min\n'
+      +'\n'
+      +'*COSTOS*\n'
+      +'Mano de obra: '+fCOP(costo)+'\n'
+      +'Materiales: '+fCOP(cm)+'\n'
+      +'*TOTAL: '+fCOP(costo+cm)+'*\n'
+      +'\n'
+      +'?? Estado: '+String(OM.estado_equipo||'OPERATIVO')+'\n'
+      +'\n'
+      +'_PDF en archivos descargados_';
+    window.open('https://wa.me/?text='+encodeURIComponent(msg),'_blank');
+  },600);
 }
 
 function _subirYcompartir(){
