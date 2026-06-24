@@ -2388,6 +2388,41 @@ function _generarPDF(){
     y+=38;
   }
 
+  // CHECKLIST DE VERIFICACIÓN
+  const addChecklist=(et,label,items,saved)=>{
+    if(!items||!items.length||!saved||!saved.length) return;
+    nP(20);
+    SEC('CHECKLIST '+label.toUpperCase()+' DE VERIFICACIÓN');
+    const checked=saved.filter(Boolean).length;
+    const total=items.length;
+    // Barra de progreso
+    doc.setFillColor(...GL);doc.roundedRect(M,y,CW,4,1,1,'F');
+    doc.setFillColor(checked===total?46:230,checked===total?125:81,checked===total?50:0);
+    doc.roundedRect(M,y,CW*(checked/total),4,1,1,'F');
+    doc.setFontSize(7.5);doc.setFont('helvetica','bold');doc.setTextColor(...GO);
+    doc.text(checked+'/'+total+' ítems completados',W-M,y+3,'right');
+    rC(); y+=8;
+    // Lista de ítems
+    items.forEach((it,i)=>{
+      nP(6);
+      const ok=saved[i]===true||saved[i]==='true'||saved[i]===1;
+      // Checkbox visual
+      doc.setDrawColor(...GL);doc.setLineWidth(0.4);
+      doc.roundedRect(M,y-3,4,4,0.5,0.5,'S');
+      if(ok){
+        doc.setFillColor(46,125,50);doc.roundedRect(M,y-3,4,4,0.5,0.5,'F');
+        doc.setFontSize(7);doc.setTextColor(...BL);doc.text('✓',M+0.8,y);
+      }
+      doc.setFontSize(7.5);doc.setFont('helvetica',ok?'normal':'normal');
+      doc.setTextColor(ok?46:150, ok?125:150, ok?50:150);
+      doc.text((ok?'✔ ':'□ ')+it, M+6, y);
+      rC(); y+=5.5;
+    });
+    y+=3;
+  };
+  addChecklist('a','Avance',CHECKLIST_AVANCE,OM.chk_a||[]);
+  addChecklist('c','Cierre',CHECKLIST_CIERRE,OM.chk_c||[]);
+
   // FOTOGRAFIAS — continuas, una sola sección
   const todasFotos=[];
   [['i','Inicio'],['a','Avance'],['c','Cierre']].forEach(([et,lab])=>{
