@@ -2434,41 +2434,53 @@ function _generarPDF(){
     const total=items.length;
     // Barra de progreso
     doc.setFillColor(...GL);doc.roundedRect(M,y,CW,4,1,1,'F');
+    const pct=total>0?checked/total:0;
     doc.setFillColor(checked===total?46:230,checked===total?125:81,checked===total?50:0);
-    doc.roundedRect(M,y,CW*(checked/total),4,1,1,'F');
+    if(pct>0) doc.roundedRect(M,y,CW*pct,4,1,1,'F');
     doc.setFontSize(7.5);doc.setFont('helvetica','bold');doc.setTextColor(...GO);
-    doc.text(checked+'/'+total+' ítems completados',W-M,y+3,'right');
+    doc.text(checked+'/'+total+' items completados',W-M,y+3,'right');
     rC(); y+=8;
-    // Lista de ítems
-    items.forEach((it,i)=>{
-      nP(6);
+    // Lista de items — dibuja checkboxes con lineas (sin Unicode especial)
+    items.forEach(function(it,i){
       const ok=saved[i]===true||saved[i]==='true'||saved[i]===1;
       const just=(justArr&&justArr[i])||'';
-      const altoPDF = (!ok&&just) ? 10 : 5.5;
-      nP(altoPDF+2);
-      // Checkbox visual
-      doc.setLineWidth(0.4);
+      const alto=(!ok&&just)?11:6;
+      nP(alto+2);
+      const cx=M, cy=y-3.5, cs=4.5;
+      doc.setLineWidth(0.5);
       if(ok){
+        // Caja verde rellena
         doc.setFillColor(46,125,50);doc.setDrawColor(46,125,50);
-        doc.roundedRect(M,y-3.5,4.5,4.5,0.5,0.5,'FD');
-        doc.setFontSize(8);doc.setFont('helvetica','bold');doc.setTextColor(...BL);
-        doc.text('✓',M+0.9,y+0.2);
+        doc.roundedRect(cx,cy,cs,cs,0.5,0.5,'FD');
+        // Dibujar palomita con lineas blancas
+        doc.setDrawColor(255,255,255);doc.setLineWidth(0.8);
+        doc.line(cx+0.8,cy+2.5,cx+1.8,cy+3.5);
+        doc.line(cx+1.8,cy+3.5,cx+3.8,cy+1.2);
+        doc.setLineWidth(0.3);
+        // Texto verde
         doc.setFontSize(7.5);doc.setFont('helvetica','normal');doc.setTextColor(46,125,50);
-        doc.text(it, M+6.5, y);
+        doc.text(it,cx+cs+2,y);
       } else {
+        // Caja roja rellena
         doc.setFillColor(198,40,40);doc.setDrawColor(198,40,40);
-        doc.roundedRect(M,y-3.5,4.5,4.5,0.5,0.5,'FD');
-        doc.setFontSize(8);doc.setFont('helvetica','bold');doc.setTextColor(...BL);
-        doc.text('✗',M+0.9,y+0.2);
+        doc.roundedRect(cx,cy,cs,cs,0.5,0.5,'FD');
+        // Dibujar X con lineas blancas
+        doc.setDrawColor(255,255,255);doc.setLineWidth(0.8);
+        doc.line(cx+1,cy+1,cx+cs-1,cy+cs-1);
+        doc.line(cx+cs-1,cy+1,cx+1,cy+cs-1);
+        doc.setLineWidth(0.3);
+        // Texto rojo bold
         doc.setFontSize(7.5);doc.setFont('helvetica','bold');doc.setTextColor(198,40,40);
-        doc.text(it, M+6.5, y);
+        doc.text(it,cx+cs+2,y);
         if(just){
-          doc.setFontSize(7);doc.setFont('helvetica','italic');doc.setTextColor(198,40,40);
-          doc.setFillColor(255,235,238);doc.roundedRect(M+6.5,y+1.5,CW-6.5,5,0.5,0.5,'F');
-          doc.text('▶ '+just, M+8, y+4.5);
+          // Recuadro rosado con justificacion
+          doc.setFillColor(255,235,238);
+          doc.roundedRect(cx+cs+2,y+1.5,CW-(cs+2),5.5,0.5,0.5,'F');
+          doc.setFontSize(6.5);doc.setFont('helvetica','italic');doc.setTextColor(198,40,40);
+          doc.text('Motivo: '+just,cx+cs+4,y+5);
         }
       }
-      rC(); y+=altoPDF;
+      rC();y+=alto;
     });
     y+=3;
   };
