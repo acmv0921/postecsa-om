@@ -745,10 +745,15 @@ function capturar(){
   OM.ins_c = mrgArr(INS.c, OM.ins_c);
 
   // Checklist
-  const chkA=[]; document.querySelectorAll('.chk-a').forEach((cb,i)=>chkA.push(cb.checked));
-  const chkC=[]; document.querySelectorAll('.chk-c').forEach((cb,i)=>chkC.push(cb.checked));
+  const chkA=[]; document.querySelectorAll('.chk-a').forEach(cb=>chkA.push(cb.checked));
+  const chkC=[]; document.querySelectorAll('.chk-c').forEach(cb=>chkC.push(cb.checked));
   if(chkA.length) OM.chk_a = chkA;
   if(chkC.length) OM.chk_c = chkC;
+  // Guardar justificaciones de ítems no marcados
+  const justA=[]; document.querySelectorAll('.chk-just-a').forEach(inp=>justA.push(inp.value||''));
+  const justC=[]; document.querySelectorAll('.chk-just-c').forEach(inp=>justC.push(inp.value||''));
+  if(justA.length) OM.chk_just_a = justA;
+  if(justC.length) OM.chk_just_c = justC;
 
   // Costo
   const {min,costo} = getCosto();
@@ -772,6 +777,8 @@ function restaurar(om){
   FIR = {...(om.firmas||{})};
   INS = { i:[...(om.ins_i||[])], a:[...(om.ins_a||[])], c:[...(om.ins_c||[])] };
   CHK = { a:[...(om.chk_a||[])], c:[...(om.chk_c||[])] };
+  OM.chk_just_a = om.chk_just_a||[];
+  OM.chk_just_c = om.chk_just_c||[];
 }
 
 // ═══════════════════════════════════════════════
@@ -1531,11 +1538,27 @@ function renderTab(et){
   if(ckList){
     ckHTML = `<div class="card">
       <div class="card-title"><span class="ico" style="background:#E8F5E9">✔️</span>CHECKLIST DE VERIFICACIÓN</div>
-      ${ckList.map((it,i)=>`
-        <div class="chk-item">
-          <input type="checkbox" class="chk-${et}" ${ckSaved[i]?'checked':''}>
-          <span class="chk-label">${it}</span>
-        </div>`).join('')}
+      ${ckList.map((it,i)=>{
+        const marcado=ckSaved[i]===true||ckSaved[i]==='true'||ckSaved[i]===1;
+        const justSaved=(OM['chk_just_'+et]||[])[i]||'';
+        return `<div class="chk-item" style="flex-direction:column;align-items:flex-start;gap:0">
+          <div style="display:flex;align-items:center;gap:10px;width:100%">
+            <input type="checkbox" class="chk-${et}" data-idx="${i}"
+              style="width:20px;height:20px;accent-color:var(--verde);flex-shrink:0"
+              ${marcado?'checked':''}
+              onchange="toggleChkJust('${et}',${i},this.checked)">
+            <span class="chk-label" style="color:${marcado?'var(--txt)':'var(--rojo)'}">
+              ${marcado?'':'\u26a0\ufe0f '}${it}
+            </span>
+          </div>
+          <div id="chk-just-${et}-${i}" style="display:${marcado?'none':'block'};width:100%;margin-top:6px;padding-left:30px">
+            <input type="text" class="chk-just-${et}" data-idx="${i}"
+              placeholder="Motivo por el que no se cumple..."
+              value="${justSaved}"
+              style="width:100%;padding:8px;border:1.5px solid var(--rojo);border-radius:6px;font-size:13px;color:var(--rojo)">
+          </div>
+        </div>`;
+      }).join('')}
     </div>`;
   }
 
@@ -1901,6 +1924,20 @@ function delFoto(et,idx){
 // ═══════════════════════════════════════════════
 // FIRMAS — FIX: guardar inmediatamente al confirmar
 // ═══════════════════════════════════════════════
+function toggleChkJust(et,idx,checked){
+  const wrap=document.getElementById('chk-just-'+et+'-'+idx);
+  if(wrap) wrap.style.display=checked?'none':'block';
+  // Actualizar color del label
+  const cb=document.querySelector('.chk-'+et+'[data-idx="'+idx+'"]');
+  if(cb){
+    const lbl=cb.parentElement.querySelector('.chk-label');
+    if(lbl){
+      lbl.style.color=checked?'var(--txt)':'var(--rojo)';
+      lbl.textContent=(checked?'':'⚠️ ')+lbl.textContent.replace('⚠️ ','');
+    }
+  }
+}
+
 function initFirmas(){
   document.querySelectorAll('.firma-canvas').forEach(cv=>{
     const k=cv.dataset.key;
@@ -2389,7 +2426,7 @@ function _generarPDF(){
   }
 
   // CHECKLIST DE VERIFICACIÓN
-  const addChecklist=(et,label,items,saved)=>{
+  const addChecklist=(et,label,items,saved,justArr)=>{
     if(!items||!items.length||!saved||!saved.length) return;
     nP(20);
     SEC('CHECKLIST '+label.toUpperCase()+' DE VERIFICACIÓN');
@@ -2406,22 +2443,37 @@ function _generarPDF(){
     items.forEach((it,i)=>{
       nP(6);
       const ok=saved[i]===true||saved[i]==='true'||saved[i]===1;
+      const just=(justArr&&justArr[i])||'';
+      const altoPDF = (!ok&&just) ? 10 : 5.5;
+      nP(altoPDF+2);
       // Checkbox visual
-      doc.setDrawColor(...GL);doc.setLineWidth(0.4);
-      doc.roundedRect(M,y-3,4,4,0.5,0.5,'S');
+      doc.setLineWidth(0.4);
       if(ok){
-        doc.setFillColor(46,125,50);doc.roundedRect(M,y-3,4,4,0.5,0.5,'F');
-        doc.setFontSize(7);doc.setTextColor(...BL);doc.text('✓',M+0.8,y);
+        doc.setFillColor(46,125,50);doc.setDrawColor(46,125,50);
+        doc.roundedRect(M,y-3.5,4.5,4.5,0.5,0.5,'FD');
+        doc.setFontSize(8);doc.setFont('helvetica','bold');doc.setTextColor(...BL);
+        doc.text('✓',M+0.9,y+0.2);
+        doc.setFontSize(7.5);doc.setFont('helvetica','normal');doc.setTextColor(46,125,50);
+        doc.text(it, M+6.5, y);
+      } else {
+        doc.setFillColor(198,40,40);doc.setDrawColor(198,40,40);
+        doc.roundedRect(M,y-3.5,4.5,4.5,0.5,0.5,'FD');
+        doc.setFontSize(8);doc.setFont('helvetica','bold');doc.setTextColor(...BL);
+        doc.text('✗',M+0.9,y+0.2);
+        doc.setFontSize(7.5);doc.setFont('helvetica','bold');doc.setTextColor(198,40,40);
+        doc.text(it, M+6.5, y);
+        if(just){
+          doc.setFontSize(7);doc.setFont('helvetica','italic');doc.setTextColor(198,40,40);
+          doc.setFillColor(255,235,238);doc.roundedRect(M+6.5,y+1.5,CW-6.5,5,0.5,0.5,'F');
+          doc.text('▶ '+just, M+8, y+4.5);
+        }
       }
-      doc.setFontSize(7.5);doc.setFont('helvetica',ok?'normal':'normal');
-      doc.setTextColor(ok?46:150, ok?125:150, ok?50:150);
-      doc.text((ok?'✔ ':'□ ')+it, M+6, y);
-      rC(); y+=5.5;
+      rC(); y+=altoPDF;
     });
     y+=3;
   };
-  addChecklist('a','Avance',CHECKLIST_AVANCE,OM.chk_a||[]);
-  addChecklist('c','Cierre',CHECKLIST_CIERRE,OM.chk_c||[]);
+  addChecklist('a','Avance',CHECKLIST_AVANCE,OM.chk_a||[],OM.chk_just_a||[]);
+  addChecklist('c','Cierre',CHECKLIST_CIERRE,OM.chk_c||[],OM.chk_just_c||[]);
 
   // FOTOGRAFIAS — continuas, una sola sección
   const todasFotos=[];
