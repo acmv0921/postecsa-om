@@ -2630,9 +2630,12 @@ document.addEventListener('DOMContentLoaded',()=>{
   window.addEventListener('online',()=>{ toast('✅ Conexión restaurada'); procesarCola(); });
   window.addEventListener('offline',()=>{ toast('⚠️ Sin conexión — modo offline'); });
 
-  // Registrar Service Worker solo en GitHub Pages
-  if('serviceWorker' in navigator && location.hostname.includes('github.io')){
-    navigator.serviceWorker.register('sw.js').catch(e=>console.warn('SW:',e));
+  // Service Worker con actualización forzada automática
+  if('serviceWorker' in navigator){
+    navigator.serviceWorker.getRegistrations().then(regs=>{
+      regs.forEach(r=>r.unregister());
+    });
+    caches.keys().then(keys=>keys.forEach(k=>caches.delete(k)));
   }
 
   // Trampa global de errores — muestra en pantalla
