@@ -1546,7 +1546,7 @@ function renderTab(et){
             <input type="checkbox" class="chk-${et}" data-idx="${i}"
               style="width:20px;height:20px;accent-color:var(--verde);flex-shrink:0"
               ${marcado?'checked':''}
-              onchange="toggleChkJust('${et}',${i},this.checked)">
+              onchange="guardarChkLive('${et}',${i},this.checked);toggleChkJust('${et}',${i},this.checked)">
             <span class="chk-label" style="color:${marcado?'var(--txt)':'var(--rojo)'}">
               ${marcado?'':'\u26a0\ufe0f '}${it}
             </span>
@@ -1555,6 +1555,7 @@ function renderTab(et){
             <input type="text" class="chk-just-${et}" data-idx="${i}"
               placeholder="Motivo por el que no se cumple..."
               value="${justSaved}"
+              oninput="guardarJustLive('${et}',${i},this.value)"
               style="width:100%;padding:8px;border:1.5px solid var(--rojo);border-radius:6px;font-size:13px;color:var(--rojo)">
           </div>
         </div>`;
@@ -1924,6 +1925,23 @@ function delFoto(et,idx){
 // ═══════════════════════════════════════════════
 // FIRMAS — FIX: guardar inmediatamente al confirmar
 // ═══════════════════════════════════════════════
+function guardarChkLive(et,idx,checked){
+  // Guardar inmediatamente en OM sin esperar capturar()
+  var arr=et==='a'?(OM.chk_a||(OM.chk_a=[])):et==='c'?(OM.chk_c||(OM.chk_c=[])):[];
+  arr[idx]=checked;
+  if(et==='a') OM.chk_a=arr;
+  else if(et==='c') OM.chk_c=arr;
+  try{ DB.saveOM(OM); }catch(e){}
+}
+
+function guardarJustLive(et,idx,val){
+  var arr=et==='a'?(OM.chk_just_a||(OM.chk_just_a=[])):et==='c'?(OM.chk_just_c||(OM.chk_just_c=[])):[];
+  arr[idx]=val;
+  if(et==='a') OM.chk_just_a=arr;
+  else if(et==='c') OM.chk_just_c=arr;
+  try{ DB.saveOM(OM); }catch(e){}
+}
+
 function toggleChkJust(et,idx,checked){
   const wrap=document.getElementById('chk-just-'+et+'-'+idx);
   if(wrap) wrap.style.display=checked?'none':'block';
@@ -2428,8 +2446,8 @@ function _generarPDF(){
   // CHECKLIST DE VERIFICACIÓN
   const addChecklist=(et,label,items,saved,justArr)=>{
     if(!items||!items.length||!saved||!saved.length) return;
-    var hayData=saved.some(function(v){return v===true||v===false;});
-    if(!hayData) return;
+    // Mostrar si el array tiene datos (fue interactuado por el mecánico)
+    if(saved.length===0) return;
     nP(20);
     SEC('CHECKLIST '+label.toUpperCase()+' DE VERIFICACIÓN');
     const checked=saved.filter(Boolean).length;
