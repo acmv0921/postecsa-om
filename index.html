@@ -2230,6 +2230,7 @@ function _generarPDF(){
   [['FECHA DE INICIO',fFecha(OM.ts_inicio)],
    ['MEC\u00c1NICO RESPONSABLE',OM.mecanico_nombre||OM.mecanico||''],
    ['SUPERVISOR (AVANCE)',OM.sup_nom_a||'\u2014'],
+   ['TIPO MANT.',OM.tipo_mant||'CORRECTIVO'],
    ['TIPO DE FALLA',OM.falla||'']
   ].forEach(([k,v])=>KV(k,v,M,M+38,52));
   const yLEnd=y; y=yG;
@@ -2439,37 +2440,58 @@ function _generarPDF(){
 // WHATSAPP
 // ═══════════════════════════════════════════════
 function compartirWA(){
+  // OPCIÓN C: descarga PDF al celular + sube a Drive + abre WA con link
+  toast('Generando informe PDF...');
+  setTimeout(()=>{
+    try{
+      _generarPDF(); // 1. Descarga el PDF al celular
+      _subirYcompartir(); // 2. Sube a Drive y abre WA con link
+    }catch(e){
+      console.warn('WA err:',e);
+      const {min,costo}=getCosto();
+      const ins=[...(INS.i||OM.ins_i||[]),...(INS.a||OM.ins_a||[]),...(INS.c||OM.ins_c||[])];
+      const cm=ins.reduce((s,i)=>s+(fNum(i.p)*fNum(i.qty)),0);
+      window.open('https://wa.me/?text='+encodeURIComponent('*POSTECSA OM #'+String(OM.num||'')+'*\nEquipo: '+String(OM.equipo||'')+'\nTotal: '+fCOP(costo+cm)),'_blank');
+    }
+  },300);
+}
+
+function _subirYcompartir(){
+  const pdfB64=_generarPDFBase64();
+  if(!pdfB64){ toast('Error generando PDF'); return; }
+  const nombre='OM_'+String(OM.num||'')+'_POSTECSA.pdf';
   const {min,costo}=getCosto();
   const ins=[...(INS.i||OM.ins_i||[]),...(INS.a||OM.ins_a||[]),...(INS.c||OM.ins_c||[])];
   const cm=ins.reduce((s,i)=>s+(fNum(i.p)*fNum(i.qty)),0);
 
-  // Texto resumen
-  const txt='*POSTECSA - OM #'+String(OM.num||'')+'*\n'+
-    'Equipo: '+String(OM.equipo||'')+'\n'+
-    'Mecanico: '+String(OM.mecanico_nombre||OM.mecanico||'')+'\n'+
-    'Falla: '+String(OM.falla||'')+'\n'+
-    'Tiempo: '+min+' min\n'+
-    'Costo MO: '+fCOP(costo)+'\n'+
-    'Materiales: '+fCOP(cm)+'\n'+
-    'TOTAL: '+fCOP(costo+cm)+'\n'+
-    'Estado: '+String(OM.estado_equipo||'OPERATIVO');
-
-  // Intentar subir PDF a Drive y compartir link
-  toast('Generando PDF...');
-  setTimeout(()=>{
-    try{
-      const {jsPDF}=window.jspdf;
-      if(!jsPDF){ _enviarWA(txt,null); return; }
-
-      // Generar PDF en base64
-      _generarPDF(); // genera y descarga
-      // También subir a Drive via GAS
-      _subirPDFDrive(txt);
-    }catch(e){
-      console.warn('PDF WA err:',e);
-      _enviarWA(txt,null);
-    }
-  },200);
+  toast('Subiendo a Drive...');
+  fetch(GAS_GERENCIA,{
+    method:'POST',
+    body:JSON.stringify({accion:'subir_pdf',pdf:pdfB64,nombre,otNum:String(OM.num||'')}),
+    headers:{'Content-Type':'text/plain'},
+    mode:'no-cors',
+  }).then(()=>{
+    setTimeout(()=>{
+      fetch(GAS_GERENCIA+'?accion=get_pdf_link&otNum='+encodeURIComponent(String(OM.num||'')))
+        .then(r=>r.json())
+        .then(res=>{
+          const link=res.ok&&res.link?res.link:'';
+          const msg='*POSTECSA OM #'+String(OM.num||'')+'*\n'
+            +'Equipo: '+String(OM.equipo||'')+'\n'
+            +'Tipo: '+String(OM.tipo_mant||'CORRECTIVO')+'\n'
+            +'Mecanico: '+String(OM.mecanico_nombre||OM.mecanico||'')+'\n'
+            +'Costo total: '+fCOP(costo+cm)
+            +(link?'\n\n Informe PDF: '+link:'\n\n(PDF descargado en el celular)');
+          window.open('https://wa.me/?text='+encodeURIComponent(msg),'_blank');
+          toast(link?'PDF en Drive listo':'PDF descargado');
+        })
+        .catch(()=>{
+          window.open('https://wa.me/?text='+encodeURIComponent('*POSTECSA OM #'+String(OM.num||'')+'* — PDF adjunto'),'_blank');
+        });
+    },3500);
+  }).catch(()=>{
+    window.open('https://wa.me/?text='+encodeURIComponent('*POSTECSA OM #'+String(OM.num||'')+'* — PDF adjunto'),'_blank');
+  });
 }
 
 function _generarPDFBase64(){
@@ -2502,7 +2524,7 @@ function _generarPDFBase64(){
     // Datos
     const kv=(k,v)=>{nP(8);doc.setFontSize(8);doc.setFont('helvetica','bold');doc.setTextColor(...GM);doc.text(k,M,y);doc.setFont('helvetica','normal');doc.setTextColor(...GO);doc.text(String(v||''),M+45,y);y+=7;};
     kv('Equipo',OM.equipo||'');kv('Area',OM.area||'');kv('Mecanico',OM.mecanico_nombre||OM.mecanico||'');
-    kv('Falla',OM.falla||'');kv('Estado',OM.estado_equipo||'OPERATIVO');
+    kv('Tipo mant.',OM.tipo_mant||'CORRECTIVO');kv('Falla',OM.falla||'');kv('Estado',OM.estado_equipo||'OPERATIVO');
     kv('Inicio',fFecha(OM.ts_inicio));kv('Cierre',fFecha(OM.ts_cierre_final||OM.ts_cierre||0));
     y+=4;
     const {min,costo}=getCosto();
@@ -2530,7 +2552,7 @@ function _generarPDFBase64(){
   }catch(e){console.error('_generarPDFBase64 err:',e);return null;}
 }
 
-function _subirPDFDrive(txtResumen){
+function _subirPDFDrive_OLD(txtResumen){
   try{
     const {jsPDF}=window.jspdf;
     if(!jsPDF){ _enviarWA(txtResumen,null); return; }
