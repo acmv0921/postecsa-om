@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>POSTECSA OM — Actualizar</title>
+<style>
+body{font-family:Arial,sans-serif;background:#E65100;min-height:100vh;display:flex;align-items:center;justify-content:center;margin:0;padding:20px;}
+.box{background:#fff;border-radius:16px;padding:32px 24px;max-width:360px;width:100%;text-align:center;}
+h2{color:#E65100;margin-bottom:8px;}
+p{color:#546E7A;font-size:14px;margin-bottom:24px;}
+.btn{display:block;width:100%;padding:16px;background:#E65100;color:#fff;border:none;border-radius:12px;font-size:16px;font-weight:700;cursor:pointer;margin-bottom:10px;text-decoration:none;}
+.estado{background:#F5F5F5;border-radius:8px;padding:12px;margin-top:16px;font-size:13px;color:#333;text-align:left;}
+</style>
+</head>
+<body>
+<div class="box">
+  <div style="font-size:48px">🔄</div>
+  <h2>Actualizar POSTECSA OM</h2>
+  <p>Toque el botón para limpiar la caché y cargar la versión más reciente</p>
+  <button class="btn" onclick="limpiarYActualizar()">🗑 LIMPIAR CACHÉ Y ACTUALIZAR</button>
+  <a href="/postecsa-om/" class="btn" style="background:#263238;display:block;box-sizing:border-box;">→ IR A LA APP</a>
+  <div class="estado" id="estado">Estado: esperando...</div>
+</div>
+<script>
+async function limpiarYActualizar(){
+  const el = document.getElementById('estado');
+  el.innerHTML = '⏳ Limpiando caché...';
+  try {
+    // 1. Eliminar todos los caches
+    const keys = await caches.keys();
+    await Promise.all(keys.map(k => { el.innerHTML += '<br>🗑 Borrando: '+k; return caches.delete(k); }));
+    // 2. Desregistrar todos los Service Workers
+    const regs = await navigator.serviceWorker.getRegistrations();
+    await Promise.all(regs.map(r => { el.innerHTML += '<br>⚙️ Quitando SW: '+r.scope; return r.unregister(); }));
+    el.innerHTML += '<br><br>✅ Caché limpia. Redirigiendo en 2 segundos...';
+    setTimeout(() => { window.location.href = '/postecsa-om/?v=' + Date.now(); }, 2000);
+  } catch(e) {
+    el.innerHTML = '❌ Error: '+e.message+'<br>Vaya manualmente a Configuración del sitio → Borrar datos';
+  }
+}
+// Auto-ejecutar
+window.onload = limpiarYActualizar;
+</script>
+</body>
+</html>
