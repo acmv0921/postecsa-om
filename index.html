@@ -2428,6 +2428,8 @@ function _generarPDF(){
   // CHECKLIST DE VERIFICACIÓN
   const addChecklist=(et,label,items,saved,justArr)=>{
     if(!items||!items.length||!saved||!saved.length) return;
+    var hayData=saved.some(function(v){return v===true||v===false;});
+    if(!hayData) return;
     nP(20);
     SEC('CHECKLIST '+label.toUpperCase()+' DE VERIFICACIÓN');
     const checked=saved.filter(Boolean).length;
@@ -2506,7 +2508,7 @@ function _generarPDF(){
         etActual=f.lab;
         nP(iH+18);
         doc.setFontSize(8);doc.setFont('helvetica','bold');doc.setTextColor(...N);
-        doc.text('▶ '+etActual.toUpperCase(),M,y);
+        doc.text('[ '+etActual.toUpperCase()+' ]',M,y);
         doc.setDrawColor(...GL);doc.line(M+22,y-1,W-M,y-1);
         rC();y+=5;
       }
@@ -2555,22 +2557,22 @@ function compartirWA(){
     var ins=[].concat(INS.i||OM.ins_i||[]).concat(INS.a||OM.ins_a||[]).concat(INS.c||OM.ins_c||[]);
     var cm=ins.reduce(function(s,i){return s+(fNum(i.p)*fNum(i.qty));},0);
     var fecha=new Date(OM.ts_inicio||Date.now()).toLocaleDateString('es-CO');
-    var msg='*POSTECSA · OM #'+String(OM.num||'')+'*\n'
-      +'?? Tipo: '+String(OM.tipo_mant||'CORRECTIVO')+'\n'
-      +'?? Área: '+String(OM.area||'')+' · '+String(OM.equipo||'')+'\n'
-      +'?? Mecánico: '+String(OM.mecanico_nombre||OM.mecanico||'')+'\n'
-      +'⚠️ Falla: '+String(OM.falla||'')+'\n'
-      +'?? Fecha: '+fecha+'\n'
-      +'⏱ Tiempo: '+min+' min\n'
+    var msg='*POSTECSA - OM #'+String(OM.num||'')+'*\n'
+      +'Tipo: '+String(OM.tipo_mant||'CORRECTIVO')+'\n'
+      +'Area: '+String(OM.area||'')+' - '+String(OM.equipo||'')+'\n'
+      +'Mecanico: '+String(OM.mecanico_nombre||OM.mecanico||'')+'\n'
+      +'Falla: '+String(OM.falla||'')+'\n'
+      +'Fecha: '+fecha+'\n'
+      +'Tiempo: '+min+' min\n'
       +'\n'
       +'*COSTOS*\n'
       +'Mano de obra: '+fCOP(costo)+'\n'
       +'Materiales: '+fCOP(cm)+'\n'
       +'*TOTAL: '+fCOP(costo+cm)+'*\n'
       +'\n'
-      +'?? Estado: '+String(OM.estado_equipo||'OPERATIVO')+'\n'
+      +'Estado equipo: '+String(OM.estado_equipo||'OPERATIVO')+'\n'
       +'\n'
-      +'_PDF en archivos descargados_';
+      +'(PDF descargado en el celular)';
     window.open('https://wa.me/?text='+encodeURIComponent(msg),'_blank');
   },600);
 }
