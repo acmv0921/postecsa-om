@@ -1186,15 +1186,15 @@ function crearOMSupervisor(){
   var parts=mecVal.split('|');
   var mec_cc=parts[0], mec_nom=parts[1]||'';
   toast('Enviando al mecanico...');
+  // POST con mode:'no-cors' — GAS lo recibe aunque no podamos leer respuesta
   fetch(GAS_GERENCIA,{
     method:'POST',
     body:JSON.stringify({accion:'crear_om',num:num,fecha:new Date().toLocaleDateString('es-CO'),area:area,equipo:equipo,falla:falla,tipo_mant:tipo_mant,prioridad:prio,mec_cc:mec_cc,mec_nom:mec_nom,obs_i:obs}),
-    headers:{'Content-Type':'text/plain'}
-  }).then(function(r){return r.json();})
-    .then(function(res){
-      if(res.ok){toast('OM #'+num+' asignada a '+mec_nom);showHome();}
-      else toast('Error: '+(res.error||'desconocido'));
-    }).catch(function(){toast('Sin conexion');});
+    headers:{'Content-Type':'text/plain'},
+    mode:'no-cors'
+  }).catch(function(){});
+  toast('OM #'+num+' asignada a '+mec_nom);
+  setTimeout(function(){showHome();sincronizarSupervisor();},2000);
 }
 
 function cargarOMsAsignadas(){
