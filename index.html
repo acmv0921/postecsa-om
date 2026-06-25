@@ -1002,26 +1002,77 @@ function sincronizarSupervisor(){
         var s=c[e]||{b:'#F5F5F5',t:'#546E7A'};
         return '<span style="background:'+s.b+';color:'+s.t+';border-radius:20px;padding:3px 10px;font-size:11px;font-weight:700">'+e+'</span>';
       };
-      var seccion=function(titulo,lista,col){
+      var seccion=function(titulo,lista,col,puedeBorar){
         if(!lista.length) return '';
-        return '<div class="card" style="border-left:4px solid '+col+'">'
-          +'<div class="card-title" style="color:'+col+'">'+titulo
-          +' <span style="margin-left:auto">'+lista.length+'</span></div>'
-          +lista.map(function(o){
-            return '<div style="padding:10px 0;border-bottom:1px solid var(--fondo)">'
-              +'<div style="display:flex;justify-content:space-between;align-items:flex-start">'
-              +'<div>'
-              +'<div style="font-weight:700;font-size:14px">#'+sPDF(o.num)+' \u00b7 '+sPDF(o.equipo)+'</div>'
-              +'<div style="font-size:12px;color:var(--txt2)">'+sPDF(o.area)+' \u00b7 '+sPDF(o.falla)+'</div>'
-              +'<div style="font-size:12px;color:var(--txt2)">\ud83d\udea7 '+sPDF(o.mec_nom)+'</div>'
-              +'</div>'+badge(o.estado)+'</div></div>';
-          }).join('')+'</div>';
+        var html_s='<div class="card" style="border-left:4px solid '+col+'">';
+        html_s+='<div class="card-title" style="color:'+col+'">'+titulo
+          +' <span style="margin-left:auto">'+lista.length+'</span></div>';
+        html_s+=lista.map(function(o){
+          return '<div style="padding:10px 0;border-bottom:1px solid var(--fondo)">'
+            +'<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">'
+            +'<div style="flex:1">'
+            +'<div style="font-weight:700;font-size:14px">#'+sPDF(o.num)+' \u00b7 '+sPDF(o.equipo)+'</div>'
+            +'<div style="font-size:12px;color:var(--txt2)">'+sPDF(o.area)+' \u00b7 '+sPDF(o.falla)+'</div>'
+            +'<div style="font-size:12px;color:var(--txt2)">Mec: '+sPDF(o.mec_nom)+'</div>'
+            +'</div>'
+            +'<div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px">'
+            +badge(o.estado)
+            +(puedeBorar
+              ?'<button onclick="borrarOMSupervisor(\''+o.num+'\')"'
+              +' style="background:var(--rojo);color:#fff;border:none;border-radius:6px;'
+              +'padding:4px 10px;font-size:11px;cursor:pointer">Borrar</button>'
+              :'')
+            +'</div></div></div>';
+        }).join('');
+        if(puedeBorar && lista.length>1){
+          var nums=JSON.stringify(lista.map(function(o){return o.num;}));
+          html_s+='<button onclick="borrarListaSupervisor('+nums+',\''+titulo+'\')"'
+            +' style="width:100%;margin-top:10px;padding:10px;background:#6A1B9A;color:#fff;'
+            +'border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer">'
+            +'\ud83d\uddd1 Borrar todas ('+lista.length+')</button>';
+        }
+        html_s+='</div>';
+        return html_s;
       };
       panel.innerHTML=
-        seccion('\ud83d\udd34 PENDIENTES',oms.filter(function(o){return o.estado==='PENDIENTE';}),'#E65100')
-        +seccion('\ud83d\udd35 EN TRABAJO',oms.filter(function(o){return o.estado==='TOMADA';}),'#1565C0')
-        +seccion('\ud83d\udfe2 CERRADAS',oms.filter(function(o){return o.estado==='CERRADA';}),'#2E7D32');
+        seccion('PENDIENTES',oms.filter(function(o){return o.estado==='PENDIENTE';}),'#E65100',true)
+        +seccion('EN TRABAJO',oms.filter(function(o){return o.estado==='TOMADA';}),'#1565C0',true)
+        +seccion('CERRADAS',oms.filter(function(o){return o.estado==='CERRADA';}),'#2E7D32',true);
     }).catch(function(){toast('Error al cargar');});
+}
+
+function borrarOMSupervisor(num){
+  if(!confirm('Borrar OM #'+num+'?\n\nSe eliminara del sistema y los mecanicos no la veran.')) return;
+  if(!confirm('CONFIRMACION FINAL - Borrar OM #'+num+'?\nNo se puede deshacer.')) return;
+  if(!navigator.onLine){toast('Sin conexion');return;}
+  fetch(GAS_GERENCIA,{
+    method:'POST',
+    body:JSON.stringify({accion:'borrar_om',num:num}),
+    headers:{'Content-Type':'text/plain'}
+  }).then(function(r){return r.json();})
+    .then(function(res){
+      if(res.ok){toast('OM #'+num+' borrada');sincronizarSupervisor();}
+      else toast('Error: '+(res.error||'desconocido'));
+    }).catch(function(){toast('Error de conexion');});
+}
+
+function borrarListaSupervisor(nums,titulo){
+  if(!nums||!nums.length){toast('Sin OMs');return;}
+  if(!confirm('Borrar TODAS las OMs de '+titulo+' ('+nums.length+')?\nSe eliminaran del sistema.')) return;
+  if(!confirm('CONFIRMACION FINAL\nBorrar '+nums.length+' OMs?\nNo se puede deshacer.')) return;
+  if(!navigator.onLine){toast('Sin conexion');return;}
+  toast('Borrando '+nums.length+' OMs...');
+  Promise.all(nums.map(function(num){
+    return fetch(GAS_GERENCIA,{
+      method:'POST',
+      body:JSON.stringify({accion:'borrar_om',num:num}),
+      headers:{'Content-Type':'text/plain'}
+    }).then(function(r){return r.json();}).catch(function(){return {ok:false};});
+  })).then(function(res){
+    var ok=res.filter(function(r){return r.ok;}).length;
+    toast(ok+' OMs borradas');
+    sincronizarSupervisor();
+  });
 }
 
 function showCrearOM(){
@@ -1089,7 +1140,11 @@ function cargarOMsAsignadas(){
     .then(function(res){
       if(!res.ok||!res.oms||!res.oms.length) return;
       var local=DB.getAll();
-      var nuevas=res.oms.filter(function(o){return !local[o.num];});
+      // Eliminar del celular las OMs que el supervisor borró
+      res.oms.filter(function(o){return o.estado==='BORRADA';}).forEach(function(o){
+        if(local[o.num]) DB.delOM(o.num);
+      });
+      var nuevas=res.oms.filter(function(o){return !local[o.num]&&o.estado!=='BORRADA';});
       var wrap=document.getElementById('oms-asignadas-wrap');
       if(!wrap||!nuevas.length) return;
       wrap.innerHTML='<div class="card" style="border-left:4px solid #1565C0;margin-bottom:4px">'
