@@ -1124,7 +1124,7 @@ function showCrearOM(){
   +'<button onclick="showHome()" style="background:rgba(255,255,255,.2);border:none;color:#fff;border-radius:8px;padding:8px 12px;font-size:14px;cursor:pointer">\u2190 Volver</button>'
   +'<div class="hdr-title" style="margin-left:8px"><h1>Crear y Asignar OM</h1><p>El mec\u00e1nico la ver\u00e1 en su app</p></div></div>'
   +'<div class="card">'
-  +'<label>N\u00famero de OM *</label><input type="text" id="sup-num" placeholder="Ej: 2026-092" inputmode="numeric" style="font-size:20px;font-weight:700;color:var(--naranja)">'
+  +'<label>N\u00famero de OM *</label><input type="text" id="sup-num" placeholder="Ej: 4238" inputmode="numeric" pattern="\d{4,}" minlength="4" style="font-size:20px;font-weight:700;color:var(--naranja)">'
   +'<label>Asignar a mec\u00e1nico *</label><select id="sup-mec"><option value="">--- Seleccionar ---</option>'+mecOpts+'</select>'
   +'<label>\u00c1rea *</label><select id="sup-area" onchange="actualizarEquiposSup()"><option value="">--- Seleccionar \u00e1rea ---</option>'+areaOpts+'</select>'
   +'<label>Equipo *</label><select id="sup-equipo"><option value="">--- Primero seleccione \u00e1rea ---</option></select>'
@@ -1154,6 +1154,7 @@ function crearOMSupervisor(){
   var prio=(document.getElementById('sup-prioridad').value||'MEDIA');
   var obs=(document.getElementById('sup-obs').value||'');
   if(!num){toast('Ingrese el numero de OM');return;}
+  if(!/^\d{4,}$/.test(num)){toast('El numero de OM debe tener minimo 4 digitos');return;}
   if(!mecVal){toast('Seleccione el mecanico');return;}
   if(!area){toast('Seleccione el area');return;}
   if(!equipo){toast('Seleccione el equipo');return;}
@@ -1399,7 +1400,7 @@ function showNuevaOM(){
       <div class="card-title"><span class="ico" style="background:#FFF3E0">📋</span>DATOS GENERALES</div>
 
       <label>Número de OM *</label>
-      <input type="text" id="om-num" placeholder="Ej: 2026-001" inputmode="numeric" style="font-size:20px;font-weight:700;color:var(--naranja)">
+      <input type="text" id="om-num" placeholder="Ej: 4238" inputmode="numeric" pattern="\d{4,}" minlength="4" style="font-size:20px;font-weight:700;color:var(--naranja)">
 
       <label>Mecánico responsable *</label>
       <select id="om-mecanico" onchange="chkNuevoMec(this.value)"><option value="">— Seleccionar —</option>${mecOpts}</select>
@@ -1496,6 +1497,7 @@ function iniciarOM(){
   const falla = document.getElementById('om-falla').value;
 
   if(!num){ toast('⚠️ Ingrese el número de OM'); return; }
+  if(!/^\d{4,}$/.test(num)){ toast('⚠️ El número de OM debe tener mínimo 4 dígitos'); return; }
   if(!mec){ toast('⚠️ Seleccione el mecánico'); return; }
   if(!area){ toast('⚠️ Seleccione el área'); return; }
   if(!eq){ toast('⚠️ Seleccione el equipo'); return; }
