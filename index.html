@@ -1119,12 +1119,6 @@ function sincronizarSupervisor(){
         seccion('PENDIENTES',oms.filter(function(o){return o.estado==='PENDIENTE';}),'#E65100',true)
         +seccion('EN TRABAJO',oms.filter(function(o){return o.estado==='TOMADA';}),'#1565C0',true)
         +seccion('CERRADAS',oms.filter(function(o){return o.estado==='CERRADA';}),'#2E7D32',true);
-    }).catch(function(){
-      var panel=document.getElementById('panel-supervisor');
-      if(panel) panel.innerHTML='<div class="card" style="text-align:center;padding:24px;color:#c00">'
-        +'<div style="font-size:32px">⚠️</div>'
-        +'<p style="margin-top:8px;font-weight:700">Error al conectar con el servidor</p>'
-        +'<p style="font-size:12px;color:var(--txt2);margin-top:6px">Verifica tu conexión y toca 🔄</p></div>';
     });
 }
 
