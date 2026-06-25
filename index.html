@@ -1044,7 +1044,8 @@ function sincronizarSupervisor(){
       var oms=res.oms.filter(function(o){
         return o.num&&o.num!=='N_OM'
           &&o.estado!=='BORRADA'
-          &&!borradasLocal.has(String(o.num)); // ocultar borradas localmente
+          &&!borradasLocal.has(String(o.num))
+          &&/^\d{4,}$/.test(String(o.num)); // solo OMs con numero valido (>=4 digitos)
       });
       if(!oms.length){
         panel.innerHTML='<div class="card" style="text-align:center;padding:24px;color:var(--txt2)"><div style="font-size:36px">\ud83d\udccb</div><p style="margin-top:8px">No hay \u00f3rdenes</p></div>';return;
@@ -1090,7 +1091,13 @@ function sincronizarSupervisor(){
         seccion('PENDIENTES',oms.filter(function(o){return o.estado==='PENDIENTE';}),'#E65100',true)
         +seccion('EN TRABAJO',oms.filter(function(o){return o.estado==='TOMADA';}),'#1565C0',true)
         +seccion('CERRADAS',oms.filter(function(o){return o.estado==='CERRADA';}),'#2E7D32',true);
-    }).catch(function(){toast('Error al cargar');});
+    }).catch(function(){
+      var panel=document.getElementById('panel-supervisor');
+      if(panel) panel.innerHTML='<div class="card" style="text-align:center;padding:24px;color:#c00">'
+        +'<div style="font-size:32px">⚠️</div>'
+        +'<p style="margin-top:8px;font-weight:700">Error al conectar con el servidor</p>'
+        +'<p style="font-size:12px;color:var(--txt2);margin-top:6px">Verifica tu conexión y toca 🔄</p></div>';
+    });
 }
 
 function borrarOMSupervisor(num){
@@ -1202,8 +1209,10 @@ function cargarOMsAsignadas(){
         if(local[o.num]) DB.delOM(o.num);
       });
       // Solo mostrar OMs que el mecanico aun NO ha tomado (no estan en localStorage)
+      // y con número válido (mínimo 4 dígitos)
       var nuevas=res.oms.filter(function(o){
-        return o.estado!=='BORRADA'&&o.estado!=='CERRADA'&&!local[o.num];
+        return o.estado!=='BORRADA'&&o.estado!=='CERRADA'&&!local[o.num]
+          &&/^\d{4,}$/.test(String(o.num||''));
       });
       var wrap=document.getElementById('oms-asignadas-wrap');
       if(!wrap||!nuevas.length) return;
