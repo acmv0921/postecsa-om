@@ -1,4 +1,27 @@
-<!DOCTYPE html>
+<!
+// ── BORRADAS LOCALES (supervisor) ──────────────────
+function _getBorradas(){
+  try{return new Set(JSON.parse(localStorage.getItem(CLAVE_BORRADAS)||'[]'));}
+  catch(e){return new Set();}
+}
+function _addBorrada(num){
+  var b=_getBorradas(); b.add(String(num));
+  localStorage.setItem(CLAVE_BORRADAS,JSON.stringify([...b]));
+}
+function _removeBorrada(num){
+  var b=_getBorradas(); b.delete(String(num));
+  localStorage.setItem(CLAVE_BORRADAS,JSON.stringify([...b]));
+}
+function _intentarBorrarGAS(num){
+  // Usar no-cors (GAS lo recibe aunque sea opaco)
+  fetch(GAS_GERENCIA,{
+    method:'POST',
+    body:JSON.stringify({accion:'borrar_om',num:String(num)}),
+    headers:{'Content-Type':'text/plain'},
+    mode:'no-cors'
+  }).catch(function(){});
+}
+DOCTYPE html>
 <html lang="es">
 <head>
 <meta charset="UTF-8">
@@ -156,6 +179,7 @@ const CLAVE_ROL='pst_rol';
 const CLAVE_USER='pst_user_cc';
 const CLAVE_BIB = 'pst_bib';
 const CLAVE_COLA = 'pst_cola';
+const CLAVE_BORRADAS = 'pst_sup_borradas';
 const MIN_RATE = 132.63; // COP/min SMMLV 2026 + 52.21% prestacional
 const GAS_URL = 'https://script.google.com/macros/s/AKfycbw_xoH7HoqvHK4x9RdWJpuTnXXVupxL_dsP08yMw-NBJD3WcZt8Zb1Es13QW4_SSnk0/exec';
 const GAS_GERENCIA = 'https://script.google.com/macros/s/AKfycbw_xoH7HoqvHK4x9RdWJpuTnXXVupxL_dsP08yMw-NBJD3WcZt8Zb1Es13QW4_SSnk0/exec';;
@@ -993,7 +1017,20 @@ function sincronizarSupervisor(){
       if(!res.ok||!res.oms||!res.oms.length){
         panel.innerHTML='<div class="card" style="text-align:center;padding:24px;color:var(--txt2)">Sin OMs registradas</div>';return;
       }
-      var oms=res.oms.filter(function(o){return o.num&&o.num!=='N_OM'&&o.estado!=='BORRADA';});
+      var borradasLocal=_getBorradas();
+      // Reintentar borrar en GAS las que siguen pendientes localmente
+      borradasLocal.forEach(function(num){
+        if(!res.oms.find(function(o){return String(o.num)===String(num)&&o.estado==='BORRADA';})){
+          _intentarBorrarGAS(num); // reintento silencioso
+        } else {
+          _removeBorrada(num); // el GAS ya la tiene como BORRADA, limpiar local
+        }
+      });
+      var oms=res.oms.filter(function(o){
+        return o.num&&o.num!=='N_OM'
+          &&o.estado!=='BORRADA'
+          &&!borradasLocal.has(String(o.num)); // ocultar borradas localmente
+      });
       if(!oms.length){
         panel.innerHTML='<div class="card" style="text-align:center;padding:24px;color:var(--txt2)"><div style="font-size:36px">\ud83d\udccb</div><p style="margin-top:8px">No hay \u00f3rdenes</p></div>';return;
       }
@@ -1043,65 +1080,40 @@ function sincronizarSupervisor(){
 
 function borrarOMSupervisor(num){
   if(!confirm('Borrar OM #'+num+'?\n\nSe eliminara del sistema y los mecanicos no la veran.')) return;
-  if(!confirm('CONFIRMACION FINAL - Borrar OM #'+num+'?\nNo se puede deshacer.')) return;
-  if(!navigator.onLine){toast('Sin conexion');return;}
-  toast('Borrando OM #'+num+'...');
-  // Ocultar inmediatamente del panel
+  if(!confirm('CONFIRMACION FINAL\u2014Borrar OM #'+num+'?\nNo se puede deshacer.')) return;
+  // 1. Guardar en localStorage inmediatamente (persiste aunque se recargue)
+  _addBorrada(num);
+  // 2. Ocultar del panel visualmente
   var panel=document.getElementById('panel-supervisor');
   if(panel){
     panel.querySelectorAll('[data-om-num="'+num+'"]')
          .forEach(function(el){el.style.display='none';});
   }
-  // POST sin mode:'no-cors' para poder leer la respuesta del GAS
-  fetch(GAS_GERENCIA,{
-    method:'POST',
-    body:JSON.stringify({accion:'borrar_om',num:String(num)}),
-    headers:{'Content-Type':'text/plain'}
-  })
-  .then(function(r){return r.json();})
-  .then(function(res){
-    toast('OM #'+num+' borrada');
-    sincronizarSupervisor();
-  })
-  .catch(function(){
-    // Si hay error CORS (puede pasar en algunos dispositivos), reintentar con no-cors
-    fetch(GAS_GERENCIA,{
-      method:'POST',
-      body:JSON.stringify({accion:'borrar_om',num:String(num)}),
-      headers:{'Content-Type':'text/plain'},
-      mode:'no-cors'
-    }).catch(function(){});
-    setTimeout(function(){toast('OM #'+num+' borrada');sincronizarSupervisor();},3000);
-  });
+  // 3. Enviar al GAS (no-cors, asíncrono, puede fallar sin problema)
+  _intentarBorrarGAS(num);
+  toast('OM #'+num+' eliminada');
+  // 4. Recargar panel despues de 2s (el GAS deberia haber procesado para entonces)
+  setTimeout(sincronizarSupervisor, 2000);
 }
 
 function borrarListaSupervisor(nums,titulo){
   if(!nums||!nums.length){toast('Sin OMs');return;}
-  if(!confirm('Borrar TODAS las OMs de '+titulo+' ('+nums.length+')?\nSe eliminaran del sistema.')) return;
+  if(!confirm('Borrar TODAS las OMs de '+titulo+' ('+nums.length+')?')) return;
   if(!confirm('CONFIRMACION FINAL\nBorrar '+nums.length+' OMs?\nNo se puede deshacer.')) return;
-  if(!navigator.onLine){toast('Sin conexion');return;}
-  toast('Borrando '+nums.length+' OMs...');
-  var cnt=nums.length, ok=0;
-  Promise.all(nums.map(function(num){
-    return fetch(GAS_GERENCIA,{
-        method:'POST',
-        body:JSON.stringify({accion:'borrar_om',num:String(num)}),
-        headers:{'Content-Type':'text/plain'}
-      })
-      .then(function(r){return r.json();})
-      .then(function(res){ok++;})
-      .catch(function(){
-        fetch(GAS_GERENCIA,{
-          method:'POST',
-          body:JSON.stringify({accion:'borrar_om',num:String(num)}),
-          headers:{'Content-Type':'text/plain'},mode:'no-cors'
-        }).catch(function(){});
-        ok++;
-      });
-  })).then(function(){
-    toast(ok+' de '+cnt+' OMs borradas');
-    sincronizarSupervisor();
-  });
+  // Guardar todas en localStorage primero
+  nums.forEach(function(num){ _addBorrada(num); });
+  // Ocultar del panel
+  var panel=document.getElementById('panel-supervisor');
+  if(panel){
+    nums.forEach(function(num){
+      panel.querySelectorAll('[data-om-num="'+num+'"]')
+           .forEach(function(el){el.style.display='none';});
+    });
+  }
+  // Enviar al GAS
+  nums.forEach(function(num){ _intentarBorrarGAS(num); });
+  toast(nums.length+' OMs eliminadas');
+  setTimeout(sincronizarSupervisor, 2000);
 }
 
 function showCrearOM(){
