@@ -150,6 +150,17 @@ input[type=number]{-moz-appearance:textfield}
 .info-row:last-child{border-bottom:none}
 .info-label{color:var(--txt2);font-size:12px}
 .info-val{font-weight:600;text-align:right}
+
+/* Crédito autor */
+#credito-acm{
+  position:fixed;bottom:0;left:0;right:0;z-index:9999;
+  text-align:center;pointer-events:none;
+  font-size:10px;font-weight:600;letter-spacing:.4px;
+  color:#fff;
+  background:linear-gradient(90deg,#c45100,#e65100,#c45100);
+  padding:4px 10px;
+  box-shadow:0 -1px 4px rgba(0,0,0,.25);
+}
 </style>
 </head>
 <body>
@@ -162,6 +173,7 @@ input[type=number]{-moz-appearance:textfield}
 <input type="file" id="fi-cam-c" accept="image/*" capture="environment" multiple style="position:fixed;left:-9999px" aria-hidden="true">
 <input type="file" id="fi-gal-c" accept="image/*" multiple style="position:fixed;left:-9999px" aria-hidden="true">
 
+<div id="credito-acm">Diseño &amp; Desarrollo: ABDIEL CICAR MORENO &nbsp;···&nbsp; POSTECSA OM v6.2</div>
 <div id="toast"></div>
 <div id="app"></div>
 
@@ -3008,19 +3020,6 @@ document.addEventListener('DOMContentLoaded',()=>{
   }
 });
 </script>
-
-<style>
-#credito-acm{
-  position:fixed;bottom:0;left:0;right:0;
-  text-align:center;
-  font-size:9px;color:rgba(255,255,255,.45);
-  padding:3px 8px;
-  background:rgba(0,0,0,.18);
-  pointer-events:none;z-index:9998;
-  letter-spacing:.3px;
-}
-</style>
-<div id="credito-acm">Diseño &amp; Desarrollo: ABDIEL CICAR MORENO &nbsp;·&nbsp; POSTECSA OM v6.2</div>
 
 </body>
 </html>
