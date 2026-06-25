@@ -35,11 +35,20 @@ function _err(msg){
 function doGet(e){
   var p=e.parameter||{};
   var accion=p.accion||'';
+  var cb=p.callback||'';
+
+  function _wrap(output){
+    if(cb){
+      return ContentService.createTextOutput(cb+'('+output.getContent()+');')
+        .setMimeType(ContentService.MimeType.JAVASCRIPT);
+    }
+    return output;
+  }
 
   // Materiales (default)
   if(!accion || accion==='materiales'){
     var h=_matH();
-    if(!h) return _err('Hoja materiales no encontrada');
+    if(!h) return _wrap(_err('Hoja materiales no encontrada'));
     var data=h.getDataRange().getValues();
     var mats=[];
     for(var i=1;i<data.length;i++){
@@ -47,7 +56,7 @@ function doGet(e){
       if(!r[0]&&!r[1]) continue;
       mats.push({codigo:r[0]||'',nombre:r[1]||'',unidad:r[2]||'Und',precio:Number(r[3])||0,stock:Number(r[4])||0});
     }
-    return _ok({materiales:mats});
+    return _wrap(_ok({materiales:mats}));
   }
 
   // OMs asignadas a un mecánico
@@ -63,7 +72,7 @@ function doGet(e){
         oms.push({num:row[0],fecha:row[1],area:row[2],equipo:row[3],falla:row[4],tipo_mant:row[5],prioridad:row[6],mec_cc:row[7],mec_nom:row[8],obs_i:row[9],estado:estado});
       }
     }
-    return _ok({oms:oms});
+    return _wrap(_ok({oms:oms}));
   }
 
   // Todas las OMs (supervisor)
@@ -76,7 +85,7 @@ function doGet(e){
       if(!row3[0]) continue;
       oms2.push({num:row3[0],fecha:row3[1],area:row3[2],equipo:row3[3],falla:row3[4],tipo_mant:row3[5],prioridad:row3[6],mec_cc:row3[7],mec_nom:row3[8],obs_i:row3[9],estado:String(row3[10]||'PENDIENTE')});
     }
-    return _ok({oms:oms2});
+    return _wrap(_ok({oms:oms2}));
   }
 
   // Borrar OM por GET (para evitar CORS en POST)
@@ -87,10 +96,10 @@ function doGet(e){
     for(var m=1;m<data4.length;m++){
       if(String(data4[m][0])===String(num)){
         h4.getRange(m+1,11).setValue('BORRADA');
-        return _ok({borrada:num});
+        return _wrap(_ok({borrada:num}));
       }
     }
-    return _err('OM no encontrada: '+num);
+    return _wrap(_err('OM no encontrada: '+num));
   }
 
   // Link PDF en Drive
@@ -100,13 +109,13 @@ function doGet(e){
     var data5=h5.getDataRange().getValues();
     for(var n=1;n<data5.length;n++){
       if(String(data5[n][0])===String(otNum) && data5[n][11]){
-        return _ok({link:data5[n][11]});
+        return _wrap(_ok({link:data5[n][11]}));
       }
     }
-    return _err('Link no encontrado');
+    return _wrap(_err('Link no encontrado'));
   }
 
-  return _err('Accion GET no reconocida: '+accion);
+  return _wrap(_err('Accion GET no reconocida: '+accion));
 }
 
 // ══════════════════════════════════════════════════
