@@ -1060,14 +1060,13 @@ function sincronizarSupervisor(){
       if(!res.ok||!res.oms||!res.oms.length){
         panel.innerHTML='<div class="card" style="text-align:center;padding:24px;color:var(--txt2)">Sin OMs registradas</div>';return;
       }
-      var borradasLocal=_getBorradas();
+      var borradasLocal=window._getBorradas?window._getBorradas():new Set();
       // Reintentar borrar en GAS las que siguen pendientes localmente
       borradasLocal.forEach(function(num){
-        if(!res.oms.find(function(o){return String(o.num)===String(num)&&o.estado==='BORRADA';})){
-          _intentarBorrarGAS(num); // reintento silencioso
-        } else {
-          _removeBorrada(num); // el GAS ya la tiene como BORRADA, limpiar local
-        }
+        if(!res.oms.find(function(o){return String(o.num)===String(num)&&o.estado==='BORRADA';}))
+          {if(window._intentarBorrarGAS)window._intentarBorrarGAS(num);}
+        else
+          {if(window._removeBorrada)window._removeBorrada(num);}
       });
       var oms=res.oms.filter(function(o){
         return o.num&&o.num!=='N_OM'
@@ -3053,6 +3052,10 @@ document.addEventListener('DOMContentLoaded',()=>{
       '</div>';
   }
 });
+// Exponer funciones al scope global para JSONP callbacks
+window._getBorradas=_getBorradas;
+window._removeBorrada=_removeBorrada;
+window._intentarBorrarGAS=_intentarBorrarGAS;
 </script>
 
 </body>
