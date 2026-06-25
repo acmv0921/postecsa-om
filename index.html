@@ -1142,14 +1142,9 @@ function cargarOMsAsignadas(){
       res.oms.filter(function(o){return o.estado==='BORRADA';}).forEach(function(o){
         if(local[o.num]) DB.delOM(o.num);
       });
-      // Mostrar OMs pendientes/no tomadas (no están en local o están PENDIENTE)
+      // Solo mostrar OMs que el mecanico aun NO ha tomado (no estan en localStorage)
       var nuevas=res.oms.filter(function(o){
-        return o.estado!=='BORRADA'&&o.estado!=='CERRADA'&&
-               (!local[o.num]||local[o.num].etapa==='INICIO'&&o.estado==='PENDIENTE');
-      });
-      // Limpiar las BORRADAS del localStorage
-      res.oms.filter(function(o){return o.estado==='BORRADA';}).forEach(function(o){
-        if(local[o.num]) DB.delOM(o.num);
+        return o.estado!=='BORRADA'&&o.estado!=='CERRADA'&&!local[o.num];
       });
       var wrap=document.getElementById('oms-asignadas-wrap');
       if(!wrap||!nuevas.length) return;
