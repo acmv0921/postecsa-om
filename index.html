@@ -1046,19 +1046,33 @@ function borrarOMSupervisor(num){
   if(!confirm('CONFIRMACION FINAL - Borrar OM #'+num+'?\nNo se puede deshacer.')) return;
   if(!navigator.onLine){toast('Sin conexion');return;}
   toast('Borrando OM #'+num+'...');
-  // Ocultar la OM del panel inmediatamente (optimista)
+  // Ocultar inmediatamente del panel
   var panel=document.getElementById('panel-supervisor');
   if(panel){
-    var items=panel.querySelectorAll('[data-om-num="'+num+'"]');
-    items.forEach(function(el){el.style.display='none';});
+    panel.querySelectorAll('[data-om-num="'+num+'"]')
+         .forEach(function(el){el.style.display='none';});
   }
+  // POST sin mode:'no-cors' para poder leer la respuesta del GAS
   fetch(GAS_GERENCIA,{
     method:'POST',
-    body:JSON.stringify({accion:'borrar_om',num:num}),
-    headers:{'Content-Type':'text/plain'},
-    mode:'no-cors'
-  }).catch(function(){});
-  setTimeout(function(){toast('OM #'+num+' borrada');sincronizarSupervisor();},3000);
+    body:JSON.stringify({accion:'borrar_om',num:String(num)}),
+    headers:{'Content-Type':'text/plain'}
+  })
+  .then(function(r){return r.json();})
+  .then(function(res){
+    toast('OM #'+num+' borrada');
+    sincronizarSupervisor();
+  })
+  .catch(function(){
+    // Si hay error CORS (puede pasar en algunos dispositivos), reintentar con no-cors
+    fetch(GAS_GERENCIA,{
+      method:'POST',
+      body:JSON.stringify({accion:'borrar_om',num:String(num)}),
+      headers:{'Content-Type':'text/plain'},
+      mode:'no-cors'
+    }).catch(function(){});
+    setTimeout(function(){toast('OM #'+num+' borrada');sincronizarSupervisor();},3000);
+  });
 }
 
 function borrarListaSupervisor(nums,titulo){
@@ -1067,16 +1081,27 @@ function borrarListaSupervisor(nums,titulo){
   if(!confirm('CONFIRMACION FINAL\nBorrar '+nums.length+' OMs?\nNo se puede deshacer.')) return;
   if(!navigator.onLine){toast('Sin conexion');return;}
   toast('Borrando '+nums.length+' OMs...');
-  var cnt=nums.length;
-  nums.forEach(function(num){
-    fetch(GAS_GERENCIA,{
-      method:'POST',
-      body:JSON.stringify({accion:'borrar_om',num:num}),
-      headers:{'Content-Type':'text/plain'},
-      mode:'no-cors'
-    }).catch(function(){});
+  var cnt=nums.length, ok=0;
+  Promise.all(nums.map(function(num){
+    return fetch(GAS_GERENCIA,{
+        method:'POST',
+        body:JSON.stringify({accion:'borrar_om',num:String(num)}),
+        headers:{'Content-Type':'text/plain'}
+      })
+      .then(function(r){return r.json();})
+      .then(function(res){ok++;})
+      .catch(function(){
+        fetch(GAS_GERENCIA,{
+          method:'POST',
+          body:JSON.stringify({accion:'borrar_om',num:String(num)}),
+          headers:{'Content-Type':'text/plain'},mode:'no-cors'
+        }).catch(function(){});
+        ok++;
+      });
+  })).then(function(){
+    toast(ok+' de '+cnt+' OMs borradas');
+    sincronizarSupervisor();
   });
-  setTimeout(function(){toast(cnt+' OMs borradas');sincronizarSupervisor();},1800);
 }
 
 function showCrearOM(){
