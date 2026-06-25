@@ -1807,6 +1807,7 @@ function showAddInsumo(et){
       <input type="hidden" id="ins-sel-n">
       <input type="hidden" id="ins-sel-u">
       <input type="hidden" id="ins-sel-p" value="0">
+      <input type="hidden" id="ins-sel-c" value="">
       <div id="ins-preview" style="display:none;background:var(--fondo);border-radius:8px;padding:12px;margin-top:10px">
         <div style="font-weight:700" id="ins-prev-n"></div>
         <div style="font-size:12px;color:var(--txt2)" id="ins-prev-p"></div>
@@ -1862,9 +1863,10 @@ function selBib(idx){
   document.getElementById('ins-sel-n').value=b.n;
   document.getElementById('ins-sel-u').value=b.u;
   document.getElementById('ins-sel-p').value=b.p;
+  document.getElementById('ins-sel-c').value=b.c||'';
   document.getElementById('ins-lista').style.display='none';
   document.getElementById('ins-preview').style.display='block';
-  document.getElementById('ins-prev-n').textContent=b.n+' ('+b.u+')';
+  document.getElementById('ins-prev-n').textContent=(b.c?'['+b.c+'] ':'')+b.n+' ('+b.u+')';
   document.getElementById('ins-prev-p').textContent='Precio: '+fCOP(b.p)+' por '+b.u;
 }
 
@@ -1873,10 +1875,11 @@ function addInsumoDesde(et){
   const u=document.getElementById('ins-sel-u').value;
   const p=fNum(document.getElementById('ins-sel-p').value);
   const qty=fNum(document.getElementById('ins-qty').value);
+  const cod=document.getElementById('ins-sel-c')?.value||'';
   if(!n){ toast('⚠️ Seleccione un material'); return; }
   if(qty<=0){ toast('⚠️ Ingrese la cantidad'); return; }
   if(!INS[et]) INS[et]=[];
-  INS[et].push({n,u,p,qty});
+  INS[et].push({n,u,p,qty,cod});
   OM['ins_'+et]=[...INS[et]];
   DB.saveOM(OM);
   toast('✅ Insumo agregado');
@@ -2194,7 +2197,7 @@ function enviarGerencia(om){
 
   const filas=ins_total.length
     ?ins_total.map(i=>({accion:'guardar_material',fecha,otNum,equipo,mecanico,
-        desc:String(i.n||''),cant:Number(i.qty||1),um:String(i.u||'Und'),precio:Number(i.p||0)}))
+        cod:String(i.cod||''),desc:String(i.n||''),cant:Number(i.qty||1),um:String(i.u||'Und'),precio:Number(i.p||0)}))
     :[{accion:'guardar_material',fecha,otNum,equipo,mecanico,
         desc:'Mano de obra - '+String(om.falla||''),
         cant:Number(om.min_total||0),um:'min',precio:MIN_RATE}];
@@ -2363,21 +2366,25 @@ function _generarPDF(){
     doc.setFontSize(8);doc.setFont('helvetica','bold');doc.setTextColor(...N);
     doc.text('POSTECSA',M+12,18,'center');
   }
-  // Título principal
-  doc.setFontSize(15);doc.setFont('helvetica','bold');doc.setTextColor(255,255,255);
-  doc.text('ORDEN DE MANTENIMIENTO',M+57,13);
-  // Subtítulo
-  doc.setFontSize(8);doc.setFont('helvetica','normal');doc.setTextColor(255,180,100);
-  doc.text('POSTEC DE OCCIDENTE S.A.S.  \u00b7  Gesti\u00f3n de Mantenimiento y Confiabilidad',M+57,20);
-  // Versión
-  doc.setFontSize(6.5);doc.setFont('helvetica','italic');doc.setTextColor(160,180,210);
-  doc.text('Generado: '+new Date().toLocaleString('es-CO')+' \u00b7 v'+VERSION,M+57,26.5);
-  // Cuadro N° OM (derecha)
-  doc.setFillColor(230,81,0);doc.roundedRect(W-46,3,32,27,2,2,'F');
+  // Cuadro N° OM (esquina derecha) — dibujado PRIMERO para no tapar texto
+  doc.setFillColor(230,81,0);doc.roundedRect(W-40,3,26,27,2,2,'F');
   doc.setFontSize(7);doc.setFont('helvetica','normal');doc.setTextColor(255,220,180);
-  doc.text('N\u00b0 OM',W-30,10,'center');
-  doc.setFontSize(18);doc.setFont('helvetica','bold');doc.setTextColor(255,255,255);
-  doc.text(String(OM.num||''),W-30,23,'center');
+  doc.text('N\u00b0 OM',W-27,10,'center');
+  doc.setFontSize(16);doc.setFont('helvetica','bold');doc.setTextColor(255,255,255);
+  doc.text(String(OM.num||''),W-27,23,'center');
+  // Título principal — limitado a W-44 para no solapar cuadro
+  doc.setFontSize(13);doc.setFont('helvetica','bold');doc.setTextColor(255,255,255);
+  var tituloLines=doc.splitTextToSize('ORDEN DE MANTENIMIENTO',W-44-(M+57));
+  doc.text(tituloLines[0],M+57,13);
+  // Subtítulo
+  doc.setFontSize(7.5);doc.setFont('helvetica','normal');doc.setTextColor(255,180,100);
+  var subLines=doc.splitTextToSize('POSTEC DE OCCIDENTE S.A.S. - Gestion de Mantenimiento y Confiabilidad',W-44-(M+57));
+  doc.text(subLines[0],M+57,20);
+  // Fecha generación
+  doc.setFontSize(6.5);doc.setFont('helvetica','italic');doc.setTextColor(160,180,210);
+  var fechaStr='Generado: '+new Date().toLocaleString('es-CO')+' - v'+VERSION;
+  var fechaLines=doc.splitTextToSize(fechaStr,W-44-(M+57));
+  doc.text(fechaLines[0],M+57,26.5);
   y=44;
 
   // DATOS GENERALES
