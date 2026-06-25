@@ -1022,11 +1022,39 @@ function showHomeSupervisor(){
   sincronizarSupervisor();
 }
 
+
+// ── JSONP helper (evita CORS en GET al GAS) ──────────────
+function _jsonpGet(url, callback){
+  var cbName='_gcb_'+Date.now();
+  var script=document.createElement('script');
+  var timeout=setTimeout(function(){
+    delete window[cbName];
+    if(script.parentNode) script.parentNode.removeChild(script);
+    callback(null, new Error('Timeout'));
+  }, 15000);
+  window[cbName]=function(data){
+    clearTimeout(timeout);
+    delete window[cbName];
+    if(script.parentNode) script.parentNode.removeChild(script);
+    callback(data, null);
+  };
+  script.src = url + (url.indexOf('?')>=0?'&':'?') + 'callback='+cbName;
+  script.onerror=function(){
+    clearTimeout(timeout);
+    delete window[cbName];
+    callback(null, new Error('Script error'));
+  };
+  document.head.appendChild(script);
+}
+
 function sincronizarSupervisor(){
   if(!navigator.onLine){toast('Sin conexion');return;}
-  fetch(GAS_GERENCIA+'?accion=todas_oms')
-    .then(function(r){return r.json();})
-    .then(function(res){
+  _jsonpGet(GAS_GERENCIA+'?accion=todas_oms', function(res, err){
+      if(err||!res){
+        var panel0=document.getElementById('panel-supervisor');
+        if(panel0) panel0.innerHTML='<div class="card" style="text-align:center;padding:24px"><div style="font-size:32px">⚠️</div><p style="font-weight:700;color:#c00">Error al conectar con el servidor</p><p style="font-size:12px;color:var(--txt2);margin-top:6px">Verifica tu conexión y toca ??</p></div>';
+        return;
+      }
       var panel=document.getElementById('panel-supervisor');
       if(!panel) return;
       if(!res.ok||!res.oms||!res.oms.length){
@@ -1199,9 +1227,8 @@ function crearOMSupervisor(){
 
 function cargarOMsAsignadas(){
   if(!navigator.onLine||!USER_CC) return;
-  fetch(GAS_GERENCIA+'?accion=mis_oms&cc='+encodeURIComponent(USER_CC))
-    .then(function(r){return r.json();})
-    .then(function(res){
+  _jsonpGet(GAS_GERENCIA+'?accion=mis_oms&cc='+encodeURIComponent(USER_CC), function(res, err){
+      if(err||!res) return;
       if(!res.ok||!res.oms||!res.oms.length) return;
       var local=DB.getAll();
       // Eliminar del celular las OMs que el supervisor borró
@@ -1232,14 +1259,13 @@ function cargarOMsAsignadas(){
             +'\u25b6 Tomar</button></div>';
         }).join('')
         +'</div>';
-    }).catch(function(){});
+    });
 }
 
 function tomarOM(numOM){
   if(!navigator.onLine){toast('Necesita conexion para tomar la OM');return;}
-  fetch(GAS_GERENCIA+'?accion=mis_oms&cc='+encodeURIComponent(USER_CC))
-    .then(function(r){return r.json();})
-    .then(function(res){
+  _jsonpGet(GAS_GERENCIA+'?accion=mis_oms&cc='+encodeURIComponent(USER_CC), function(res, err){
+      if(err||!res) return;
       if(!res.ok||!res.oms) return;
       var omData=res.oms.find(function(o){return o.num===numOM;});
       if(!omData){toast('OM no encontrada');return;}
