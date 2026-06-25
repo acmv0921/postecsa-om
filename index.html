@@ -2712,6 +2712,8 @@ function _generarPDF(){
     doc.setFontSize(7.5);doc.setFont('helvetica','normal');doc.setTextColor(...GM);
     doc.text('POSTEC DE OCCIDENTE S.A.S.  \u00b7  OM #'+String(OM.num||'')+'  \u00b7  '+String(OM.equipo||''),M,288);
     doc.text('P\u00e1g. '+p+' / '+nPags+'  \u00b7  '+fFecha(ts()),W-M,288,'right');
+    doc.setFontSize(6.5);doc.setFont('helvetica','italic');doc.setTextColor(180,180,180);
+    doc.text('Dise\u00f1o & Desarrollo: ABDIEL CICAR MORENO  \u00b7  POSTECSA OM v'+VERSION,W/2,292,'center');
   }
   doc.save('OM_'+String(OM.num||'')+'_POSTECSA.pdf');
   toast('\u2705 PDF generado');
