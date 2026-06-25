@@ -1534,9 +1534,18 @@ function _showForm(){
 
     <!-- BOTONES DE AVANCE -->
     <div style="padding:12px;padding-bottom:80px">
-      ${etapa==='INICIO'?`<button class="btn btn-primary" onclick="avanzarEtapa('AVANCE')">▶ PASAR A AVANCE</button>`:''}
-      ${etapa==='AVANCE'?`<button class="btn btn-primary" onclick="avanzarEtapa('CIERRE')">▶ PASAR A CIERRE</button>`:''}
-      ${etapa==='CIERRE'?`<button class="btn btn-success" onclick="cerrarOM()">✅ CERRAR Y GENERAR PDF</button>`:''}
+      ${etapa==='INICIO'?`
+        <button class="btn btn-primary" onclick="avanzarEtapa('AVANCE')">▶ PASAR A AVANCE</button>
+        <button class="btn btn-outline" style="margin-top:8px" onclick="reportarEtapaWA('i')">📤 Reportar Inicio por WhatsApp</button>
+      `:''}
+      ${etapa==='AVANCE'?`
+        <button class="btn btn-primary" onclick="avanzarEtapa('CIERRE')">▶ PASAR A CIERRE</button>
+        <button class="btn btn-outline" style="margin-top:8px" onclick="reportarEtapaWA('a')">📤 Reportar Avance por WhatsApp</button>
+      `:''}
+      ${etapa==='CIERRE'?`
+        <button class="btn btn-success" onclick="cerrarOM()">✅ CERRAR Y GENERAR PDF</button>
+        <button class="btn btn-outline" style="margin-top:8px" onclick="reportarEtapaWA('c')">📤 Reportar Cierre por WhatsApp</button>
+      `:''}
     </div>
   `);
 
@@ -2631,6 +2640,70 @@ function _generarPDF(){
 // ═══════════════════════════════════════════════
 // WHATSAPP
 // ═══════════════════════════════════════════════
+function reportarEtapaWA(et){
+  capturar();
+  const etNom=et==='i'?'INICIO':et==='a'?'AVANCE':'CIERRE';
+  // Actividades de la etapa
+  const acts=[...(ACTS[et]||[]),...(OM['acts_'+et]||[])].filter(function(a){return a&&a.desc;});
+  // Deduplicar actividades
+  const seenA=new Set(), actsU=[];
+  acts.forEach(function(a){if(!seenA.has(a.id||a.desc)){seenA.add(a.id||a.desc);actsU.push(a);}});
+  // Fotos de la etapa
+  const fotos=_fotosEtapa(et);
+  // Checklist
+  const chkSaved=et==='a'?(OM.chk_a||[]):et==='c'?(OM.chk_c||[]):[];
+  const chkOk=chkSaved.filter(Boolean).length;
+  const chkTotal=et==='a'?CHECKLIST_AVANCE.length:et==='c'?CHECKLIST_CIERRE.length:0;
+  // Materiales de la etapa
+  const ins=INS[et]||OM['ins_'+et]||[];
+  const costaMat=ins.reduce(function(s,i){return s+(fNum(i.p)*fNum(i.qty));},0);
+  // Tiempo y costo MO de la etapa
+  const tEt=actsU.reduce(function(s,a){return s+fNum(a.min);},0);
+  const costoEt=Math.round(tEt*132.63);
+  // Firma
+  const kFir=et==='a'?'mec_a':et==='c'?'mec_c':'';
+  const tieneFirma=kFir&&(FIR[kFir]||(OM.firmas&&OM.firmas[kFir]));
+
+  var msg='*POSTECSA - OM #'+String(OM.num||'')+'*\n'
+    +'*ETAPA: '+etNom+'*\n'
+    +'------------------------\n'
+    +'Equipo: '+String(OM.equipo||'')+' - '+String(OM.area||'')+'\n'
+    +'Mecanico: '+String(OM.mecanico_nombre||OM.mecanico||'')+'\n'
+    +'Fecha: '+new Date().toLocaleDateString('es-CO')+'\n'
+    +'\n'
+    +'Actividades: '+actsU.length+'\n';
+  if(actsU.length){
+    msg+=actsU.map(function(a,i){
+      return (i+1)+'. '+String(a.desc||'')+(a.min?' ('+a.min+' min)':'');
+    }).join('\n')+'\n';
+  }
+  msg+='\n'
+    +'Tiempo etapa: '+tEt+' min\n'
+    +'Costo M.O.: '+fCOP(costoEt)+'\n';
+  if(ins.length){
+    msg+='Materiales: '+ins.length+' item(s) - '+fCOP(costaMat)+'\n';
+  }
+  msg+='Fotos: '+fotos.length+'\n';
+  if(chkTotal>0){
+    msg+='Checklist: '+chkOk+'/'+chkTotal+'\n';
+    // Items no cumplidos
+    const chkItems=et==='a'?CHECKLIST_AVANCE:CHECKLIST_CIERRE;
+    const justArr=et==='a'?(OM.chk_just_a||[]):et==='c'?(OM.chk_just_c||[]):[];
+    const pendientes=chkItems.filter(function(it,i){return !chkSaved[i];});
+    if(pendientes.length){
+      msg+='Sin cumplir:\n';
+      pendientes.forEach(function(it,i){
+        const idx=chkItems.indexOf(it);
+        const just=justArr[idx]?(' - '+justArr[idx]):'';
+        msg+='  x '+it+just+'\n';
+      });
+    }
+  }
+  if(kFir) msg+='Firma: '+(tieneFirma?'Registrada':'Pendiente')+'\n';
+
+  window.open('https://wa.me/?text='+encodeURIComponent(msg),'_blank');
+}
+
 function compartirWA(){
   // 1. Descargar PDF al celular
   toast('Generando PDF...');
