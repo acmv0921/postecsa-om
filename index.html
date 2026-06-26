@@ -195,7 +195,9 @@ const CLAVE_COLA = 'pst_cola';
 const CLAVE_BORRADAS = 'pst_sup_borradas';
 const MIN_RATE = 132.63; // COP/min SMMLV 2026 + 52.21% prestacional
 const GAS_URL = 'https://script.google.com/macros/s/AKfycbwugaCAIMZ7jBVdq2zdpzN4EPsIlMc7c4M0-p8E2Ca146HD4jUvXX_dDuuY-zCn5PWIsA/exec';
-const GAS_GERENCIA = 'https://script.google.com/macros/s/AKfycbwugaCAIMZ7jBVdq2zdpzN4EPsIlMc7c4M0-p8E2Ca146HD4jUvXX_dDuuY-zCn5PWIsA/exec';;
+const GAS_GERENCIA = 'https://script.google.com/macros/s/AKfycbwugaCAIMZ7jBVdq2zdpzN4EPsIlMc7c4M0-p8E2Ca146HD4jUvXX_dDuuY-zCn5PWIsA/exec';
+const SHEET_OMS = 'https://docs.google.com/spreadsheets/d/1IlxWD6QiCsntzyjEnJfE5KlB36Q39wJsQLnR0HE9gM4/gviz/tq?tqx=out:json&sheet=OMs-Pendientes';
+const SHEET_MAT = 'https://docs.google.com/spreadsheets/d/1IlxWD6QiCsntzyjEnJfE5KlB36Q39wJsQLnR0HE9gM4/gviz/tq?tqx=out:json&sheet=Hoja%201';;
 
 const MECANICOS = [
   {cc:'16454304',nombre:'MARCOS RAÚL LÓPEZ LÓPEZ',cargo:'MECÁNICO'},
@@ -1024,11 +1026,40 @@ function showHomeSupervisor(){
 
 
 
+
+// ── Parsear respuesta gviz/tq de Google Sheets ────────────
+function _parseGviz(raw){
+  try{
+    var start=raw.indexOf('{'); var end=raw.lastIndexOf('}')+1;
+    var data=JSON.parse(raw.slice(start,end));
+    var table=data.table||{};
+    var cols=(table.cols||[]).map(function(c){return c.label||'';});
+    var rows=(table.rows||[]).map(function(row){
+      var obj={};
+      (row.c||[]).forEach(function(cell,i){
+        obj[cols[i]]=cell?(cell.v===null||cell.v===undefined?'':cell.v):'';
+      });
+      return obj;
+    });
+    return rows;
+  }catch(e){return null;}
+}
+
 function sincronizarSupervisor(){
   if(!navigator.onLine){toast('Sin conexion');return;}
-  fetch(GAS_GERENCIA+'?accion=todas_oms',{redirect:'follow',credentials:'omit',cache:'no-store'})
-    .then(function(r){return r.json();})
-    .then(function(res){
+  fetch(SHEET_OMS+'&nocache='+Date.now(),{credentials:'omit'})
+    .then(function(r){return r.text();})
+    .then(function(raw){
+      var filas=_parseGviz(raw);
+      if(!filas){throw new Error('parse error');}
+      // Convertir filas del sheet a formato oms
+      var res={ok:true, oms:filas.filter(function(f){return f.num||f.NUM||f['num'];}).map(function(f){
+        return {num:String(f.num||f.NUM||''),fecha:String(f.fecha||''),area:String(f.area||''),
+                equipo:String(f.equipo||''),falla:String(f.falla||''),tipo_mant:String(f.tipo_mant||''),
+                prioridad:String(f.prioridad||'MEDIA'),mec_cc:String(f.mec_cc||''),
+                mec_nom:String(f.mec_nom||''),obs_i:String(f.obs_i||''),
+                estado:String(f.estado||'PENDIENTE')};
+      })};
       var panel=document.getElementById('panel-supervisor');
       if(!panel) return;
       if(!res.ok||!res.oms||!res.oms.length){
@@ -1198,9 +1229,20 @@ function crearOMSupervisor(){
 
 function cargarOMsAsignadas(){
   if(!navigator.onLine||!USER_CC) return;
-  fetch(GAS_GERENCIA+'?accion=mis_oms&cc='+encodeURIComponent(USER_CC),{redirect:'follow',credentials:'omit',cache:'no-store'})
-    .then(function(r){return r.json();})
-    .then(function(res){
+  fetch(SHEET_OMS+'&nocache='+Date.now(),{credentials:'omit'})
+    .then(function(r){return r.text();})
+    .then(function(raw){
+      var filas=_parseGviz(raw);
+      if(!filas) return;
+      var res={ok:true, oms:filas.filter(function(f){
+        return String(f.mec_cc||f.mec_cc||'')===String(USER_CC)&&(f.estado||'')!=='BORRADA'&&(f.num||'')!=='';
+      }).map(function(f){
+        return {num:String(f.num||''),fecha:String(f.fecha||''),area:String(f.area||''),
+                equipo:String(f.equipo||''),falla:String(f.falla||''),tipo_mant:String(f.tipo_mant||''),
+                prioridad:String(f.prioridad||'MEDIA'),mec_cc:String(f.mec_cc||''),
+                mec_nom:String(f.mec_nom||''),obs_i:String(f.obs_i||''),
+                estado:String(f.estado||'PENDIENTE')};
+      })};
       if(!res.ok||!res.oms||!res.oms.length) return;
       var local=DB.getAll();
       // Eliminar del celular las OMs que el supervisor borró
@@ -1236,9 +1278,20 @@ function cargarOMsAsignadas(){
 
 function tomarOM(numOM){
   if(!navigator.onLine){toast('Necesita conexion para tomar la OM');return;}
-  fetch(GAS_GERENCIA+'?accion=mis_oms&cc='+encodeURIComponent(USER_CC),{redirect:'follow',credentials:'omit',cache:'no-store'})
-    .then(function(r){return r.json();})
-    .then(function(res){
+  fetch(SHEET_OMS+'&nocache='+Date.now(),{credentials:'omit'})
+    .then(function(r){return r.text();})
+    .then(function(raw){
+      var filas=_parseGviz(raw);
+      if(!filas) return;
+      var res={ok:true, oms:filas.filter(function(f){
+        return String(f.mec_cc||f.mec_cc||'')===String(USER_CC)&&(f.estado||'')!=='BORRADA'&&(f.num||'')!=='';
+      }).map(function(f){
+        return {num:String(f.num||''),fecha:String(f.fecha||''),area:String(f.area||''),
+                equipo:String(f.equipo||''),falla:String(f.falla||''),tipo_mant:String(f.tipo_mant||''),
+                prioridad:String(f.prioridad||'MEDIA'),mec_cc:String(f.mec_cc||''),
+                mec_nom:String(f.mec_nom||''),obs_i:String(f.obs_i||''),
+                estado:String(f.estado||'PENDIENTE')};
+      })};
       if(!res.ok||!res.oms) return;
       var omData=res.oms.find(function(o){return o.num===numOM;});
       if(!omData){toast('OM no encontrada');return;}
