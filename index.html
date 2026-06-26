@@ -1024,7 +1024,7 @@ function showHomeSupervisor(){
   +'<div class="card"><button class="btn btn-primary" onclick="showCrearOM()">\u2795 CREAR Y ASIGNAR NUEVA OM</button></div>'
   +'<div id="panel-supervisor"><div style="text-align:center;padding:40px;color:var(--txt2)"><div style="font-size:36px">\ud83d\udd04</div><p style="margin-top:8px">Cargando...</p></div></div>'
   +'<div style="height:20px"></div>');
-  sincronizarSupervisor();
+  setTimeout(sincronizarSupervisor, 500);
 }
 
 
@@ -1062,8 +1062,10 @@ function _parseGviz(raw){
 
 function sincronizarSupervisor(){
   if(!navigator.onLine){toast('Sin conexion');return;}
-  fetch(GAS_GERENCIA+'?accion=todas_oms&t='+Date.now())
-    .then(function(r){return r.json();})
+  var _ctrl=new AbortController();
+  var _tid=setTimeout(function(){_ctrl.abort();},12000);
+  fetch(GAS_GERENCIA+'?accion=todas_oms&t='+Date.now(),{signal:_ctrl.signal})
+    .then(function(r){clearTimeout(_tid);return r.json();})
     .then(function(res){
       var panel=document.getElementById('panel-supervisor');
       if(!panel) return;
