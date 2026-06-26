@@ -1023,50 +1023,24 @@ function showHomeSupervisor(){
 }
 
 
-// ── JSONP helper (evita CORS en GET al GAS) ──────────────
-function _jsonpGet(url, callback){
-  var cbName='_gcb_'+Date.now();
-  var script=document.createElement('script');
-  var timeout=setTimeout(function(){
-    delete window[cbName];
-    if(script.parentNode) script.parentNode.removeChild(script);
-    callback(null, new Error('Timeout'));
-  }, 15000);
-  window[cbName]=function(data){
-    clearTimeout(timeout);
-    delete window[cbName];
-    if(script.parentNode) script.parentNode.removeChild(script);
-    callback(data, null);
-  };
-  script.src = url + (url.indexOf('?')>=0?'&':'?') + 'callback='+cbName;
-  script.onerror=function(){
-    clearTimeout(timeout);
-    delete window[cbName];
-    callback(null, new Error('Script error'));
-  };
-  document.head.appendChild(script);
-}
 
 function sincronizarSupervisor(){
   if(!navigator.onLine){toast('Sin conexion');return;}
-  _jsonpGet(GAS_GERENCIA+'?accion=todas_oms', function(res, err){
-      if(err||!res){
-        var panel0=document.getElementById('panel-supervisor');
-        if(panel0) panel0.innerHTML='<div class="card" style="text-align:center;padding:24px"><div style="font-size:32px">⚠️</div><p style="font-weight:700;color:#c00">Error al conectar con el servidor</p><p style="font-size:12px;color:var(--txt2);margin-top:6px">Verifica tu conexión y toca ??</p></div>';
-        return;
-      }
+  fetch(GAS_GERENCIA+'?accion=todas_oms')
+    .then(function(r){return r.json();})
+    .then(function(res){
       var panel=document.getElementById('panel-supervisor');
       if(!panel) return;
       if(!res.ok||!res.oms||!res.oms.length){
         panel.innerHTML='<div class="card" style="text-align:center;padding:24px;color:var(--txt2)">Sin OMs registradas</div>';return;
       }
-      var borradasLocal=window._getBorradas?window._getBorradas():new Set();
+      var borradasLocal=_getBorradas();
       // Reintentar borrar en GAS las que siguen pendientes localmente
       borradasLocal.forEach(function(num){
         if(!res.oms.find(function(o){return String(o.num)===String(num)&&o.estado==='BORRADA';}))
-          {if(window._intentarBorrarGAS)window._intentarBorrarGAS(num);}
+          {_intentarBorrarGAS(num);}
         else
-          {if(window._removeBorrada)window._removeBorrada(num);}
+          {_removeBorrada(num);}
       });
       var oms=res.oms.filter(function(o){
         return o.num&&o.num!=='N_OM'
@@ -1118,6 +1092,10 @@ function sincronizarSupervisor(){
         seccion('PENDIENTES',oms.filter(function(o){return o.estado==='PENDIENTE';}),'#E65100',true)
         +seccion('EN TRABAJO',oms.filter(function(o){return o.estado==='TOMADA';}),'#1565C0',true)
         +seccion('CERRADAS',oms.filter(function(o){return o.estado==='CERRADA';}),'#2E7D32',true);
+    })
+    .catch(function(){
+      var p=document.getElementById('panel-supervisor');
+      if(p) p.innerHTML='<div class="card" style="text-align:center;padding:24px;color:#c00"><div style="font-size:32px">⚠️</div><p style="font-weight:700">Error al conectar</p><p style="font-size:12px;margin-top:4px">Toca ?? para reintentar</p></div>';
     });
 }
 
@@ -1220,8 +1198,9 @@ function crearOMSupervisor(){
 
 function cargarOMsAsignadas(){
   if(!navigator.onLine||!USER_CC) return;
-  _jsonpGet(GAS_GERENCIA+'?accion=mis_oms&cc='+encodeURIComponent(USER_CC), function(res, err){
-      if(err||!res) return;
+  fetch(GAS_GERENCIA+'?accion=mis_oms&cc='+encodeURIComponent(USER_CC))
+    .then(function(r){return r.json();})
+    .then(function(res){
       if(!res.ok||!res.oms||!res.oms.length) return;
       var local=DB.getAll();
       // Eliminar del celular las OMs que el supervisor borró
@@ -1257,8 +1236,9 @@ function cargarOMsAsignadas(){
 
 function tomarOM(numOM){
   if(!navigator.onLine){toast('Necesita conexion para tomar la OM');return;}
-  _jsonpGet(GAS_GERENCIA+'?accion=mis_oms&cc='+encodeURIComponent(USER_CC), function(res, err){
-      if(err||!res) return;
+  fetch(GAS_GERENCIA+'?accion=mis_oms&cc='+encodeURIComponent(USER_CC))
+    .then(function(r){return r.json();})
+    .then(function(res){
       if(!res.ok||!res.oms) return;
       var omData=res.oms.find(function(o){return o.num===numOM;});
       if(!omData){toast('OM no encontrada');return;}
@@ -3052,10 +3032,6 @@ document.addEventListener('DOMContentLoaded',()=>{
       '</div>';
   }
 });
-// Exponer funciones al scope global para JSONP callbacks
-window._getBorradas=_getBorradas;
-window._removeBorrada=_removeBorrada;
-window._intentarBorrarGAS=_intentarBorrarGAS;
 </script>
 
 </body>
