@@ -1026,7 +1026,7 @@ function showHomeSupervisor(){
 
 function sincronizarSupervisor(){
   if(!navigator.onLine){toast('Sin conexion');return;}
-  fetch(GAS_GERENCIA+'?accion=todas_oms')
+  fetch(GAS_GERENCIA+'?accion=todas_oms',{redirect:'follow',credentials:'omit',cache:'no-store'})
     .then(function(r){return r.json();})
     .then(function(res){
       var panel=document.getElementById('panel-supervisor');
@@ -1198,7 +1198,7 @@ function crearOMSupervisor(){
 
 function cargarOMsAsignadas(){
   if(!navigator.onLine||!USER_CC) return;
-  fetch(GAS_GERENCIA+'?accion=mis_oms&cc='+encodeURIComponent(USER_CC))
+  fetch(GAS_GERENCIA+'?accion=mis_oms&cc='+encodeURIComponent(USER_CC),{redirect:'follow',credentials:'omit',cache:'no-store'})
     .then(function(r){return r.json();})
     .then(function(res){
       if(!res.ok||!res.oms||!res.oms.length) return;
@@ -1236,7 +1236,7 @@ function cargarOMsAsignadas(){
 
 function tomarOM(numOM){
   if(!navigator.onLine){toast('Necesita conexion para tomar la OM');return;}
-  fetch(GAS_GERENCIA+'?accion=mis_oms&cc='+encodeURIComponent(USER_CC))
+  fetch(GAS_GERENCIA+'?accion=mis_oms&cc='+encodeURIComponent(USER_CC),{redirect:'follow',credentials:'omit',cache:'no-store'})
     .then(function(r){return r.json();})
     .then(function(res){
       if(!res.ok||!res.oms) return;
