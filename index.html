@@ -199,12 +199,15 @@ const GAS_GERENCIA = 'https://script.google.com/macros/s/AKfycbwugaCAIMZ7jBVdq2z
 const SHEET_OMS = 'https://docs.google.com/spreadsheets/d/1IlxWD6QiCsntzyjEnJfE5KlB36Q39wJsQLnR0HE9gM4/gviz/tq?tqx=out:json&sheet=OMs-Pendientes';
 const SHEET_MAT = 'https://docs.google.com/spreadsheets/d/1IlxWD6QiCsntzyjEnJfE5KlB36Q39wJsQLnR0HE9gM4/gviz/tq?tqx=out:json&sheet=Hoja%201';;
 
-const MECANICOS = [
+const MECANICOS_BASE = [
   {cc:'16454304',nombre:'MARCOS RAÚL LÓPEZ LÓPEZ',cargo:'MECÁNICO'},
   {cc:'16462594',nombre:'MAURICIO LÓPEZ LÓPEZ',cargo:'AUX MECÁNICO'},
   {cc:'18470894',nombre:'FREDY QUINAYAS BALLESTEROS',cargo:'MECÁNICO'},
   {cc:'16613688',nombre:'JESÚS ALFREDO VARGAS OCAMPO',cargo:'ELECTRICISTA'},
 ];
+var MECANICOS_EXTRA=[];
+try{MECANICOS_EXTRA=JSON.parse(localStorage.getItem('pst_mecanicos_extra')||'[]');}catch(e){}
+var MECANICOS=MECANICOS_BASE.concat(MECANICOS_EXTRA);
 
 const AREAS_EQUIPOS = {
   'QFT': [
@@ -1180,6 +1183,26 @@ function borrarListaSupervisor(nums,titulo){
   setTimeout(sincronizarSupervisor, 2000);
 }
 
+function addMecanicoNuevo(){
+  var cc=(prompt('Cédula del nuevo mecánico:','')||'').trim();
+  if(!cc) return;
+  if(MECANICOS.find(function(m){return m.cc===cc;})){toast('Ya existe ese mecánico');return;}
+  var nombre=(prompt('Nombre completo (mayúsculas):','')||'').trim().toUpperCase();
+  if(!nombre) return;
+  var cargo=(prompt('Cargo:','MECÁNICO')||'').trim().toUpperCase()||'MECÁNICO';
+  var nuevo={cc:cc,nombre:nombre,cargo:cargo};
+  MECANICOS.push(nuevo);
+  MECANICOS_EXTRA.push(nuevo);
+  localStorage.setItem('pst_mecanicos_extra',JSON.stringify(MECANICOS_EXTRA));
+  var sel=document.getElementById('sup-mec');
+  if(sel){
+    var opt=document.createElement('option');
+    opt.value=cc+'|'+nombre; opt.textContent=nombre+' ('+cargo+')';
+    sel.appendChild(opt); sel.value=cc+'|'+nombre;
+  }
+  toast(nombre+' añadido ✅');
+}
+
 function showCrearOM(){
   var mecOpts=MECANICOS.map(function(m){return '<option value="'+m.cc+'|'+m.nombre+'">'+m.nombre+' ('+m.cargo+')</option>';}).join('');
   var areaOpts=Object.keys(AREAS_EQUIPOS).map(function(a){return '<option value="'+a+'">'+a+'</option>';}).join('');
@@ -1189,7 +1212,11 @@ function showCrearOM(){
   +'<div class="hdr-title" style="margin-left:8px"><h1>Crear y Asignar OM</h1><p>El mec\u00e1nico la ver\u00e1 en su app</p></div></div>'
   +'<div class="card">'
   +'<label>N\u00famero de OM *</label><input type="text" id="sup-num" placeholder="Ej: 4238" inputmode="numeric" pattern="\d{4,}" minlength="4" style="font-size:20px;font-weight:700;color:var(--naranja)">'
-  +'<label>Asignar a mec\u00e1nico *</label><select id="sup-mec"><option value="">--- Seleccionar ---</option>'+mecOpts+'</select>'
+  +'<label>Asignar a mec\u00e1nico *</label>'
+  +'<div style="display:flex;gap:8px">'
+  +'<select id="sup-mec" style="flex:1"><option value="">--- Seleccionar ---</option>'+mecOpts+'</select>'
+  +'<button type="button" onclick="addMecanicoNuevo()" style="padding:10px 14px;background:var(--naranja);color:#fff;border:none;border-radius:8px;font-size:20px;cursor:pointer" title="Agregar mecánico">+</button>'
+  +'</div>'
   +'<label>\u00c1rea *</label><select id="sup-area" onchange="actualizarEquiposSup()"><option value="">--- Seleccionar \u00e1rea ---</option>'+areaOpts+'</select>'
   +'<label>Equipo *</label><select id="sup-equipo"><option value="">--- Primero seleccione \u00e1rea ---</option></select>'
   +'<label>Tipo de mantenimiento *</label>'+'<select id="sup-tipo-mant"><option value="">--- Seleccionar ---</option><option value="CORRECTIVO">🔧 CORRECTIVO</option><option value="PREVENTIVO">🛡 PREVENTIVO</option><option value="PREDICTIVO">📊 PREDICTIVO</option><option value="PROGRAMADO">📅 PROGRAMADO</option></select>'
