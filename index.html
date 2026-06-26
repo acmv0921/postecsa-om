@@ -1584,6 +1584,19 @@ function iniciarOM(){
   OM.ts_inicio = ts();
 
   DB.saveOM(OM);
+  // Enviar al GAS para que supervisor la vea
+  var _pm='?accion=crear_om_get'
+    +'&num='+encodeURIComponent(OM.num)
+    +'&fecha='+encodeURIComponent(new Date().toLocaleDateString('es-CO'))
+    +'&area='+encodeURIComponent(OM.area||'')
+    +'&equipo='+encodeURIComponent(OM.equipo||'')
+    +'&falla='+encodeURIComponent(OM.falla||'')
+    +'&tipo_mant='+encodeURIComponent(OM.tipo_mant||'CORRECTIVO')
+    +'&prioridad='+encodeURIComponent(OM.prioridad||'MEDIA')
+    +'&mec_cc='+encodeURIComponent(OM.mecanico||USER_CC)
+    +'&mec_nom='+encodeURIComponent(OM.mecanico_nombre||USER_NOMBRE)
+    +'&obs_i='+encodeURIComponent(OM.obs_i||'');
+  fetch(GAS_GERENCIA+_pm,{mode:'no-cors'}).catch(function(){});
   TAB_ACTUAL = 'i';
   showForm();
   toast('✅ OM creada correctamente');
