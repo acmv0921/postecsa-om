@@ -1033,16 +1033,28 @@ function _parseGviz(raw){
     var start=raw.indexOf('{'); var end=raw.lastIndexOf('}')+1;
     var data=JSON.parse(raw.slice(start,end));
     var table=data.table||{};
-    var cols=(table.cols||[]).map(function(c){return c.label||'';});
+    // Usar labels de columna como keys; si vacío usar índice
+    var COLS_OMS=['num','fecha','area','equipo','falla','tipo_mant','prioridad','mec_cc','mec_nom','obs_i','estado','pdf_link'];
+    var cols=(table.cols||[]).map(function(c,i){
+      var lbl=(c.label||'').trim();
+      return lbl||COLS_OMS[i]||('col'+i);
+    });
     var rows=(table.rows||[]).map(function(row){
       var obj={};
       (row.c||[]).forEach(function(cell,i){
-        obj[cols[i]]=cell?(cell.v===null||cell.v===undefined?'':cell.v):'';
+        var val=cell?(cell.v===null||cell.v===undefined?'':String(cell.v)):'';
+        obj[cols[i]]=val;
+        // También guardar por índice posicional
+        obj['_'+i]=val;
       });
       return obj;
     });
+    // Filtrar fila de header si la primera fila tiene 'num' como valor
+    if(rows.length&&String(rows[0].num||rows[0]['_0']||'').toLowerCase()==='num'){
+      rows=rows.slice(1);
+    }
     return rows;
-  }catch(e){return null;}
+  }catch(e){console.error('_parseGviz error:',e);return null;}
 }
 
 function sincronizarSupervisor(){
@@ -1216,15 +1228,31 @@ function crearOMSupervisor(){
   var parts=mecVal.split('|');
   var mec_cc=parts[0], mec_nom=parts[1]||'';
   toast('Enviando al mecanico...');
-  // POST con mode:'no-cors' — GAS lo recibe aunque no podamos leer respuesta
+  var _body=JSON.stringify({accion:'crear_om',num:num,
+    fecha:new Date().toLocaleDateString('es-CO'),
+    area:area,equipo:equipo,falla:falla,tipo_mant:tipo_mant,
+    prioridad:prio,mec_cc:mec_cc,mec_nom:mec_nom,obs_i:obs});
+  // Intentar POST con lectura de respuesta primero
   fetch(GAS_GERENCIA,{
-    method:'POST',
-    body:JSON.stringify({accion:'crear_om',num:num,fecha:new Date().toLocaleDateString('es-CO'),area:area,equipo:equipo,falla:falla,tipo_mant:tipo_mant,prioridad:prio,mec_cc:mec_cc,mec_nom:mec_nom,obs_i:obs}),
+    method:'POST', body:_body,
     headers:{'Content-Type':'text/plain'},
-    mode:'no-cors'
-  }).catch(function(){});
-  toast('OM #'+num+' asignada a '+mec_nom);
-  setTimeout(function(){showHome();sincronizarSupervisor();},2000);
+    credentials:'omit', redirect:'follow'
+  })
+  .then(function(r){return r.json();})
+  .then(function(res){
+    toast('OM #'+num+' asignada a '+mec_nom);
+    setTimeout(function(){showHome();setTimeout(sincronizarSupervisor,1500);},1000);
+  })
+  .catch(function(){
+    // Fallback con no-cors si hay error CORS
+    fetch(GAS_GERENCIA,{
+      method:'POST', body:_body,
+      headers:{'Content-Type':'text/plain'},
+      mode:'no-cors'
+    }).catch(function(){});
+    toast('OM #'+num+' asignada a '+mec_nom);
+    setTimeout(function(){showHome();sincronizarSupervisor();},3000);
+  });
 }
 
 function cargarOMsAsignadas(){
