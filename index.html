@@ -196,6 +196,7 @@ const CLAVE_COLA = 'pst_cola';
 const CLAVE_BORRADAS = 'pst_sup_borradas';
 const MIN_RATE = 132.63; // COP/min SMMLV 2026 + 52.21% prestacional
 const GAS_URL = 'https://script.google.com/macros/s/AKfycbw_xoH7HoqvHK4x9RdWJpuTnXXVupxL_dsP08yMw-NBJD3WcZt8Zb1Es13QW4_SSnk0/exec';
+const SHEET_OMS = 'https://docs.google.com/spreadsheets/d/1IlxWD6QiCsntzyjEnJfE5KlB36Q39wJsQLnR0HE9gM4/gviz/tq?tqx=out:json&sheet=OMs-Pendientes';
 const GAS_GERENCIA = 'https://script.google.com/macros/s/AKfycbwugaCAIMZ7jBVdq2zdpzN4EPsIlMc7c4M0-p8E2Ca146HD4jUvXX_dDuuY-zCn5PWIsA/exec';;
 
 const MECANICOS = [
@@ -1023,11 +1024,36 @@ function showHomeSupervisor(){
   sincronizarSupervisor();
 }
 
+
+function _gvizOMs(raw){
+  try{
+    var s=raw.indexOf('{'),e=raw.lastIndexOf('}')+1;
+    var t=JSON.parse(raw.slice(s,e)).table||{};
+    var COLS=['num','fecha','area','equipo','falla','tipo_mant','prioridad','mec_cc','mec_nom','obs_i','estado'];
+    var cols=(t.cols||[]).map(function(c,i){
+      return(c.label||'').trim().toLowerCase()||COLS[i]||'c'+i;
+    });
+    var rows=(t.rows||[]).map(function(row){
+      var o={};
+      (row.c||[]).forEach(function(cell,i){
+        o[COLS[i]||i]=cell?(cell.f||String(cell.v===null?'':cell.v)):'';
+      });
+      return o;
+    });
+    // Filtrar fila header si existe
+    if(rows.length && rows[0].num==='num') rows=rows.slice(1);
+    return rows.filter(function(r){return r.num&&String(r.num).trim();});
+  }catch(e){return null;}
+}
+
 function sincronizarSupervisor(){
   if(!navigator.onLine){toast('Sin conexion');return;}
-  fetch(GAS_GERENCIA+'?accion=todas_oms&t='+Date.now())
-    .then(function(r){return r.json();})
-    .then(function(res){
+  fetch(SHEET_OMS+'&t='+Date.now())
+    .then(function(r){return r.text();})
+    .then(function(raw){
+      var oms=_gvizOMs(raw);
+      if(!oms) throw new Error('parse error');
+      var res={ok:true, oms:oms};
       var panel=document.getElementById('panel-supervisor');
       if(!panel) return;
       if(!res.ok||!res.oms||!res.oms.length){
@@ -1198,19 +1224,26 @@ function crearOMSupervisor(){
     +'&mec_cc='+encodeURIComponent(mec_cc)
     +'&mec_nom='+encodeURIComponent(mec_nom)
     +'&obs_i='+encodeURIComponent(obs);
-  fetch(GAS_GERENCIA+_p)
-    .then(function(r){return r.json();})
-    .then(function(res){
-      if(res.ok){toast('OM #'+num+' asignada a '+mec_nom);showHome();setTimeout(sincronizarSupervisor,1500);}
-      else toast('Error: '+(res.error||'desconocido'));
-    }).catch(function(e){toast('Error: '+String(e).slice(0,50));});
+  // Usar no-cors: el GAS crea la OM aunque no podamos leer la respuesta
+  fetch(GAS_GERENCIA+_p, {mode:'no-cors'}).catch(function(){});
+  toast('OM #'+num+' asignada a '+mec_nom);
+  showHome();
+  // Esperar 2s para que el GAS procese, luego sincronizar
+  setTimeout(sincronizarSupervisor, 2000);
 }
 
 function cargarOMsAsignadas(){
   if(!navigator.onLine||!USER_CC) return;
-  fetch(GAS_GERENCIA+'?accion=mis_oms&cc='+encodeURIComponent(USER_CC)+'&t='+Date.now())
-    .then(function(r){return r.json();})
-    .then(function(res){
+  fetch(SHEET_OMS+'&t='+Date.now())
+    .then(function(r){return r.text();})
+    .then(function(raw){
+      var allOms=_gvizOMs(raw);
+      if(!allOms) return;
+      var oms=allOms.filter(function(o){
+        return String(o.mec_cc||'')===String(USER_CC)&&
+               (o.estado||'').toUpperCase()!=='BORRADA';
+      });
+      var res={ok:true, oms:oms};
       if(!res.ok||!res.oms||!res.oms.length) return;
       var local=DB.getAll();
       // Eliminar del celular las OMs que el supervisor borró
@@ -1246,9 +1279,16 @@ function cargarOMsAsignadas(){
 
 function tomarOM(numOM){
   if(!navigator.onLine){toast('Necesita conexion para tomar la OM');return;}
-  fetch(GAS_GERENCIA+'?accion=mis_oms&cc='+encodeURIComponent(USER_CC)+'&t='+Date.now())
-    .then(function(r){return r.json();})
-    .then(function(res){
+  fetch(SHEET_OMS+'&t='+Date.now())
+    .then(function(r){return r.text();})
+    .then(function(raw){
+      var allOms=_gvizOMs(raw);
+      if(!allOms) return;
+      var oms=allOms.filter(function(o){
+        return String(o.mec_cc||'')===String(USER_CC)&&
+               (o.estado||'').toUpperCase()!=='BORRADA';
+      });
+      var res={ok:true, oms:oms};
       if(!res.ok||!res.oms) return;
       var omData=res.oms.find(function(o){return o.num===numOM;});
       if(!omData){toast('OM no encontrada');return;}
