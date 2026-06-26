@@ -1255,31 +1255,28 @@ function crearOMSupervisor(){
   var parts=mecVal.split('|');
   var mec_cc=parts[0], mec_nom=parts[1]||'';
   toast('Enviando al mecanico...');
-  var _body=JSON.stringify({accion:'crear_om',num:num,
-    fecha:new Date().toLocaleDateString('es-CO'),
-    area:area,equipo:equipo,falla:falla,tipo_mant:tipo_mant,
-    prioridad:prio,mec_cc:mec_cc,mec_nom:mec_nom,obs_i:obs});
-  // Intentar POST con lectura de respuesta primero
-  fetch(GAS_GERENCIA,{
-    method:'POST', body:_body,
-    headers:{'Content-Type':'text/plain'},
-    credentials:'omit', redirect:'follow'
-  })
-  .then(function(r){return r.json();})
-  .then(function(res){
-    toast('OM #'+num+' asignada a '+mec_nom);
-    setTimeout(function(){showHome();setTimeout(sincronizarSupervisor,1500);},1000);
-  })
-  .catch(function(){
-    // Fallback con no-cors si hay error CORS
-    fetch(GAS_GERENCIA,{
-      method:'POST', body:_body,
-      headers:{'Content-Type':'text/plain'},
-      mode:'no-cors'
-    }).catch(function(){});
-    toast('OM #'+num+' asignada a '+mec_nom);
-    setTimeout(function(){showHome();sincronizarSupervisor();},3000);
-  });
+  // Usar GET para evitar CORS del POST
+  var _params = '?accion=crear_om_get'
+    +'&num='+encodeURIComponent(num)
+    +'&fecha='+encodeURIComponent(new Date().toLocaleDateString('es-CO'))
+    +'&area='+encodeURIComponent(area)
+    +'&equipo='+encodeURIComponent(equipo)
+    +'&falla='+encodeURIComponent(falla)
+    +'&tipo_mant='+encodeURIComponent(tipo_mant)
+    +'&prioridad='+encodeURIComponent(prio)
+    +'&mec_cc='+encodeURIComponent(mec_cc)
+    +'&mec_nom='+encodeURIComponent(mec_nom)
+    +'&obs_i='+encodeURIComponent(obs);
+  fetch(GAS_GERENCIA+_params, {credentials:'omit'})
+    .then(function(r){return r.json();})
+    .then(function(res){
+      toast('OM #'+num+' asignada a '+mec_nom);
+      setTimeout(function(){showHome();setTimeout(sincronizarSupervisor,1500);},1000);
+    })
+    .catch(function(){
+      toast('OM #'+num+' enviada (verificar en panel)');
+      setTimeout(function(){showHome();setTimeout(sincronizarSupervisor,2000);},1000);
+    });
 }
 
 function cargarOMsAsignadas(){
@@ -1358,7 +1355,7 @@ function tomarOM(numOM){
         etapa:'INICIO',ts_inicio:Date.now(),origen:'supervisor',
       };
       DB.saveOM(om);
-      fetch(GAS_GERENCIA,{method:'POST',body:JSON.stringify({accion:'tomar_om',num:om.num}),headers:{'Content-Type':'text/plain'},mode:'no-cors'}).catch(function(){});
+      fetch(GAS_GERENCIA+'?accion=tomar_om_get&num='+encodeURIComponent(om.num),{credentials:'omit'}).catch(function(){});
       restaurar(om); TAB_ACTUAL='i'; showForm();
       toast('OM #'+om.num+' iniciada');
     }).catch(function(){toast('Error al cargar OM');});
@@ -2349,9 +2346,8 @@ function cerrarOM(){
   // Enviar a GAS Gerencia
   enviarGerencia(OM);
   // Actualizar estado en hoja supervisor
-  fetch(GAS_GERENCIA,{method:'POST',
-    body:JSON.stringify({accion:'actualizar_estado_om',num:String(OM.num||''),estado:'CERRADA'}),
-    headers:{'Content-Type':'text/plain'},mode:'no-cors'}).catch(function(){});
+  fetch(GAS_GERENCIA+'?accion=actualizar_estado_get&num='+encodeURIComponent(OM.num||'')+'&estado=CERRADA',
+    {credentials:'omit'}).catch(function(){});
 
   showExito();
 }
