@@ -45,7 +45,12 @@ function doGet(e) {
         if (!r[0] && !r[1]) continue;
         mats.push({codigo:String(r[0]||''), nombre:String(r[1]||''),
                    unidad:String(r[2]||'Und'), precio:Number(r[3])||0,
-                   stock:Number(r[4])||0});
+                   stock:Number(r[4])||0,
+                   otNum:String(r[5]||''), equipo:String(r[6]||''),
+                   mecanico:String(r[7]||''), fecha:String(r[8]||''),
+                   cant:Number(r[9])||0,
+                   desc:String(r[1]||''), um:String(r[2]||'Und'),
+                   n:String(r[1]||''), u:String(r[2]||'Und'), p:Number(r[3])||0});
       }
       return _ok({materiales: mats});
     }
