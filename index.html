@@ -936,6 +936,55 @@ function abrirOM(num){
 // NUEVA OM
 // ═══════════════════════════════════════════════
 
+
+var CLAVE_SUP_KEY='pst_clave_sup';
+function _getClavesSup(){try{return JSON.parse(localStorage.getItem(CLAVE_SUP_KEY)||'["POST2025"]');}catch(e){return['POST2025'];}}
+function _setClaveSup(v){localStorage.setItem(CLAVE_SUP_KEY,JSON.stringify(v));}
+
+function pedirClaveSupervisor(){
+  R('<div style="min-height:100vh;background:linear-gradient(160deg,#263238,#37474F);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px">'
+  +'<div style="background:#fff;border-radius:16px;padding:32px 24px;width:100%;max-width:340px;text-align:center">'
+  +'<div style="font-size:48px;margin-bottom:12px">\uD83D\uDD12</div>'
+  +'<h2 style="color:#263238;margin-bottom:4px;font-size:20px">Acceso Supervisor</h2>'
+  +'<p style="color:#78909C;font-size:13px;margin-bottom:24px">Ingresa la clave de acceso</p>'
+  +'<input id="inp-clave-sup" type="password" maxlength="20" placeholder="Clave de acceso"'
+  +' style="width:100%;padding:14px;border:2px solid #E0E0E0;border-radius:10px;font-size:18px;text-align:center;letter-spacing:4px;box-sizing:border-box;margin-bottom:16px">'
+  +'<button onclick="verificarClaveSup()" style="width:100%;padding:14px;background:#E65100;color:#fff;border:none;border-radius:10px;font-size:16px;font-weight:700;cursor:pointer;margin-bottom:10px">Entrar</button>'
+  +'<button onclick="showSeleccionRol()" style="width:100%;padding:10px;background:#ECEFF1;color:#546E7A;border:none;border-radius:10px;font-size:14px;cursor:pointer">\u2190 Volver</button>'
+  +'</div></div>');
+  setTimeout(function(){var i=document.getElementById('inp-clave-sup');if(i){i.focus();i.addEventListener('keydown',function(e){if(e.key==='Enter')verificarClaveSup();});}},200);
+}
+
+function verificarClaveSup(){
+  var inp=document.getElementById('inp-clave-sup');
+  if(!inp) return;
+  var clave=inp.value.trim();
+  var claves=_getClavesSup();
+  if(claves.indexOf(clave)>=0){
+    seleccionarRol('supervisor');
+  } else {
+    inp.style.borderColor='#c00';
+    inp.style.background='#FFF3F3';
+    inp.value='';
+    inp.placeholder='Clave incorrecta';
+    setTimeout(function(){inp.style.borderColor='#E0E0E0';inp.style.background='#fff';inp.placeholder='Clave de acceso';},2000);
+    toast('Clave incorrecta');
+  }
+}
+
+function cambiarClaveSup(){
+  var actual=prompt('Ingresa la clave actual:','');
+  if(!actual) return;
+  var claves=_getClavesSup();
+  if(claves.indexOf(actual.trim())<0){toast('Clave actual incorrecta');return;}
+  var nueva=prompt('Nueva clave (min 4 caracteres):','');
+  if(!nueva||nueva.trim().length<4){toast('Clave muy corta, minimo 4 caracteres');return;}
+  var conf=prompt('Confirma la nueva clave:','');
+  if(nueva.trim()!==conf.trim()){toast('Las claves no coinciden');return;}
+  _setClaveSup([nueva.trim()]);
+  toast('\u2705 Clave actualizada');
+}
+
 function showSeleccionRol(){
   R('<div style="min-height:100vh;background:linear-gradient(160deg,#E65100,#FF6D00);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px">'
   +'<div style="background:#fff;border-radius:16px;padding:32px 24px;width:100%;max-width:360px;text-align:center;box-shadow:0 8px 32px rgba(0,0,0,.3)">'
@@ -945,7 +994,7 @@ function showSeleccionRol(){
   +'<button onclick="seleccionarRol(\'mecanico\')" style="width:100%;padding:18px;background:#E65100;color:#fff;border:none;border-radius:12px;font-size:16px;font-weight:700;cursor:pointer;margin-bottom:12px;display:flex;align-items:center;gap:12px">'
   +'<span style="font-size:28px">\ud83d\udea7</span>'
   +'<div style="text-align:left"><div>SOY MEC\u00c1NICO</div><div style="font-size:11px;opacity:.85;font-weight:400">Registro y cierre de \u00f3rdenes</div></div></button>'
-  +'<button onclick="seleccionarRol(\'supervisor\')" style="width:100%;padding:18px;background:#263238;color:#fff;border:none;border-radius:12px;font-size:16px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:12px">'
+  +'<button onclick="pedirClaveSupervisor()" style="width:100%;padding:18px;background:#263238;color:#fff;border:none;border-radius:12px;font-size:16px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:12px">'
   +'<span style="font-size:28px">\ud83d\udc54</span>'
   +'<div style="text-align:left"><div>SOY SUPERVISOR</div><div style="font-size:11px;opacity:.85;font-weight:400">Crear y asignar \u00f3rdenes</div></div></button>'
   +'<p style="font-size:11px;color:#90A4AE;margin-top:20px">Puedes cambiar esto despu\u00e9s en \u2699\ufe0f Configuraci\u00f3n</p>'
