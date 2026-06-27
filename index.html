@@ -941,14 +941,33 @@ var CLAVE_SUP_KEY='pst_clave_sup';
 function _getClavesSup(){try{return JSON.parse(localStorage.getItem(CLAVE_SUP_KEY)||'["POST2025"]');}catch(e){return['POST2025'];}}
 function _setClaveSup(v){localStorage.setItem(CLAVE_SUP_KEY,JSON.stringify(v));}
 
+
+function _toggleEye(inputId, btn){
+  var inp=document.getElementById(inputId);
+  if(!inp) return;
+  if(inp.type==='password'){
+    inp.type='text';
+    inp.style.letterSpacing='normal';
+    btn.textContent='🙈';
+  } else {
+    inp.type='password';
+    inp.style.letterSpacing='4px';
+    btn.textContent='👁️';
+  }
+  inp.focus();
+}
+
 function pedirClaveSupervisor(){
   R('<div style="min-height:100vh;background:linear-gradient(160deg,#263238,#37474F);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px">'
   +'<div style="background:#fff;border-radius:16px;padding:32px 24px;width:100%;max-width:340px;text-align:center">'
   +'<div style="font-size:48px;margin-bottom:12px">\uD83D\uDD12</div>'
   +'<h2 style="color:#263238;margin-bottom:4px;font-size:20px">Acceso Supervisor</h2>'
   +'<p style="color:#78909C;font-size:13px;margin-bottom:24px">Ingresa la clave de acceso</p>'
+  +'<div style="position:relative;margin-bottom:16px">'
   +'<input id="inp-clave-sup" type="password" maxlength="20" placeholder="Clave de acceso"'
-  +' style="width:100%;padding:14px;border:2px solid #E0E0E0;border-radius:10px;font-size:18px;text-align:center;letter-spacing:4px;box-sizing:border-box;margin-bottom:16px">'
+  +' style="width:100%;padding:14px 48px 14px 14px;border:2px solid #E0E0E0;border-radius:10px;font-size:18px;text-align:center;letter-spacing:4px;box-sizing:border-box">'
+  +'<button type="button" onclick="_toggleEye(\'inp-clave-sup\',this)" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;font-size:20px;padding:4px">👁️</button>'
+  +'</div>'
   +'<button onclick="verificarClaveSup()" style="width:100%;padding:14px;background:#E65100;color:#fff;border:none;border-radius:10px;font-size:16px;font-weight:700;cursor:pointer;margin-bottom:10px">Entrar</button>'
   +'<button onclick="showSeleccionRol()" style="width:100%;padding:10px;background:#ECEFF1;color:#546E7A;border:none;border-radius:10px;font-size:14px;cursor:pointer">\u2190 Volver</button>'
   +'</div></div>');
