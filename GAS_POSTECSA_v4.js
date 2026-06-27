@@ -110,6 +110,17 @@ function doGet(e) {
       return _err('Link no encontrado');
     }
 
+    if (accion === 'guardar_material_get') {
+      var hm = _matH();
+      hm.appendRow([
+        p.cod||'', p.desc||'', p.um||'Und',
+        Number(p.precio)||0, 0,
+        p.otNum||'', p.equipo||'', p.mecanico||'',
+        p.fecha||'', Number(p.cant)||1
+      ]);
+      return _ok({guardado: true});
+    }
+
     return _err('Accion no reconocida: ' + accion);
   } catch(ex) {
     return _err('Error interno: ' + ex.toString());
