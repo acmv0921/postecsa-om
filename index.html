@@ -2373,17 +2373,21 @@ function enviarGerencia(om){
   console.log('[GAS Gerencia] Enviando',filas.length,'filas');
   console.log('[GAS Gerencia] Payload[0]:',JSON.stringify(filas[0]));
 
-  Promise.all(filas.map(fila=>fetch(GAS_GERENCIA,{
-    method:'POST',body:JSON.stringify(fila),
-    headers:{'Content-Type':'text/plain'},mode:'no-cors'
-  }).catch(e=>console.warn('[GAS] err:',e))))
-  .then(()=>toast('Gerencia: '+filas.length+' fila(s) enviada(s)'))
-  .catch(err=>{
-    const cola=DB.getCola();
-    filas.forEach(f=>{ const c=Object.assign({},f); c._ts_cola=ts(); cola.push(c); });
-    DB.saveCola(cola);
-    toast('Sin conexion - reintentara luego');
+  // Usar GET para evitar CORS — GAS recibe via guardar_material_get
+  filas.forEach(function(fila){
+    var _gp='?accion=guardar_material_get'
+      +'&cod='+encodeURIComponent(fila.cod||'')
+      +'&desc='+encodeURIComponent(fila.desc||'')
+      +'&um='+encodeURIComponent(fila.um||'Und')
+      +'&precio='+encodeURIComponent(fila.precio||0)
+      +'&cant='+encodeURIComponent(fila.cant||1)
+      +'&otNum='+encodeURIComponent(fila.otNum||'')
+      +'&equipo='+encodeURIComponent(fila.equipo||'')
+      +'&mecanico='+encodeURIComponent(fila.mecanico||'')
+      +'&fecha='+encodeURIComponent(fila.fecha||'');
+    fetch(GAS_GERENCIA+_gp,{mode:'no-cors'}).catch(function(){});
   });
+  toast('📤 Gerencia: '+filas.length+' registro(s) enviado(s)');
 }
 
 
