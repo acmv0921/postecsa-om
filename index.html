@@ -1368,6 +1368,45 @@ function tomarOM(numOM){
     }).catch(function(){toast('Error al cargar OM');});
 }
 
+
+function showGestionMecanicos(){
+  var lista=MECANICOS.map(function(m){
+    var esExtra=MECANICOS_EXTRA.findIndex(function(e){return e.cc===m.cc;})>=0;
+    var btnEl=esExtra?('<button data-cc="'+m.cc+'" class="_del-mec" style="background:#c00;color:#fff;border:none;border-radius:6px;padding:6px 10px;font-size:12px;cursor:pointer">Eliminar</button>'):'<span style="font-size:11px;color:#B0BEC5">base</span>';
+    return '<div style="display:flex;align-items:center;gap:8px;padding:10px 0;border-bottom:1px solid #eee"><div style="flex:1"><b>'+m.nombre+'</b><div style="font-size:12px;color:#78909C">CC '+m.cc+' · '+m.cargo+'</div></div>'+btnEl+'</div>';
+  }).join('');
+  R('<div style="min-height:100vh;background:#f5f5f5">'
+   +'<div style="background:var(--naranja);padding:16px 20px;display:flex;align-items:center;gap:12px">'
+   +'<button onclick="showConfig()" style="background:rgba(255,255,255,.2);border:none;color:#fff;border-radius:8px;padding:8px 14px;font-size:14px;cursor:pointer">← Volver</button>'
+   +'<h2 style="color:#fff;margin:0">?? Mecánicos</h2></div>'
+   +'<div style="padding:20px;max-width:500px;margin:0 auto">'
+   +'<div class="card" style="margin-bottom:16px" id="_lista-mec">'+lista+'</div>'
+   +'<button onclick="addMecGestion()" style="width:100%;padding:14px;background:var(--naranja);color:#fff;border:none;border-radius:10px;font-size:15px;font-weight:700;cursor:pointer">➕ Añadir mecánico</button>'
+   +'</div></div>');
+  document.querySelectorAll('._del-mec').forEach(function(btn){
+    btn.addEventListener('click',function(){eliminarMecExt(this.getAttribute('data-cc'));});
+  });
+}
+function addMecGestion(){
+  var cc=(prompt('Cédula:','')||'').trim();
+  if(!cc) return;
+  if(MECANICOS.find(function(m){return m.cc===cc;})){toast('Cédula ya registrada');return;}
+  var nom=(prompt('Nombre completo:','')||'').trim().toUpperCase();
+  if(!nom) return;
+  var car=(prompt('Cargo:','MECÁNICO')||'').trim().toUpperCase()||'MECÁNICO';
+  var nv={cc:cc,nombre:nom,cargo:car};
+  MECANICOS.push(nv); MECANICOS_EXTRA.push(nv);
+  localStorage.setItem('pst_mecanicos_extra',JSON.stringify(MECANICOS_EXTRA));
+  toast('✅ '+nom+' añadido'); showGestionMecanicos();
+}
+function eliminarMecExt(cc){
+  if(!confirm('¿Eliminar mecánico?')) return;
+  MECANICOS_EXTRA=MECANICOS_EXTRA.filter(function(m){return m.cc!==cc;});
+  MECANICOS=MECANICOS_BASE.concat(MECANICOS_EXTRA);
+  localStorage.setItem('pst_mecanicos_extra',JSON.stringify(MECANICOS_EXTRA));
+  toast('Eliminado'); showGestionMecanicos();
+}
+
 function showConfig(){
   var rolActual=localStorage.getItem('pst_rol')||'';
   var mec=MECANICOS.find(function(m){return m.cc===USER_CC;});
