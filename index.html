@@ -2589,48 +2589,93 @@ function showExito(){
 }
 
 function reenviarGerencia(){
-  // Buscar la OM más reciente en DB si la global está vacía
-  try{
-    if(!OM||!OM.num){
-      var todas=DB.getAll();
-      var lista=Object.values(todas).filter(function(o){return o&&o.num;});
-      lista.sort(function(a,b){return (b.ts_cierre_final||0)-(a.ts_cierre_final||0);});
-      if(lista.length>0) OM=lista[0];
-    }
-  }catch(e){}
+  // Obtener la OM activa — primero global, luego DB
+  var omActiva = (OM && OM.num) ? OM : null;
+  if(!omActiva){
+    try{
+      var todas = DB.getAll();
+      var lista = Object.values(todas)
+        .filter(function(o){ return o && o.num; })
+        .sort(function(a,b){ return (b.ts_cierre_final||b.ts_inicio||0)-(a.ts_cierre_final||a.ts_inicio||0); });
+      if(lista.length > 0) omActiva = lista[0];
+    }catch(e){}
+  }
 
-  if(!OM||!OM.num){
-    toast('ERROR: No hay OM activa. Abre la OM primero.');
+  if(!omActiva || !omActiva.num){
+    toast('Abre primero la OM que quieres reenviar');
     return;
   }
 
-  // Test directo: llamar al GAS con fetch normal para ver respuesta
-  var _tp='?accion=guardar_material_get'
-    +'&cod=TEST&desc='+encodeURIComponent('Prueba-'+OM.num)
-    +'&um=Und&precio=0&cant=1'
-    +'&otNum='+encodeURIComponent(String(OM.num||''))
-    +'&equipo='+encodeURIComponent(OM.equipo||'')
-    +'&mecanico='+encodeURIComponent(OM.mecanico_nombre||OM.mecanico||'')
-    +'&fecha='+encodeURIComponent(new Date().toLocaleDateString('es-CO'));
+  var num      = String(omActiva.num || '');
+  var equipo   = omActiva.equipo || '';
+  var mecanico = omActiva.mecanico_nombre || omActiva.mecanico || USER_NOMBRE || '';
+  var falla    = omActiva.falla || 'mantenimiento';
+  var minutos  = Number(omActiva.min_total || omActiva.minutos || 0);
+  var fecha    = omActiva.ts_inicio
+                 ? new Date(omActiva.ts_inicio).toLocaleDateString('es-CO')
+                 : new Date().toLocaleDateString('es-CO');
 
-  // Intentar con fetch normal (con respuesta)
-  fetch(GAS_GERENCIA+_tp)
-    .then(function(r){return r.json();})
-    .then(function(res){
-      if(res.ok){
-        toast('GAS OK: '+JSON.stringify(res).slice(0,50));
-        enviarGerencia(OM);
-      } else {
-        toast('GAS Error: '+(res.error||'?'));
-      }
-    })
-    .catch(function(err){
-      toast('fetch error: '+String(err).slice(0,60));
-      // Intentar igual con _gasGet
-      enviarGerencia(OM);
+  // Recopilar materiales
+  var ins_i = omActiva.ins_i || INS.i || [];
+  var ins_a = omActiva.ins_a || INS.a || [];
+  var ins_c = omActiva.ins_c || INS.c || [];
+  var mats  = ins_i.concat(ins_a).concat(ins_c);
+
+  // Construir filas
+  var filas = [];
+  mats.forEach(function(it){
+    filas.push({
+      cod: String(it.cod||''), desc: String(it.n||it.desc||'Material'),
+      cant: Number(it.qty||it.cant||1), um: String(it.u||it.um||'Und'),
+      precio: Number(it.p||it.precio||0),
+      otNum: num, equipo: equipo, mecanico: mecanico, fecha: fecha
     });
+  });
+  // Siempre mano de obra
+  filas.push({
+    cod:'', desc:'Mano de obra - '+falla,
+    cant: minutos||1, um:'min', precio: MIN_RATE,
+    otNum: num, equipo: equipo, mecanico: mecanico, fecha: fecha
+  });
 
-  toast('Probando conexion GAS...');
+  toast('Enviando OM#'+num+' ('+filas.length+' fila(s))...');
+
+  // Enviar con fetch normal para ver la respuesta
+  var enviados = 0;
+  filas.forEach(function(fila, idx){
+    var url = GAS_GERENCIA
+      +'?accion=guardar_material_get'
+      +'&cod='+encodeURIComponent(fila.cod)
+      +'&desc='+encodeURIComponent(fila.desc)
+      +'&um='+encodeURIComponent(fila.um)
+      +'&precio='+encodeURIComponent(fila.precio)
+      +'&cant='+encodeURIComponent(fila.cant)
+      +'&otNum='+encodeURIComponent(fila.otNum)
+      +'&equipo='+encodeURIComponent(fila.equipo)
+      +'&mecanico='+encodeURIComponent(fila.mecanico)
+      +'&fecha='+encodeURIComponent(fila.fecha);
+
+    fetch(url)
+      .then(function(r){ return r.json(); })
+      .then(function(res){
+        enviados++;
+        if(idx === filas.length-1){
+          if(res.ok){
+            toast('Gerencia actualizada: '+filas.length+' registros');
+          } else {
+            toast('Error GAS: '+(res.error||'?'));
+          }
+        }
+      })
+      .catch(function(err){
+        // CORS normal — usar Image como fallback
+        _gasGet(url);
+        enviados++;
+        if(idx === filas.length-1){
+          toast('Enviado ('+filas.length+' registros)');
+        }
+      });
+  });
 }
 
 // ═══════════════════════════════════════════════
