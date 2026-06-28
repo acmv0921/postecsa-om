@@ -2416,12 +2416,26 @@ function cerrarOM(){
 // _gasGet: usa Image() para seguir redirects de Google Apps Script
 // fetch con no-cors no sigue los 302 de Google correctamente
 function _gasGet(url){
+  // Método 1: XMLHttpRequest (más compatible que fetch con redirects)
+  try{
+    var xhr=new XMLHttpRequest();
+    xhr.open('GET', url+'&_t='+Date.now(), true);
+    xhr.withCredentials=false;
+    xhr.send();
+  }catch(e){}
+  // Método 2: Image (sigue redirects automáticamente)
   try{
     var img=new Image();
-    img.src=url+'&_t='+Date.now();
+    img.src=url+'&_t2='+Date.now();
   }catch(e){}
-  // Backup con fetch
-  try{fetch(url,{mode:'no-cors',redirect:'follow'}).catch(function(){});}catch(e){}
+  // Método 3: fetch con redirect follow
+  try{
+    fetch(url+'&_t3='+Date.now(),{
+      mode:'no-cors',
+      redirect:'follow',
+      cache:'no-store'
+    }).catch(function(){});
+  }catch(e){}
 }
 
 function enviarGerencia(om){
