@@ -2415,23 +2415,45 @@ function cerrarOM(){
 // ENVÍO A GAS GERENCIA — FIX: payload correcto
 // ═══════════════════════════════════════════════
 function enviarGerencia(om){
-  const ins_total=[...(om.ins_i||[]),...(om.ins_a||[]),...(om.ins_c||[])];
-  const fecha=new Date(om.ts_inicio).toLocaleDateString('es-CO');
-  const mecanico=om.mecanico_nombre||om.mecanico||'';
-  const equipo=om.equipo||'';
-  const otNum=String(om.num||'');
+  // Recopilar materiales de todas las etapas
+  var ins_i=om.ins_i||INS.i||[];
+  var ins_a=om.ins_a||INS.a||[];
+  var ins_c=om.ins_c||INS.c||[];
+  var ins_total=ins_i.concat(ins_a).concat(ins_c);
 
-  const filas=ins_total.length
-    ?ins_total.map(i=>({accion:'guardar_material',fecha,otNum,equipo,mecanico,
-        cod:String(i.cod||''),desc:String(i.n||''),cant:Number(i.qty||1),um:String(i.u||'Und'),precio:Number(i.p||0)}))
-    :[{accion:'guardar_material',fecha,otNum,equipo,mecanico,
-        desc:'Mano de obra - '+String(om.falla||''),
-        cant:Number(om.min_total||0),um:'min',precio:MIN_RATE}];
+  var fecha=om.ts_inicio?new Date(om.ts_inicio).toLocaleDateString('es-CO'):new Date().toLocaleDateString('es-CO');
+  var mecanico=om.mecanico_nombre||om.mecanico||USER_NOMBRE||'';
+  var equipo=om.equipo||'';
+  var otNum=String(om.num||'');
+  var minTotal=Number(om.min_total||om.minutos||0);
 
-  console.log('[GAS Gerencia] Enviando',filas.length,'filas');
-  console.log('[GAS Gerencia] Payload[0]:',JSON.stringify(filas[0]));
+  // Construir filas — siempre al menos una (mano de obra)
+  var filas=[];
+  if(ins_total.length>0){
+    ins_total.forEach(function(i){
+      filas.push({
+        cod:String(i.cod||''),
+        desc:String(i.n||i.desc||'Material'),
+        cant:Number(i.qty||i.cant||1),
+        um:String(i.u||i.um||'Und'),
+        precio:Number(i.p||i.precio||0),
+        otNum:otNum, equipo:equipo,
+        mecanico:mecanico, fecha:fecha
+      });
+    });
+  }
+  // Siempre añadir mano de obra
+  filas.push({
+    cod:'',
+    desc:'Mano de obra - '+(om.falla||'mantenimiento'),
+    cant:minTotal||1,
+    um:'min',
+    precio:MIN_RATE,
+    otNum:otNum, equipo:equipo,
+    mecanico:mecanico, fecha:fecha
+  });
 
-  // Usar GET para evitar CORS — GAS recibe via guardar_material_get
+  // Enviar cada fila al GAS via GET (sin CORS)
   filas.forEach(function(fila){
     var _gp='?accion=guardar_material_get'
       +'&cod='+encodeURIComponent(fila.cod||'')
@@ -2445,7 +2467,7 @@ function enviarGerencia(om){
       +'&fecha='+encodeURIComponent(fila.fecha||'');
     fetch(GAS_GERENCIA+_gp,{mode:'no-cors'}).catch(function(){});
   });
-  toast('📤 Gerencia: '+filas.length+' registro(s) enviado(s)');
+  toast('?? Gerencia: '+filas.length+' fila(s) enviada(s)');
 }
 
 
