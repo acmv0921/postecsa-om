@@ -1313,6 +1313,19 @@ function cargarOMsAsignadas(){
       });
       // Solo mostrar OMs que el mecanico aun NO ha tomado (no estan en localStorage)
       // y con número válido (mínimo 4 dígitos)
+      // Guardar OMs cerradas del Sheet en localStorage para verlas en cualquier dispositivo
+      res.oms.filter(function(o){
+        return o.estado==='CERRADA'&&!local[o.num]&&/^\d{4,}$/.test(String(o.num||''));
+      }).forEach(function(o){
+        DB.saveOM({
+          num:o.num, equipo:o.equipo, area:o.area,
+          falla:o.falla, prioridad:o.prioridad,
+          mec_cc:o.mec_cc, mecanico_nombre:o.mec_nom,
+          obs_i:o.obs_i, etapa:'CERRADA',
+          ts_inicio:Date.now(), ts_cierre_final:Date.now()
+        });
+      });
+      // OMs pendientes/tomadas que aún no están en localStorage
       var nuevas=res.oms.filter(function(o){
         return o.estado!=='BORRADA'&&o.estado!=='CERRADA'&&!local[o.num]
           &&/^\d{4,}$/.test(String(o.num||''));
