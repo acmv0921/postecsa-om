@@ -1286,8 +1286,7 @@ function crearOMSupervisor(){
     +'&mec_cc='+encodeURIComponent(mec_cc)
     +'&mec_nom='+encodeURIComponent(mec_nom)
     +'&obs_i='+encodeURIComponent(obs);
-  // Usar no-cors: el GAS crea la OM aunque no podamos leer la respuesta
-  fetch(GAS_GERENCIA+_p, {mode:'no-cors'}).catch(function(){});
+  _gasGet(GAS_GERENCIA+_p);
   toast('OM #'+num+' asignada a '+mec_nom);
   showHome();
   // Esperar 2s para que el GAS procese, luego sincronizar
