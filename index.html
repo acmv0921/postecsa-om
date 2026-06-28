@@ -2576,27 +2576,48 @@ function showExito(){
 }
 
 function reenviarGerencia(){
-  var dbOM=null;
+  // Buscar la OM más reciente en DB si la global está vacía
   try{
-    var todas=DB.getAll();
-    var nums=Object.keys(todas);
-    if(nums.length>0) dbOM=todas[nums[0]];
-    // Usar la OM más reciente del DB si OM global está vacía
     if(!OM||!OM.num){
-      if(dbOM) OM=dbOM;
+      var todas=DB.getAll();
+      var lista=Object.values(todas).filter(function(o){return o&&o.num;});
+      lista.sort(function(a,b){return (b.ts_cierre_final||0)-(a.ts_cierre_final||0);});
+      if(lista.length>0) OM=lista[0];
     }
   }catch(e){}
-  
-  var info='OM#'+(OM&&OM.num?OM.num:'?')+
-           ' eq='+(OM&&OM.equipo?OM.equipo:'?')+
-           ' mec='+(OM&&OM.mecanico_nombre?OM.mecanico_nombre:'?');
-  toast('Enviando: '+info);
-  
+
   if(!OM||!OM.num){
-    toast('ERROR: No hay OM activa para enviar');
+    toast('ERROR: No hay OM activa. Abre la OM primero.');
     return;
   }
-  enviarGerencia(OM);
+
+  // Test directo: llamar al GAS con fetch normal para ver respuesta
+  var _tp='?accion=guardar_material_get'
+    +'&cod=TEST&desc='+encodeURIComponent('Prueba-'+OM.num)
+    +'&um=Und&precio=0&cant=1'
+    +'&otNum='+encodeURIComponent(String(OM.num||''))
+    +'&equipo='+encodeURIComponent(OM.equipo||'')
+    +'&mecanico='+encodeURIComponent(OM.mecanico_nombre||OM.mecanico||'')
+    +'&fecha='+encodeURIComponent(new Date().toLocaleDateString('es-CO'));
+
+  // Intentar con fetch normal (con respuesta)
+  fetch(GAS_GERENCIA+_tp)
+    .then(function(r){return r.json();})
+    .then(function(res){
+      if(res.ok){
+        toast('GAS OK: '+JSON.stringify(res).slice(0,50));
+        enviarGerencia(OM);
+      } else {
+        toast('GAS Error: '+(res.error||'?'));
+      }
+    })
+    .catch(function(err){
+      toast('fetch error: '+String(err).slice(0,60));
+      // Intentar igual con _gasGet
+      enviarGerencia(OM);
+    });
+
+  toast('Probando conexion GAS...');
 }
 
 // ═══════════════════════════════════════════════
