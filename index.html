@@ -2576,7 +2576,26 @@ function showExito(){
 }
 
 function reenviarGerencia(){
-  toast('📤 Enviando a Gerencia...');
+  var dbOM=null;
+  try{
+    var todas=DB.getAll();
+    var nums=Object.keys(todas);
+    if(nums.length>0) dbOM=todas[nums[0]];
+    // Usar la OM más reciente del DB si OM global está vacía
+    if(!OM||!OM.num){
+      if(dbOM) OM=dbOM;
+    }
+  }catch(e){}
+  
+  var info='OM#'+(OM&&OM.num?OM.num:'?')+
+           ' eq='+(OM&&OM.equipo?OM.equipo:'?')+
+           ' mec='+(OM&&OM.mecanico_nombre?OM.mecanico_nombre:'?');
+  toast('Enviando: '+info);
+  
+  if(!OM||!OM.num){
+    toast('ERROR: No hay OM activa para enviar');
+    return;
+  }
   enviarGerencia(OM);
 }
 
