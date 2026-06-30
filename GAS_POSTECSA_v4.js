@@ -26,6 +26,30 @@ function _omsH() {
   return h;
 }
 
+
+// ── EXTERNOS ──────────────────────────────────────────────────
+var HOJA_EXT = 'Externos';
+
+function _extH(){
+  var ss = _ss(), h = ss.getSheetByName(HOJA_EXT);
+  if (!h) {
+    h = ss.insertSheet(HOJA_EXT);
+    h.appendRow(['ID','Nombre','Especialidad','Activo','Fecha_Registro']);
+    // Pre-cargar los 6 base
+    var base = [
+      ['EXT001','MONTACARGAS VARELA','VEHÍCULOS (CATERPILLAR, YALE)',true],
+      ['EXT002','REFRIGERACIÓN Y ELÉCTRICOS SNB SAS','AIRES ACONDICIONADOS Y CHILLER',true],
+      ['EXT003','TECHOS RENTABLES','PANELES SOLARES',true],
+      ['EXT004','HIDROSERVIS Y EQUIPOS SAS','BOMBAS DE RIEGO Y SUMINISTRO DE AGUA',true],
+      ['EXT005','DERCO','VEHÍCULO KOMATSU',true],
+      ['EXT006','NAVITRANS','VEHÍCULO MINICARGADOR (CASE)',true]
+    ];
+    var ts = new Date().toISOString();
+    base.forEach(function(b){ h.appendRow([b[0],b[1],b[2],b[3],ts]); });
+  }
+  return h;
+}
+
 function _resp(d) {
   return ContentService.createTextOutput(JSON.stringify(d))
     .setMimeType(ContentService.MimeType.JSON);
@@ -208,6 +232,34 @@ function doGet(e) {
         }
       }
       return _ok({oms: oms});
+    }
+
+
+    // ── LISTAR EXTERNOS ───────────────────────────────────────
+    if (accion === 'listar_externos') {
+      var rows = _extH().getDataRange().getValues();
+      var externos = [];
+      for (var i = 1; i < rows.length; i++) {
+        var r = rows[i];
+        if (!r[0]) continue;
+        externos.push({id:String(r[0]),nombre:String(r[1]),especialidad:String(r[2]),activo:r[3]!==false&&r[3]!=='FALSE'&&r[3]!==0});
+      }
+      return _ok({externos: externos});
+    }
+
+    // ── AGREGAR EXTERNO ───────────────────────────────────────
+    if (accion === 'agregar_externo') {
+      var id = String(p.id || '');
+      var nombre = String(p.nombre || '');
+      if (!id || !nombre) return _err('ID y nombre requeridos');
+      var h = _extH();
+      var rows = h.getDataRange().getValues();
+      // Verificar duplicado
+      for (var i = 1; i < rows.length; i++) {
+        if (String(rows[i][0]) === id) return _ok({ya_existe: true});
+      }
+      h.appendRow([id, nombre, p.especialidad || '', true, new Date().toISOString()]);
+      return _ok({agregado: id});
     }
 
     return _err('Accion no reconocida: ' + accion);
