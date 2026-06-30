@@ -1,0 +1,27 @@
+{
+  "name": "POSTECSA OM v6.3",
+  "short_name": "POSTECSA OM",
+  "start_url": "/postecsa-om/v63/",
+  "scope": "/postecsa-om/v63/",
+  "display": "standalone",
+  "display_override": [
+    "standalone",
+    "minimal-ui"
+  ],
+  "background_color": "#E65100",
+  "theme_color": "#E65100",
+  "icons": [
+    {
+      "src": "../icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "../icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
