@@ -1446,18 +1446,23 @@ function eliminarMecExt(cc){
 function showConfig(){
   var rolActual=localStorage.getItem('pst_rol')||'';
   var mec=MECANICOS.find(function(m){return m.cc===USER_CC;});
+  var esSup=(rolActual==='supervisor');
   R('<div class="hdr">'
-  +'<button onclick="showHome()" style="background:rgba(255,255,255,.2);border:none;color:#fff;border-radius:8px;padding:8px 12px;font-size:14px;cursor:pointer">\u2190 Volver</button>'
-  +'<div class="hdr-title" style="margin-left:8px"><h1>\u2699\ufe0f Configuraci\u00f3n</h1></div></div>'
+  +'<button onclick="showHome()" style="background:rgba(255,255,255,.2);border:none;color:#fff;border-radius:8px;padding:8px 12px;font-size:14px;cursor:pointer">← Volver</button>'
+  +'<div class="hdr-title" style="margin-left:8px"><h1>Configuracion</h1></div></div>'
   +'<div class="card"><div class="card-title">PERFIL ACTUAL</div>'
-  +'<div class="info-row"><span class="info-label">Rol</span><span class="info-val">'+(rolActual==='supervisor'?'\ud83d\udc54 Supervisor':'\ud83d\udea7 Mec\u00e1nico')+'</span></div>'
-  +(mec?'<div class="info-row"><span class="info-label">Mec\u00e1nico</span><span class="info-val">'+mec.nombre+'</span></div>':'')
-  +'<div class="info-row"><span class="info-label">Versi\u00f3n</span><span class="info-val">v'+VERSION+'</span></div></div>'
+  +'<div class="info-row"><span class="info-label">Rol</span><span class="info-val">'+(esSup?'Supervisor':'Mecanico')+'</span></div>'
+  +(mec?'<div class="info-row"><span class="info-label">Mecanico</span><span class="info-val">'+mec.nombre+'</span></div>':'')
+  +'<div class="info-row"><span class="info-label">Version</span><span class="info-val">v'+VERSION+'</span></div></div>'
   +'<div class="card"><div class="card-title">CAMBIAR PERFIL</div>'
-  +'<p style="font-size:13px;color:var(--txt2);margin-bottom:12px">Si cambias de rol la selecci\u00f3n se aplica al reiniciar.</p>'
-  +'<button class="btn btn-primary" onclick="cambiarRol()">\ud83d\udd04 Cambiar rol</button></div>'
+  +'<p style="font-size:13px;color:var(--txt2);margin-bottom:12px">Si cambias de rol la seleccion se aplica al reiniciar.</p>'
+  +'<button class="btn btn-primary" onclick="cambiarRol()">Cambiar rol</button></div>'
+  +(esSup?'<div class="card"><div class="card-title">SUPERVISOR</div>'
+    +'<button onclick="showGestionMecanicos()" style="width:100%;padding:13px;background:#1565C0;color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;margin-bottom:8px">Gestionar Mecanicos y Proveedores</button>'
+    +'<button onclick="cambiarClaveSup()" style="width:100%;padding:13px;background:#263238;color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer">Cambiar clave supervisor</button>'
+    +'</div>':'')
   +'<div class="card"><div class="card-title">DATOS</div>'
-  +'<button class="btn btn-gris" onclick="showGestionar()">\ud83d\uddc2 Gestionar OMs</button></div>');
+  +'<button class="btn btn-gris" onclick="showGestionar()">Gestionar OMs</button></div>');
 }
 
 function cambiarRol(){
