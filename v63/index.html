@@ -1152,7 +1152,7 @@ function _gvizOMs(raw){
   try{
     var s=raw.indexOf('{'),e=raw.lastIndexOf('}')+1;
     var t=JSON.parse(raw.slice(s,e)).table||{};
-    var COLS=['num','fecha','area','equipo','falla','tipo_mant','prioridad','mec_cc','mec_nom','obs_i','estado'];
+    var COLS=['num','fecha','area','equipo','falla','prioridad','mec_cc','mec_nom','obs_i','estado','ts_creacion','ts_tomada','ts_cerrada'];
     var cols=(t.cols||[]).map(function(c,i){
       return(c.label||'').trim().toLowerCase()||COLS[i]||'c'+i;
     });
@@ -1386,6 +1386,17 @@ function crearOMSupervisor(){
 
 function cargarOMsAsignadas(){
   if(!navigator.onLine||!USER_CC) return;
+  if(SANDBOX_MODE){
+    var wrap=document.getElementById('oms-asignadas-wrap');
+    if(wrap) wrap.innerHTML='<div class="card" style="border-left:4px solid #E65100;margin-bottom:4px">'
+      +'<div class="card-title" style="color:#E65100">OMs ASIGNADAS (SANDBOX)'
+      +'<span style="margin-left:auto;background:#E65100;color:#fff;border-radius:20px;padding:2px 10px;font-size:12px">1</span></div>'
+      +'<div style="display:flex;align-items:center;gap:10px;padding:10px 0">'
+      +'<div style="flex:1"><div style="font-weight:700;font-size:14px">#9001 · Vibrador V-01</div>'
+      +'<div style="font-size:12px;color:var(--txt2)">QFT Vibro-compactados · Falla electrica</div></div>'
+      +'<button onclick="tomarOM(\'9001\')" style="background:#1565C0;color:#fff;border:none;border-radius:8px;padding:10px 14px;font-size:13px;font-weight:700;cursor:pointer">▶ Tomar</button></div></div>';
+    return;
+  }
   fetch(SHEET_OMS+'&t='+Date.now())
     .then(function(r){return r.text();})
     .then(function(raw){
@@ -3326,34 +3337,17 @@ function _subirYcompartir(){
   const ins=[...(INS.i||OM.ins_i||[]),...(INS.a||OM.ins_a||[]),...(INS.c||OM.ins_c||[])];
   const cm=ins.reduce((s,i)=>s+(fNum(i.p)*fNum(i.qty)),0);
 
-  toast('Subiendo a Drive...');
-  fetch(GAS_GERENCIA,{
-    method:'POST',
-    body:JSON.stringify({accion:'subir_pdf',pdf:pdfB64,nombre,otNum:String(OM.num||'')}),
-    headers:{'Content-Type':'text/plain'},
-    mode:'no-cors',
-  }).then(()=>{
-    setTimeout(()=>{
-      fetch(GAS_GERENCIA+'?accion=get_pdf_link&otNum='+encodeURIComponent(String(OM.num||'')))
-        .then(r=>r.json())
-        .then(res=>{
-          const link=res.ok&&res.link?res.link:'';
-          const msg='*POSTECSA OM #'+String(OM.num||'')+'*\n'
-            +'Equipo: '+String(OM.equipo||'')+'\n'
-            +'Tipo: '+String(OM.tipo_mant||'CORRECTIVO')+'\n'
-            +'Mecanico: '+String(OM.mecanico_nombre||OM.mecanico||'')+'\n'
-            +'Costo total: '+fCOP(costo+cm)
-            +(link?'\n\n Informe PDF: '+link:'\n\n(PDF descargado en el celular)');
-          window.open('https://wa.me/?text='+encodeURIComponent(msg),'_blank');
-          toast(link?'PDF en Drive listo':'PDF descargado');
-        })
-        .catch(()=>{
-          window.open('https://wa.me/?text='+encodeURIComponent('*POSTECSA OM #'+String(OM.num||'')+'* — PDF adjunto'),'_blank');
-        });
-    },3500);
-  }).catch(()=>{
-    window.open('https://wa.me/?text='+encodeURIComponent('*POSTECSA OM #'+String(OM.num||'')+'* — PDF adjunto'),'_blank');
-  });
+  // WA directo — PDF ya descargado en el celular
+  const msg='*POSTECSA OM #'+String(OM.num||'')+'*\n'
+    +'Equipo: '+String(OM.equipo||'')+'\n'
+    +'Tipo: '+String(OM.tipo_mant||'CORRECTIVO')+'\n'
+    +'Mecánico: '+String(OM.mecanico_nombre||OM.mecanico||'')+'\n'
+    +'Materiales: '+fCOP(cm)+'\n'
+    +'M.O.: '+fCOP(costo)+'\n'
+    +'*Costo total: '+fCOP(costo+cm)+'*\n'
+    +'(PDF generado en el celular)';
+  window.open('https://wa.me/?text='+encodeURIComponent(msg),'_blank');
+  toast('PDF generado — WA abierto');
 }
 
 function _generarPDFBase64(){
@@ -3425,37 +3419,8 @@ function _subirPDFDrive_OLD(txtResumen){
     const pdfB64=_docGuardado;
     const nombre='OM_'+String(OM.num||'')+'_POSTECSA.pdf';
 
-    toast('Subiendo PDF a Drive...');
-
-    // Subir via formulario oculto (bypasea CORS) y luego GET para recuperar link
-    toast('Subiendo PDF a Drive...');
-    const formData = new FormData();
-    formData.append('accion', 'subir_pdf');
-    formData.append('pdf', pdfB64);
-    formData.append('nombre', nombre);
-    formData.append('otNum', String(OM.num||''));
-
-    fetch(GAS_GERENCIA, {
-      method: 'POST',
-      body: formData,
-      mode: 'no-cors',
-    }).then(()=>{
-      // Dar 3s al GAS para procesar, luego hacer GET para recuperar el link
-      setTimeout(()=>{
-        fetch(GAS_GERENCIA+'?accion=get_pdf_link&otNum='+encodeURIComponent(String(OM.num||'')))
-          .then(r=>r.json())
-          .then(res=>{
-            if(res.ok && res.link){
-              toast('PDF en Drive listo');
-              _enviarWA(txtResumen, res.link);
-            } else {
-              toast('Enviando resumen');
-              _enviarWA(txtResumen, null);
-            }
-          })
-          .catch(()=>_enviarWA(txtResumen, null));
-      }, 3000);
-    }).catch(()=>_enviarWA(txtResumen, null));
+    // PDF generado localmente — enviar WA directo (Drive desactivado)
+    _enviarWA(txtResumen, null);
 
   }catch(e){
     console.warn('_subirPDFDrive err:',e);
