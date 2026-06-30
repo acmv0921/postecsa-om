@@ -8,7 +8,6 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <title>POSTECSA · OM</title>
 <link rel="manifest" href="manifest.json">
-  <!-- POSTECSA OM v6.3 — versión de prueba, no modifica v6.2 -->
 <link rel="apple-touch-icon" href="icons/icon-192.png">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
@@ -190,10 +189,21 @@ const CLAVE_BIB = 'pst_bib';
 const CLAVE_COLA = 'pst_cola';
 const CLAVE_BORRADAS = 'pst_sup_borradas';
 
-// ── MODO SANDBOX v6.3 ─────────────────────────────────────────
+// ── SANDBOX & EXTERNOS v6.3 ────────────────────────────────────
 var SANDBOX_MODE = false;
 var _SANDBOX_KEY = 'acmv0921';
 var _SUP_OMS_CACHE = [];
+
+const EXTERNOS_BASE = [
+  {id:'EXT001',nombre:'MONTACARGAS VARELA',especialidad:'VEHÍCULOS (CATERPILLAR, YALE)',activo:true},
+  {id:'EXT002',nombre:'REFRIGERACIÓN Y ELÉCTRICOS SNB SAS',especialidad:'AIRES ACONDICIONADOS Y CHILLER',activo:true},
+  {id:'EXT003',nombre:'TECHOS RENTABLES',especialidad:'PANELES SOLARES',activo:true},
+  {id:'EXT004',nombre:'HIDROSERVIS Y EQUIPOS SAS',especialidad:'BOMBAS DE RIEGO Y SUMINISTRO DE AGUA',activo:true},
+  {id:'EXT005',nombre:'DERCO',especialidad:'VEHÍCULO KOMATSU',activo:true},
+  {id:'EXT006',nombre:'NAVITRANS',especialidad:'VEHÍCULO MINICARGADOR (CASE)',activo:true},
+];
+const CLAVE_EXTERNOS = 'pst_externos_extra';
+var EXTERNOS = EXTERNOS_BASE.slice();
 const MIN_RATE = 132.63; // COP/min SMMLV 2026 + 52.21% prestacional
 const GAS_URL = 'https://script.google.com/macros/s/AKfycbw_xoH7HoqvHK4x9RdWJpuTnXXVupxL_dsP08yMw-NBJD3WcZt8Zb1Es13QW4_SSnk0/exec';
 const SHEET_OMS = 'https://docs.google.com/spreadsheets/d/1IlxWD6QiCsntzyjEnJfE5KlB36Q39wJsQLnR0HE9gM4/gviz/tq?tqx=out:json&sheet=OMs-Pendientes';
@@ -885,7 +895,7 @@ function showHomeMecanico(){
   }
 
   R(`
-    ${SANDBOX_MODE?'<div style="background:#E65100;color:#fff;text-align:center;padding:7px 12px;font-size:12px;font-weight:700;letter-spacing:.5px">🧪 MODO SANDBOX — datos NO guardados</div>':''}
+    ${SANDBOX_MODE?'<div style="background:#E65100;color:#fff;text-align:center;padding:7px;font-size:12px;font-weight:700">🧪 MODO SANDBOX</div>':''}
     ${!online?`<div class="offline-bar">⚠️ Sin conexión — Los datos se guardarán localmente</div>`:''}
     <div class="hdr">
       <div class="hdr-logo"><img src="${LOGO_SRC}" alt="POSTECSA" draggable="false"></div>
@@ -905,7 +915,7 @@ function showHomeMecanico(){
     <div class="card" style="margin-bottom:4px">
       <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;text-align:center">
         <div>
-          <div style="font-size:22px;font-weight:800;color:var(--naranja)">${lista.filter(o=>(o.etapa||'INICIO')==='INICIO').length}</div>
+          <div style="font-size:22px;font-weight:800;color:var(--naranja)">${lista.filter(o=>o.etapa==='INICIO').length}</div>
           <div style="font-size:11px;color:var(--txt2)">En Inicio</div>
         </div>
         <div>
@@ -930,18 +940,15 @@ function showHomeMecanico(){
         <span id="hist-arr" style="font-size:12px;color:var(--txt2)">▼</span>
       </div>
       <div id="hist-body" style="display:none">
-        ${listaCerradas.slice(0,15).map(o=>`
-          <div class="om-item" onclick="abrirOM('${o.num}')" style="opacity:.85">
-            <div class="om-num" style="color:var(--verde)">#${sPDF(o.num)}</div>
-            <div class="om-info">
-              <h3>${sPDF(o.equipo||'Sin equipo')}</h3>
-              <p>${sPDF(o.area||'')} · ${fFecha(o.ts_inicio)}</p>
-              <p style="font-size:11px;color:var(--verde);font-weight:600;margin-top:2px">${fCOP(o.costo_mo||0)}</p>
-            </div>
-            <div class="om-estado">
-              <span class="chip chip-ok" style="font-size:10px">✅</span>
-            </div>
-          </div>`).join('')}
+        ${listaCerradas.slice(0,15).map(o=>`<div class="om-item" onclick="abrirOM('${o.num}')" style="opacity:.85">
+          <div class="om-num" style="color:var(--verde)">#${sPDF(o.num)}</div>
+          <div class="om-info">
+            <h3>${sPDF(o.equipo||'Sin equipo')}</h3>
+            <p>${sPDF(o.area||'')} · ${fFecha(o.ts_inicio)}</p>
+            <p style="font-size:11px;color:var(--verde);font-weight:600">${fCOP(o.costo_mo||0)}</p>
+          </div>
+          <div class="om-estado"><span class="chip chip-ok" style="font-size:10px">✅</span></div>
+        </div>`).join('')}
       </div>
     </div>
     `:''}
@@ -1013,7 +1020,7 @@ function verificarClaveSup(){
   var clave=inp.value.trim();
   if(clave===_SANDBOX_KEY){
     SANDBOX_MODE=true;
-    toast('🧪 MODO SANDBOX — sin escritura en datos reales');
+    toast('🧪 SANDBOX activado — sin escritura en datos reales');
     seleccionarRol('supervisor');
     return;
   }
@@ -1113,18 +1120,13 @@ function confirmarMecanico(){
 }
 
 function showHomeSupervisor(){
-  var sandBanner=SANDBOX_MODE
-    ?'<div style="background:#E65100;color:#fff;text-align:center;padding:7px 12px;font-size:12px;font-weight:700;letter-spacing:.5px">\ud83e\uddea MODO SANDBOX \u2014 datos NO guardados</div>'
-    :'';
-  // Recolectar áreas únicas si hay caché
-  var areasOpts='<option value="">Todas las áreas</option>';
-  var priosOpts='<option value="">Toda prioridad</option><option>ALTA</option><option>MEDIA</option><option>BAJA</option>';
-  var estadOpts='<option value="">Todos los estados</option><option>PENDIENTE</option><option>TOMADA</option><option>CERRADA</option>';
+  var sbBanner=SANDBOX_MODE?'<div style="background:#E65100;color:#fff;text-align:center;padding:7px;font-size:12px;font-weight:700">🧪 SANDBOX — sin escritura real</div>':'';
+  var areasOpts='<option value="">Todas las \u00e1reas</option>';
   if(_SUP_OMS_CACHE.length){
     var areas=[...new Set(_SUP_OMS_CACHE.map(function(o){return o.area||'';}).filter(Boolean))];
-    areasOpts='<option value="">Todas las áreas</option>'+areas.map(function(a){return '<option>'+a+'</option>';}).join('');
+    areasOpts='<option value="">Todas las \u00e1reas</option>'+areas.map(function(a){return '<option>'+a+'</option>';}).join('');
   }
-  R(sandBanner
+  R(sbBanner
   +'<div class="hdr">'
   +'<div class="hdr-logo"><img src="'+LOGO_SRC+'" alt="POSTECSA" draggable="false"></div>'
   +'<div class="hdr-title"><h1>POSTECSA \u00b7 Supervisor</h1><p>\u00d3rdenes de Mantenimiento</p><p style="font-size:8px;opacity:.55;letter-spacing:.3px">Dise\u00f1o &amp; Desarrollo: ABDIEL CICAR MORENO</p></div>'
@@ -1133,13 +1135,12 @@ function showHomeSupervisor(){
   +'<button onclick="showConfig()" style="background:rgba(255,255,255,.2);border:none;color:#fff;border-radius:8px;padding:6px 10px;font-size:13px;cursor:pointer">\u2699\ufe0f</button>'
   +'</div></div>'
   +'<div class="card"><button class="btn btn-primary" onclick="showCrearOM()">\u2795 CREAR Y ASIGNAR NUEVA OM</button></div>'
-  // Filtros
   +'<div class="card" style="padding:10px 12px">'
   +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:6px">'
-  +'<select id="fil-area" onchange="aplicarFiltrosSup()" style="padding:7px 8px;border:1.5px solid #ddd;border-radius:8px;font-size:12px;background:#fff">'+areasOpts+'</select>'
-  +'<select id="fil-prio" onchange="aplicarFiltrosSup()" style="padding:7px 8px;border:1.5px solid #ddd;border-radius:8px;font-size:12px;background:#fff">'+priosOpts+'</select>'
+  +'<select id="fil-area" onchange="aplicarFiltrosSup()" style="padding:7px;border:1.5px solid #ddd;border-radius:8px;font-size:12px">'+areasOpts+'</select>'
+  +'<select id="fil-prio" onchange="aplicarFiltrosSup()" style="padding:7px;border:1.5px solid #ddd;border-radius:8px;font-size:12px"><option value="">Toda prioridad</option><option>ALTA</option><option>MEDIA</option><option>BAJA</option></select>'
   +'</div>'
-  +'<select id="fil-estado" onchange="aplicarFiltrosSup()" style="width:100%;padding:7px 8px;border:1.5px solid #ddd;border-radius:8px;font-size:12px;background:#fff">'+estadOpts+'</select>'
+  +'<select id="fil-estado" onchange="aplicarFiltrosSup()" style="width:100%;padding:7px;border:1.5px solid #ddd;border-radius:8px;font-size:12px"><option value="">Todos los estados</option><option>PENDIENTE</option><option>TOMADA</option><option>CERRADA</option></select>'
   +'</div>'
   +'<div id="panel-supervisor"><div style="text-align:center;padding:40px;color:var(--txt2)"><div style="font-size:36px">\ud83d\udd04</div><p style="margin-top:8px">Cargando...</p></div></div>'
   +'<div style="height:20px"></div>');
@@ -1168,7 +1169,6 @@ function _gvizOMs(raw){
   }catch(e){return null;}
 }
 
-// ── HELPER: detectar OM demorada por fecha ────────────────────
 function _esOMDemorada(o){
   try{
     var p=String(o.fecha||'').split('/');
@@ -1178,15 +1178,12 @@ function _esOMDemorada(o){
     return (o.estado==='PENDIENTE'&&h>24)||(o.estado==='TOMADA'&&h>8);
   }catch(e){return false;}
 }
-
-// ── HELPER: renderizar panel supervisor ───────────────────────
 function _renderPanelSup(oms){
   var panel=document.getElementById('panel-supervisor');
   if(!panel) return;
   if(!oms||!oms.length){
     panel.innerHTML='<div class="card" style="text-align:center;padding:24px;color:var(--txt2)"><div style="font-size:36px">\ud83d\udccb</div><p style="margin-top:8px">No hay \u00f3rdenes</p></div>';return;
   }
-  // Aplicar filtros guardados
   var fA=document.getElementById('fil-area');
   var fP=document.getElementById('fil-prio');
   var fE=document.getElementById('fil-estado');
@@ -1203,70 +1200,52 @@ function _renderPanelSup(oms){
   };
   var seccion=function(titulo,lista,col,puedeBorar){
     if(!lista.length) return '';
-    var html_s='<div class="card" style="border-left:4px solid '+col+'">';
-    html_s+='<div class="card-title" style="color:'+col+'">'+titulo
-      +' <span style="margin-left:auto">'+lista.length+'</span></div>';
-    html_s+=lista.map(function(o){
+    var hs='<div class="card" style="border-left:4px solid '+col+'">';
+    hs+='<div class="card-title" style="color:'+col+'">'+titulo+' <span style="margin-left:auto">'+lista.length+'</span></div>';
+    hs+=lista.map(function(o){
       var dem=_esOMDemorada(o);
-      var demBadge=dem?'<span style="background:#c00;color:#fff;border-radius:20px;padding:2px 8px;font-size:10px;font-weight:700;margin-top:2px">\u23f0 DEMORADA</span>':'';
-      return '<div data-om-num="'+o.num+'" style="padding:10px 0;border-bottom:1px solid var(--fondo);'+(dem?'background:#fff5f5;':'')+'padding-left:'+(dem?'8px':'0')+';">'
+      var demB=dem?'<span style="background:#c00;color:#fff;border-radius:20px;padding:2px 8px;font-size:10px;font-weight:700">\u23f0 DEMORADA</span>':'';
+      return '<div data-om-num="'+o.num+'" style="padding:10px 0;border-bottom:1px solid var(--fondo)'+(dem?';background:#fff5f5':'')+';">'
         +'<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">'
         +'<div style="flex:1">'
         +'<div style="font-weight:700;font-size:14px">#'+sPDF(o.num)+' \u00b7 '+sPDF(o.equipo)+'</div>'
         +'<div style="font-size:12px;color:var(--txt2)">'+sPDF(o.area)+' \u00b7 '+sPDF(o.falla)+'</div>'
         +'<div style="font-size:12px;color:var(--txt2)">Mec: '+sPDF(o.mec_nom)+'</div>'
-        +(dem?'<div>'+demBadge+'</div>':'')
+        +(dem?'<div style="margin-top:3px">'+demB+'</div>':'')
         +'</div>'
         +'<div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px">'
         +badge(o.estado)
-        +(puedeBorar
-          ?'<button onclick="borrarOMSupervisor(\''+o.num+'\')"'
-          +' style="background:var(--rojo);color:#fff;border:none;border-radius:6px;'
-          +'padding:4px 10px;font-size:11px;cursor:pointer">Borrar</button>'
-          :'')
+        +(puedeBorar?'<button onclick="borrarOMSupervisor(\''+o.num+'\')" style="background:var(--rojo);color:#fff;border:none;border-radius:6px;padding:4px 10px;font-size:11px;cursor:pointer">Borrar</button>':'')
         +'</div></div></div>';
     }).join('');
-    if(puedeBorar && lista.length>1){
+    if(puedeBorar&&lista.length>1){
       var nums=JSON.stringify(lista.map(function(o){return o.num;}));
-      html_s+='<button onclick="borrarListaSupervisor('+nums+',\''+titulo+'\')"'
-        +' style="width:100%;margin-top:10px;padding:10px;background:#6A1B9A;color:#fff;'
-        +'border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer">'
-        +'\ud83d\uddd1 Borrar todas ('+lista.length+')</button>';
+      hs+='<button onclick="borrarListaSupervisor('+nums+',\''+titulo+'\')" style="width:100%;margin-top:10px;padding:10px;background:#6A1B9A;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer">\ud83d\uddd1 Borrar todas ('+lista.length+')</button>';
     }
-    html_s+='</div>';
-    return html_s;
+    return hs+'</div>';
   };
-  var dem_total=filtrados.filter(function(o){return _esOMDemorada(o);}).length;
-  var alertaBanner=dem_total>0
-    ?'<div class="card" style="background:#FFF3E0;border-left:4px solid #E65100;padding:10px 12px">'
-      +'<div style="display:flex;align-items:center;gap:8px">'
-      +'<span style="font-size:18px">\u23f0</span>'
-      +'<div><div style="font-weight:700;font-size:13px;color:#E65100">'+dem_total+' OM'+(dem_total>1?'s':'')+' demorada'+(dem_total>1?'s':'')+'</div>'
-      +'<div style="font-size:11px;color:var(--txt2)">PENDIENTE &gt;24h · TRABAJO &gt;8h</div></div></div></div>'
-    :'';
-  panel.innerHTML=alertaBanner
+  var dem=filtrados.filter(function(o){return _esOMDemorada(o);}).length;
+  var alerta=dem>0?'<div class="card" style="background:#FFF3E0;border-left:4px solid #E65100;padding:10px 12px">'
+    +'<div style="display:flex;align-items:center;gap:8px"><span style="font-size:18px">\u23f0</span>'
+    +'<div><div style="font-weight:700;font-size:13px;color:#E65100">'+dem+' OM'+(dem>1?'s':'')+' demorada'+(dem>1?'s':'')+'</div>'
+    +'<div style="font-size:11px;color:var(--txt2)">PENDIENTE &gt;24h · TRABAJO &gt;8h</div></div></div></div>':'' ;
+  panel.innerHTML=alerta
     +seccion('PENDIENTES',filtrados.filter(function(o){return o.estado==='PENDIENTE';}),'#E65100',true)
     +seccion('EN TRABAJO',filtrados.filter(function(o){return o.estado==='TOMADA';}),'#1565C0',true)
     +seccion('CERRADAS',filtrados.filter(function(o){return o.estado==='CERRADA';}),'#2E7D32',true);
 }
-
-function aplicarFiltrosSup(){
-  _renderPanelSup(_SUP_OMS_CACHE);
-}
-
+function aplicarFiltrosSup(){ _renderPanelSup(_SUP_OMS_CACHE); }
 function sincronizarSupervisor(){
   if(SANDBOX_MODE){
-    var ahora=Date.now();
-    var mockOms=[
+    var ah=Date.now();
+    var mock=[
       {num:'9001',fecha:new Date().toLocaleDateString('es-CO'),area:'QFT Vibro-compactados',equipo:'Vibrador V-01',falla:'Falla electrica',prioridad:'ALTA',mec_cc:'16454304',mec_nom:'Marcos Raul Lopez',obs_i:'Motor no enciende',estado:'PENDIENTE'},
-      {num:'9002',fecha:new Date(ahora-86400000*2).toLocaleDateString('es-CO'),area:'Planta General',equipo:'Compresor C-02',falla:'Fuga de aceite',prioridad:'MEDIA',mec_cc:'16462594',mec_nom:'Mauricio Lopez Lopez',obs_i:'Perdida de presion',estado:'TOMADA'},
-      {num:'9003',fecha:new Date(ahora-86400000*5).toLocaleDateString('es-CO'),area:'Vehículos',equipo:'Camion 004',falla:'Mantenimiento preventivo',prioridad:'BAJA',mec_cc:'18470894',mec_nom:'Fredy Quinayas',obs_i:'Cambio de aceite',estado:'PENDIENTE'},
-      {num:'9004',fecha:new Date(ahora-86400000*1).toLocaleDateString('es-CO'),area:'QFT Vibro-compactados',equipo:'Mesa V-03',falla:'Rodamiento ruidoso',prioridad:'ALTA',mec_cc:'16613688',mec_nom:'Jesus Vargas Ocampo',obs_i:'Vibración anormal',estado:'CERRADA'}
+      {num:'9002',fecha:new Date(ah-172800000).toLocaleDateString('es-CO'),area:'Planta General',equipo:'Compresor C-02',falla:'Fuga de aceite',prioridad:'MEDIA',mec_cc:'16462594',mec_nom:'Mauricio Lopez Lopez',obs_i:'Perdida presion',estado:'TOMADA'},
+      {num:'9003',fecha:new Date(ah-432000000).toLocaleDateString('es-CO'),area:'Vehículos',equipo:'Camion 004',falla:'Preventivo programado',prioridad:'BAJA',mec_cc:'EXT001',mec_nom:'MONTACARGAS VARELA',obs_i:'Mantenimiento anual',estado:'PENDIENTE'},
+      {num:'9004',fecha:new Date(ah-86400000).toLocaleDateString('es-CO'),area:'QFT Vibro-compactados',equipo:'Mesa V-03',falla:'Rodamiento',prioridad:'ALTA',mec_cc:'EXT005',mec_nom:'DERCO',obs_i:'Cambio rodamiento',estado:'CERRADA'}
     ];
-    _SUP_OMS_CACHE=mockOms;
-    _renderPanelSup(mockOms);
-    toast('🧪 SANDBOX — 4 OMs simuladas');
-    return;
+    _SUP_OMS_CACHE=mock; _renderPanelSup(mock);
+    toast('🧪 SANDBOX — 4 OMs simuladas'); return;
   }
   if(!navigator.onLine){toast('Sin conexion');return;}
   fetch(SHEET_OMS+'&t='+Date.now())
@@ -1276,26 +1255,18 @@ function sincronizarSupervisor(){
       if(!oms) throw new Error('parse error');
       var borradasLocal=_getBorradas();
       borradasLocal.forEach(function(num){
-        if(!oms.find(function(o){return String(o.num)===String(num)&&o.estado==='BORRADA';})){
+        if(!oms.find(function(o){return String(o.num)===String(num)&&o.estado==='BORRADA';}))
           _intentarBorrarGAS(num);
-        } else {
-          _removeBorrada(num);
-        }
+        else _removeBorrada(num);
       });
       var omsFiltradas=oms.filter(function(o){
-        return o.num&&o.num!=='N_OM'
-          &&o.estado!=='BORRADA'
-          &&!borradasLocal.has(String(o.num))
-          &&/^\d{4,}$/.test(String(o.num));
+        return o.num&&o.num!=='N_OM'&&o.estado!=='BORRADA'
+          &&!borradasLocal.has(String(o.num))&&/^\d{4,}$/.test(String(o.num));
       });
-      _SUP_OMS_CACHE=omsFiltradas;
-      _renderPanelSup(omsFiltradas);
+      _SUP_OMS_CACHE=omsFiltradas; _renderPanelSup(omsFiltradas);
     }).catch(function(){
       var panel=document.getElementById('panel-supervisor');
-      if(panel) panel.innerHTML='<div class="card" style="text-align:center;padding:24px;color:#c00">'
-        +'<div style="font-size:32px">\u26a0\ufe0f</div>'
-        +'<p style="margin-top:8px;font-weight:700">Error al conectar con el servidor</p>'
-        +'<p style="font-size:12px;color:var(--txt2);margin-top:6px">Verifica tu conexión y toca \ud83d\udd04</p></div>';
+      if(panel) panel.innerHTML='<div class="card" style="text-align:center;padding:24px;color:#c00"><div style="font-size:32px">\u26a0\ufe0f</div><p style="margin-top:8px;font-weight:700">Error al conectar</p><p style="font-size:12px;color:var(--txt2);margin-top:6px">Verifica tu conexión y toca \ud83d\udd04</p></div>';
     });
 }
 
@@ -1338,7 +1309,17 @@ function borrarListaSupervisor(nums,titulo){
 }
 
 function showCrearOM(){
-  var mecOpts=MECANICOS.map(function(m){var pref=m.tipo==='EXTERNO'?'[EXT] ':'';return '<option value="'+m.cc+'|'+m.nombre+'">'+pref+m.nombre+' ('+m.cargo+')</option>';}).join('');
+  cargarExternos();
+  var mecInternos=MECANICOS.filter(function(m){return m.tipo!=='EXTERNO';});
+  var mecExtOld=MECANICOS.filter(function(m){return m.tipo==='EXTERNO';});
+  var extActivos=EXTERNOS.filter(function(e){return e.activo!==false;});
+  var grpInt='<optgroup label="\u2500\u2500\u2500 Mec\u00e1nicos internos \u2500\u2500\u2500">'
+    +mecInternos.map(function(m){return '<option value="'+m.cc+'|'+m.nombre+'">'+m.nombre+' \u2014 '+m.cargo+'</option>';}).join('')
+    +mecExtOld.map(function(m){return '<option value="'+m.cc+'|'+m.nombre+'">[EXT] '+m.nombre+'</option>';}).join('')
+    +'</optgroup>';
+  var grpExt=extActivos.length?'<optgroup label="\u2500\u2500\u2500 Proveedores externos \u2500\u2500\u2500">'
+    +extActivos.map(function(e){return '<option value="'+e.id+'|'+e.nombre+'">'+e.nombre+' \u2014 '+e.especialidad+'</option>';}).join('')+'</optgroup>':'';
+  var mecOpts=grpInt+grpExt;
   var areaOpts=Object.keys(AREAS_EQUIPOS).map(function(a){return '<option value="'+a+'">'+a+'</option>';}).join('');
   var fallaOpts=FALLAS.map(function(f){return '<option value="'+f+'">'+f+'</option>';}).join('');
   R('<div class="hdr">'
@@ -1560,6 +1541,53 @@ function eliminarMecExt(cc){
   toast('Eliminado'); showGestionMecanicos();
 }
 
+function cargarExternos(){
+  EXTERNOS=EXTERNOS_BASE.slice();
+  try{var x=JSON.parse(localStorage.getItem(CLAVE_EXTERNOS)||'[]');x.forEach(function(e){if(e&&e.id&&!EXTERNOS.find(function(b){return b.id===e.id;}))EXTERNOS.push(e);});}catch(ex){}
+  if(!SANDBOX_MODE&&navigator.onLine){
+    fetch(GAS_GERENCIA+'?accion=listar_externos&_t='+Date.now()).then(function(r){return r.json();}).then(function(res){
+      if(!res.ok||!res.externos) return;
+      res.externos.forEach(function(e){if(!e||!e.id)return;var idx=EXTERNOS.findIndex(function(x){return x.id===e.id;});if(idx>=0)EXTERNOS[idx]=Object.assign({},EXTERNOS[idx],e);else EXTERNOS.push(e);});
+      var extras=EXTERNOS.filter(function(e){return !EXTERNOS_BASE.find(function(b){return b.id===e.id;});});
+      localStorage.setItem(CLAVE_EXTERNOS,JSON.stringify(extras));
+    }).catch(function(){});
+  }
+}
+function _agregarExternoGAS(e){if(SANDBOX_MODE)return;_gasGet(GAS_GERENCIA+'?accion=agregar_externo&id='+encodeURIComponent(e.id)+'&nombre='+encodeURIComponent(e.nombre)+'&especialidad='+encodeURIComponent(e.especialidad));}
+function showGestionExternos(){
+  cargarExternos();
+  var items=EXTERNOS.map(function(e){
+    var esBase=!!EXTERNOS_BASE.find(function(b){return b.id===e.id;});
+    var aB=e.activo!==false?'<span style="background:#E8F5E9;color:#2E7D32;padding:2px 8px;border-radius:12px;font-size:10px;font-weight:700">ACTIVO</span>':'<span style="background:#FCE4EC;color:#880E4F;padding:2px 8px;border-radius:12px;font-size:10px;font-weight:700">INACTIVO</span>';
+    var dB=!esBase?('<button data-extid="'+e.id+'" class="_del-ext" style="background:#c00;color:#fff;border:none;border-radius:6px;padding:4px 10px;font-size:11px;cursor:pointer">X</button>'):'';
+    return '<div style="padding:10px 0;border-bottom:1px solid #eee"><div style="display:flex;align-items:flex-start;gap:8px"><div style="flex:1"><div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:3px"><b style="font-size:13px">'+e.nombre+'</b>'+aB+(esBase?'<span style="font-size:9px;background:#E3F2FD;color:#1565C0;padding:1px 5px;border-radius:10px">BASE</span>':'')+'</div><div style="font-size:11px;color:#78909C">Especialidad: '+e.especialidad+'</div><div style="font-size:10px;color:#B0BEC5;margin-top:2px">ID: '+e.id+'</div></div>'+dB+'</div></div>';
+  }).join('');
+  R('<div style="min-height:100vh;background:#f5f5f5">'
+   +'<div style="background:#7B1FA2;padding:16px 20px;display:flex;align-items:center;gap:12px">'
+   +'<button onclick="showConfig()" style="background:rgba(255,255,255,.2);border:none;color:#fff;border-radius:8px;padding:8px 14px;font-size:16px;cursor:pointer">\u2190</button>'
+   +'<div><h2 style="color:#fff;margin:0;font-size:16px">Proveedores Externos</h2><p style="color:rgba(255,255,255,.8);font-size:11px;margin:2px 0 0">Mantenimiento tercerizado en planta</p></div>'
+   +'<div style="margin-left:auto"><span style="background:rgba(255,255,255,.2);color:#fff;padding:4px 12px;border-radius:20px;font-size:12px;font-weight:700">'+EXTERNOS.length+' proveedores</span></div></div>'
+   +'<div style="padding:16px;max-width:520px;margin:0 auto">'
+   +'<div class="card" id="_lista-ext">'+items+'</div>'
+   +'<button onclick="_addExternoDialog()" style="width:100%;padding:14px;background:#7B1FA2;color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;margin-top:12px">+ Agregar nuevo proveedor</button>'
+   +(SANDBOX_MODE?'<p style="text-align:center;font-size:11px;color:#E65100;margin-top:8px">SANDBOX - no se guarda en GAS</p>':'')
+   +'</div></div>');
+  document.querySelectorAll('._del-ext').forEach(function(btn){btn.addEventListener('click',function(){_eliminarExterno(this.getAttribute('data-extid'));});});
+}
+function _addExternoDialog(){
+  var nom=(prompt('Nombre de la empresa o proveedor:','')||'').trim().toUpperCase();if(!nom)return;
+  var esp=(prompt('Especialidad o equipos que atiende:','')||'').trim().toUpperCase();if(!esp)return;
+  var nv={id:'EXT'+Date.now().toString().slice(-6),nombre:nom,especialidad:esp,activo:true};
+  EXTERNOS.push(nv);
+  try{var x=JSON.parse(localStorage.getItem(CLAVE_EXTERNOS)||'[]');x.push(nv);localStorage.setItem(CLAVE_EXTERNOS,JSON.stringify(x));}catch(ex){}
+  _agregarExternoGAS(nv);toast('OK: '+nom+' agregado');showGestionExternos();
+}
+function _eliminarExterno(id){
+  if(!confirm('Eliminar este proveedor?'))return;
+  EXTERNOS=EXTERNOS.filter(function(e){return e.id!==id;});
+  try{var x=JSON.parse(localStorage.getItem(CLAVE_EXTERNOS)||'[]');localStorage.setItem(CLAVE_EXTERNOS,JSON.stringify(x.filter(function(e){return e.id!==id;})));}catch(ex){}
+  toast('Eliminado');showGestionExternos();
+}
 function showConfig(){
   var rolActual=localStorage.getItem('pst_rol')||'';
   var mec=MECANICOS.find(function(m){return m.cc===USER_CC;});
@@ -1575,7 +1603,8 @@ function showConfig(){
   +'<p style="font-size:13px;color:var(--txt2);margin-bottom:12px">Si cambias de rol la seleccion se aplica al reiniciar.</p>'
   +'<button class="btn btn-primary" onclick="cambiarRol()">Cambiar rol</button></div>'
   +(esSup?'<div class="card"><div class="card-title">SUPERVISOR</div>'
-    +'<button onclick="showGestionMecanicos()" style="width:100%;padding:13px;background:#1565C0;color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;margin-bottom:8px">Gestionar Mecanicos y Proveedores</button>'
+    +'<button onclick="showGestionMecanicos()" style="width:100%;padding:13px;background:#1565C0;color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;margin-bottom:8px">Mec\u00e1nicos Internos</button>'
+    +'<button onclick="showGestionExternos()" style="width:100%;padding:13px;background:#7B1FA2;color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;margin-bottom:8px">Proveedores Externos</button>'
     +'<button onclick="cambiarClaveSup()" style="width:100%;padding:13px;background:#263238;color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer">Cambiar clave supervisor</button>'
     +'</div>':'')
   +'<div class="card"><div class="card-title">DATOS</div>'
@@ -1586,7 +1615,7 @@ function cambiarRol(){
   if(!confirm('Cambiar de rol? Se cerrara la sesion actual.')) return;
   localStorage.removeItem('pst_rol');
   localStorage.removeItem('pst_user_cc');
-  ROL=''; USER_CC=''; SANDBOX_MODE=false; _SUP_OMS_CACHE=[];
+  ROL=''; USER_CC=''; SANDBOX_MODE=false; _SUP_OMS_CACHE=[]; EXTERNOS=EXTERNOS_BASE.slice();
   showSeleccionRol();
 }
 
@@ -1902,8 +1931,7 @@ function _showForm(){
       <div class="info-row"><span class="info-label">Mecánico</span><span class="info-val">${sPDF(OM.mecanico_nombre||OM.mecanico)}</span></div>
       <div class="info-row"><span class="info-label">Falla</span><span class="info-val" style="max-width:60%;text-align:right;font-size:12px">${sPDF(OM.falla)}</span></div>
       <div class="info-row"><span class="info-label">Inicio</span><span class="info-val">${fFecha(OM.ts_inicio)}</span></div>
-      ${(etapa==='AVANCE'||etapa==='CIERRE')?'<div class="info-row"><span class="info-label">⏱ Tiempo</span><span class="info-val" id="cron-om" style="color:var(--verde);font-weight:700">calculando...</span></div>':''}
-
+      ${(etapa==='AVANCE'||etapa==='CIERRE')?'<div class="info-row"><span class="info-label">Tiempo</span><span class="info-val" id="cron-om" style="color:var(--verde);font-weight:700">...</span></div>':''}
       <div class="info-row"><span class="info-label">Costo M.O.</span><span class="info-val" style="color:var(--verde)">${fCOP(getCosto().costo)}</span></div>
     </div>
 
@@ -1943,25 +1971,7 @@ function _showForm(){
   `);
 
   setTimeout(()=>{ initFirmas(); }, 150);
-
-  // ── CRONÓMETRO v6.3 ─────────────────────────────────────────
-  if(etapa==='AVANCE'||etapa==='CIERRE'){
-    var _cronEl=document.getElementById('cron-om');
-    if(_cronEl){
-      var _cronRef=OM.ts_inicio||Date.now();
-      var _actualizarCron=function(){
-        var el=document.getElementById('cron-om');
-        if(!el){clearInterval(_cronTimer);return;}
-        var diff=Date.now()-_cronRef;
-        var m=Math.floor(diff/60000);
-        var h=Math.floor(m/60);
-        var mm=m%60;
-        el.textContent=(h>0?String(h)+'h ':'')+String(mm).padStart(2,'0')+'min';
-      };
-      _actualizarCron();
-      var _cronTimer=setInterval(_actualizarCron,30000);
-    }
-  }
+  if(etapa==='AVANCE'||etapa==='CIERRE'){var _ce=document.getElementById('cron-om');if(_ce){var _rf=OM.ts_inicio||Date.now();var _up=function(){var el=document.getElementById('cron-om');if(!el){clearInterval(_ct);return;}var d=Date.now()-_rf;var m=Math.floor(d/60000);var h=Math.floor(m/60);el.textContent=(h>0?h+'h ':'')+String(m%60).padStart(2,'0')+'min';};_up();var _ct=setInterval(_up,30000);}}
 }
 
 function cambiarTab(et){
@@ -2596,7 +2606,7 @@ function cerrarOM(){
 // _gasGet: usa Image() para seguir redirects de Google Apps Script
 // fetch con no-cors no sigue los 302 de Google correctamente
 function _gasGet(url){
-  if(SANDBOX_MODE){ console.log('[SANDBOX] _gasGet bloqueado:',url); return; }
+  if(SANDBOX_MODE){ console.log('[SBX] bloqueado:',url); return; }
   // Método 1: XMLHttpRequest (más compatible que fetch con redirects)
   try{
     var xhr=new XMLHttpRequest();
@@ -3498,6 +3508,7 @@ document.addEventListener('DOMContentLoaded',()=>{
       '</div>';
     return true;
   };
+  cargarExternos();
   ROL=localStorage.getItem('pst_rol')||'';
   USER_CC=localStorage.getItem('pst_user_cc')||'';
   try {
