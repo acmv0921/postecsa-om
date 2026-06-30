@@ -91,6 +91,21 @@ function _deduplicar() {
   return borradas;
 }
 
+
+// ── INICIALIZACIÓN MANUAL ──────────────────────────────────────
+// Ejecutar UNA VEZ desde el editor para crear todas las hojas
+function inicializar() {
+  _omsH();   // crea OMs-Pendientes si no existe
+  _extH();   // crea Externos con los 6 proveedores base
+  var hm = _ss().getSheetByName(HOJA_MAT);
+  if (!hm) {
+    hm = _ss().insertSheet(HOJA_MAT);
+    hm.appendRow(['Fecha','OT','Equipo','Mecanico','Material','Cantidad','UM','Precio']);
+  }
+  Logger.log('✅ Hojas creadas: Hoja 1, OMs-Pendientes, Externos');
+  return 'OK — revisa el Sheet, ya deben aparecer las 3 pestañas';
+}
+
 function doGet(e) {
   var p = (e && e.parameter) ? e.parameter : {};
   var accion = p.accion || '';
