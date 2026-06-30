@@ -1228,7 +1228,7 @@ function borrarListaSupervisor(nums,titulo){
 }
 
 function showCrearOM(){
-  var mecOpts=MECANICOS.map(function(m){var ic=m.tipo==='EXTERNO'?'?? ':'?? ';return '<option value="'+m.cc+'|'+m.nombre+'">'+ic+m.nombre+' ('+m.cargo+')</option>';}).join('');
+  var mecOpts=MECANICOS.map(function(m){var pref=m.tipo==='EXTERNO'?'[EXT] ':'';return '<option value="'+m.cc+'|'+m.nombre+'">'+pref+m.nombre+' ('+m.cargo+')</option>';}).join('');
   var areaOpts=Object.keys(AREAS_EQUIPOS).map(function(a){return '<option value="'+a+'">'+a+'</option>';}).join('');
   var fallaOpts=FALLAS.map(function(f){return '<option value="'+f+'">'+f+'</option>';}).join('');
   R('<div class="hdr">'
