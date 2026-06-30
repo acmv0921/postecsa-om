@@ -277,6 +277,32 @@ function doGet(e) {
       return _ok({agregado: id});
     }
 
+
+    // ── GET_DATOS — endpoint para Gerencia (sin parámetros) ───────
+    // Gerencia llama fetch(GU) sin acción → retorna todos los registros de Hoja 1
+    if (accion === '' || accion === 'get_datos') {
+      var hm = _ss().getSheetByName(HOJA_MAT);
+      if (!hm) return _ok({ datos: [] });
+      var rows = hm.getDataRange().getValues();
+      var datos = [];
+      for (var i = 1; i < rows.length; i++) {
+        var r = rows[i];
+        if (!r[0] && !r[1] && !r[4]) continue; // fila vacía
+        if (String(r[4]) === 'Sin materiales' || String(r[4]) === '') continue;
+        datos.push({
+          fecha:    String(r[0] || ''),
+          otNum:    String(r[1] || ''),
+          equipo:   String(r[2] || ''),
+          mecanico: String(r[3] || ''),
+          desc:     String(r[4] || ''),
+          cant:     Number(r[5] || 0),
+          um:       String(r[6] || 'Und'),
+          precio:   Number(r[7] || 0)
+        });
+      }
+      return _ok({ datos: datos });
+    }
+
     return _err('Accion no reconocida: ' + accion);
 
   } catch(ex) {
