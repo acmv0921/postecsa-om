@@ -1382,6 +1382,9 @@ function tomarOM(numOM){
 
 
 function showGestionMecanicos(){
+  // Cargar extras del localStorage
+  var MECANICOS_EXTRA=[];
+  try{MECANICOS_EXTRA=JSON.parse(localStorage.getItem('pst_mecanicos_extra')||'[]');}catch(e){}
   var lista=MECANICOS.map(function(m){
     var esExtra=MECANICOS_EXTRA.findIndex(function(e){return e.cc===m.cc;})>=0;
     var esExterno=(m.tipo==='EXTERNO');
@@ -1409,6 +1412,8 @@ function showGestionMecanicos(){
   });
 }
 function addMecGestion(){
+  var MECANICOS_EXTRA=[];
+  try{MECANICOS_EXTRA=JSON.parse(localStorage.getItem('pst_mecanicos_extra')||'[]');}catch(e){}
   // Preguntar tipo primero
   var tipo=prompt('Tipo de persona:\n1 = MECÁNICO INTERNO\n2 = PROVEEDOR EXTERNO\n\nEscribe 1 o 2:','1');
   if(!tipo) return;
@@ -1436,6 +1441,8 @@ function addMecGestion(){
   showGestionMecanicos();
 }
 function eliminarMecExt(cc){
+  var MECANICOS_EXTRA=[];
+  try{MECANICOS_EXTRA=JSON.parse(localStorage.getItem('pst_mecanicos_extra')||'[]');}catch(e){}
   if(!confirm('¿Eliminar mecánico?')) return;
   MECANICOS_EXTRA=MECANICOS_EXTRA.filter(function(m){return m.cc!==cc;});
   MECANICOS=MECANICOS_BASE.concat(MECANICOS_EXTRA);
