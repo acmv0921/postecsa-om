@@ -1228,7 +1228,7 @@ function borrarListaSupervisor(nums,titulo){
 }
 
 function showCrearOM(){
-  var mecOpts=MECANICOS.map(function(m){return '<option value="'+m.cc+'|'+m.nombre+'">'+m.nombre+' ('+m.cargo+')</option>';}).join('');
+  var mecOpts=MECANICOS.map(function(m){var ic=m.tipo==='EXTERNO'?'?? ':'?? ';return '<option value="'+m.cc+'|'+m.nombre+'">'+ic+m.nombre+' ('+m.cargo+')</option>';}).join('');
   var areaOpts=Object.keys(AREAS_EQUIPOS).map(function(a){return '<option value="'+a+'">'+a+'</option>';}).join('');
   var fallaOpts=FALLAS.map(function(f){return '<option value="'+f+'">'+f+'</option>';}).join('');
   R('<div class="hdr">'
@@ -1384,8 +1384,19 @@ function tomarOM(numOM){
 function showGestionMecanicos(){
   var lista=MECANICOS.map(function(m){
     var esExtra=MECANICOS_EXTRA.findIndex(function(e){return e.cc===m.cc;})>=0;
+    var esExterno=(m.tipo==='EXTERNO');
+    var icono=esExterno?'??':'??';
+    var tipoLabel=esExterno?'EXTERNO':'INTERNO';
+    var tipoColor=esExterno?'#7B1FA2':'#1565C0';
+    var idLabel=esExterno?'NIT/CC':'CC';
     var btnEl=esExtra?('<button data-cc="'+m.cc+'" class="_del-mec" style="background:#c00;color:#fff;border:none;border-radius:6px;padding:6px 10px;font-size:12px;cursor:pointer">Eliminar</button>'):'<span style="font-size:11px;color:#B0BEC5">base</span>';
-    return '<div style="display:flex;align-items:center;gap:8px;padding:10px 0;border-bottom:1px solid #eee"><div style="flex:1"><b>'+m.nombre+'</b><div style="font-size:12px;color:#78909C">CC '+m.cc+' · '+m.cargo+'</div></div>'+btnEl+'</div>';
+    return '<div style="display:flex;align-items:center;gap:8px;padding:10px 0;border-bottom:1px solid #eee">'
+      +'<div style="font-size:22px">'+icono+'</div>'
+      +'<div style="flex:1">'
+      +'<b style="font-size:14px">'+m.nombre+'</b>'
+      +'<span style="margin-left:8px;font-size:10px;background:'+tipoColor+';color:#fff;padding:2px 6px;border-radius:4px">'+tipoLabel+'</span>'
+      +'<div style="font-size:12px;color:#78909C">'+idLabel+': '+m.cc+' · '+m.cargo+'</div>'
+      +'</div>'+btnEl+'</div>';
   }).join('');
   R('<div style="min-height:100vh;background:#f5f5f5">'
    +'<div style="background:var(--naranja);padding:16px 20px;display:flex;align-items:center;gap:12px">'
@@ -1400,16 +1411,31 @@ function showGestionMecanicos(){
   });
 }
 function addMecGestion(){
-  var cc=(prompt('Cédula:','')||'').trim();
+  // Preguntar tipo primero
+  var tipo=prompt('Tipo de persona:\n1 = MECÁNICO INTERNO\n2 = PROVEEDOR EXTERNO\n\nEscribe 1 o 2:','1');
+  if(!tipo) return;
+  tipo = tipo.trim()==='2' ? 'EXTERNO' : 'INTERNO';
+
+  var cc=(prompt(tipo==='EXTERNO'?'NIT o Cédula del proveedor:':'Cédula del mecánico:','')||'').trim();
   if(!cc) return;
-  if(MECANICOS.find(function(m){return m.cc===cc;})){toast('Cédula ya registrada');return;}
-  var nom=(prompt('Nombre completo:','')||'').trim().toUpperCase();
+  if(MECANICOS.find(function(m){return m.cc===cc;})){toast('Identificación ya registrada');return;}
+
+  var nom=(prompt(tipo==='EXTERNO'?'Nombre de la empresa o persona:':'Nombre completo:','')||'').trim().toUpperCase();
   if(!nom) return;
-  var car=(prompt('Cargo:','MECÁNICO')||'').trim().toUpperCase()||'MECÁNICO';
-  var nv={cc:cc,nombre:nom,cargo:car};
-  MECANICOS.push(nv); MECANICOS_EXTRA.push(nv);
+
+  var car;
+  if(tipo==='EXTERNO'){
+    car=(prompt('Especialidad (ej: ELECTRICIDAD, HIDRÁULICA, PREVENTIVO):','MANTENIMIENTO EXTERNO')||'').trim().toUpperCase()||'MANTENIMIENTO EXTERNO';
+  } else {
+    car=(prompt('Cargo (MECÁNICO / ELECTRICISTA / AUX MECÁNICO):','MECÁNICO')||'').trim().toUpperCase()||'MECÁNICO';
+  }
+
+  var nv={cc:cc, nombre:nom, cargo:car, tipo:tipo};
+  MECANICOS.push(nv);
+  MECANICOS_EXTRA.push(nv);
   localStorage.setItem('pst_mecanicos_extra',JSON.stringify(MECANICOS_EXTRA));
-  toast('✅ '+nom+' añadido'); showGestionMecanicos();
+  toast('✅ '+nom+' añadido como '+tipo);
+  showGestionMecanicos();
 }
 function eliminarMecExt(cc){
   if(!confirm('¿Eliminar mecánico?')) return;
