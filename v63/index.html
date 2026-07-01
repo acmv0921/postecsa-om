@@ -2853,7 +2853,11 @@ function reenviarGerencia(){
 
   toast('Enviando OM#'+num+' ('+filas.length+' fila(s))...');
 
-  // Enviar con fetch normal para ver la respuesta
+  // Limpiar registros previos de este OT antes de re-insertar
+  _gasGet(GAS_GERENCIA+'?accion=borrar_ot_materiales&otNum='+encodeURIComponent(num));
+
+  // Esperar 1 segundo para que el GAS procese el borrado
+  setTimeout(function(){
   var enviados = 0;
   filas.forEach(function(fila, idx){
     var url = GAS_GERENCIA
