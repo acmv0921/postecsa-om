@@ -191,6 +191,23 @@ function doGet(e) {
       return _ok({borradas: n});
     }
 
+    // ── BORRAR MATERIALES DE UN OT (limpieza antes de re-enviar) ───────
+    if (accion === 'borrar_ot_materiales') {
+      var otDel = String(p.otNum || '');
+      if (!otDel) return _err('otNum requerido');
+      var hm = _ss().getSheetByName(HOJA_MAT);
+      if (!hm) return _ok({ borradas: 0 });
+      var rows = hm.getDataRange().getValues();
+      var borradas = 0;
+      for (var i = rows.length - 1; i >= 1; i--) {
+        if (String(rows[i][1]) === otDel) {
+          hm.deleteRow(i + 1);
+          borradas++;
+        }
+      }
+      return _ok({ borradas: borradas, otNum: otDel });
+    }
+
     // ── GUARDAR MATERIAL → Hoja 1 ─────────────────
     if (accion === 'guardar_material_get') {
       var hm = _matH();
