@@ -1159,7 +1159,7 @@ function _gvizOMs(raw){
     var rows=(t.rows||[]).map(function(row){
       var o={};
       (row.c||[]).forEach(function(cell,i){
-        o[COLS[i]||i]=cell?(cell.f||String(cell.v===null?'':cell.v)):'';
+        o[COLS[i]||i]=cell?(String(cell.v===null||cell.v===undefined?'':cell.v)||cell.f||''):'';
       });
       return o;
     });
@@ -1403,7 +1403,9 @@ function cargarOMsAsignadas(){
       var allOms=_gvizOMs(raw);
       if(!allOms) return;
       var oms=allOms.filter(function(o){
-        return String(o.mec_cc||'')===String(USER_CC)&&
+        var _cc1=String(o.mec_cc||'').replace(/[^\d]/g,'');
+        var _cc2=String(USER_CC||'').replace(/[^\d]/g,'');
+        return _cc1&&_cc2&&_cc1===_cc2&&
                (o.estado||'').toUpperCase()!=='BORRADA';
       });
       var res={ok:true, oms:oms};
@@ -1461,7 +1463,9 @@ function tomarOM(numOM){
       var allOms=_gvizOMs(raw);
       if(!allOms) return;
       var oms=allOms.filter(function(o){
-        return String(o.mec_cc||'')===String(USER_CC)&&
+        var _cc1=String(o.mec_cc||'').replace(/[^\d]/g,'');
+        var _cc2=String(USER_CC||'').replace(/[^\d]/g,'');
+        return _cc1&&_cc2&&_cc1===_cc2&&
                (o.estado||'').toUpperCase()!=='BORRADA';
       });
       var res={ok:true, oms:oms};
