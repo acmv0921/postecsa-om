@@ -3032,18 +3032,24 @@ function _generarPDF(){
     y+=10;
     let totMin=0;
     actsU.forEach((a,i)=>{
-      nP(7);
-      if(i%2===0){doc.setFillColor(...GF);doc.rect(M,y-4.5,CW,6.5,'F');}
+      // Descripción y nombre completos con altura dinámica
+      doc.setFontSize(8);doc.setFont('helvetica','normal');
+      const dL=doc.splitTextToSize(String(a.desc||''),68);
+      const rL=doc.splitTextToSize(String(a.resp||''),36);
+      const rowLines=Math.max(dL.length,rL.length,1);
+      const lh=5.2;
+      const rowH=rowLines*lh+3;
+      nP(rowH+4);
+      if(i%2===0){doc.setFillColor(...GF);doc.rect(M,y-4.5,CW,rowH,'F');}
       doc.setFontSize(8);doc.setFont('helvetica','normal');doc.setTextColor(...GO);
       doc.text(String(a.etapa||''),AX[0]+1,y);
-      const dL=doc.splitTextToSize(String(a.desc||''),69);
-      doc.text(dL[0]+(dL.length>1?'...':''),AX[1]+1,y);
-      doc.text(String(a.resp||'').split(' ').slice(0,2).join(' '),AX[2]+1,y);
+      doc.text(dL,AX[1]+1,y);
+      doc.text(rL,AX[2]+1,y);
       doc.text(String(a.min||0),AX[3]+1,y);
       doc.text(fCOP((a.min||0)*MIN_RATE),W-M-1,y,'right');
       totMin+=fNum(a.min);
-      doc.setDrawColor(...GL);doc.line(M,y+2,W-M,y+2);
-      y+=6.5;
+      doc.setDrawColor(...GL);doc.line(M,y+(rowLines-1)*lh+2,W-M,y+(rowLines-1)*lh+2);
+      y+=rowH;
     });
     nP(8);
     doc.setFillColor(238,238,238);doc.rect(M,y-4.5,CW,7,'F');
