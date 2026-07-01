@@ -1469,10 +1469,22 @@ function tomarOM(numOM){
       var omData=res.oms.find(function(o){return o.num===numOM;});
       if(!omData){toast('OM no encontrada');return;}
       if(DB.getOM(omData.num)){abrirOM(omData.num);return;}
+      // Resolver nombre del mecánico: primero mec_nom del sheet, fallback a lookup local
+      var _mecNom = String(omData.mec_nom||'').trim();
+      if(!_mecNom || /^\d{5,}$/.test(_mecNom)){
+        var _mecFound = MECANICOS.find(function(m){ return String(m.cc)===String(omData.mec_cc||''); });
+        if(_mecFound) _mecNom = _mecFound.nombre;
+        // También buscar en EXTERNOS
+        if(!_mecFound || !_mecNom){
+          var _extFound = EXTERNOS.find(function(e){ return e.id===String(omData.mec_cc||''); });
+          if(_extFound) _mecNom = _extFound.nombre;
+        }
+        if(!_mecNom) _mecNom = String(omData.mec_cc||'');
+      }
       var om={
         num:omData.num,area:omData.area,equipo:omData.equipo,
         falla:omData.falla,tipo_mant:omData.tipo_mant||'',prioridad:omData.prioridad,obs_i:omData.obs_i,
-        mecanico:omData.mec_cc,mecanico_nombre:omData.mec_nom,
+        mecanico:omData.mec_cc,mecanico_nombre:_mecNom,
         etapa:'INICIO',ts_inicio:Date.now(),origen:'supervisor',
       };
       DB.saveOM(om);
@@ -1879,7 +1891,9 @@ function iniciarOM(){
 
   OM.num = num;
   OM.mecanico = mec;
-  OM.mecanico_nombre = MECANICOS.find(m=>m.cc===mec)?.nombre||mec;
+  var _mecLookup = MECANICOS.find(m=>m.cc===mec);
+  if(!_mecLookup) _mecLookup = EXTERNOS.find(e=>e.id===mec);
+  OM.mecanico_nombre = (_mecLookup?.nombre) || mec;
   OM.area = area;
   OM.equipo = eq;
   OM.falla = falla;
@@ -2679,6 +2693,11 @@ function enviarGerencia(om){
     mecanico:mecanico, fecha:fecha
   });
 
+  // Primero limpiar registros previos de este OT para evitar duplicados
+  _gasGet(GAS_GERENCIA+'?accion=borrar_ot_materiales&otNum='+encodeURIComponent(otNum));
+
+  // Esperar 800ms para que el GAS procese el borrado antes de insertar
+  setTimeout(function(){
   // Enviar cada fila al GAS via GET (sin CORS)
   filas.forEach(function(fila){
     var _gp='?accion=guardar_material_get'
@@ -2693,7 +2712,8 @@ function enviarGerencia(om){
       +'&fecha='+encodeURIComponent(fila.fecha||'');
     _gasGet(GAS_GERENCIA+_gp);
   });
-  toast('?? Gerencia: '+filas.length+' fila(s) enviada(s)');
+  toast('✅ Gerencia: '+filas.length+' registro(s) enviados');
+  }, 800); // fin setTimeout limpieza
 }
 
 
