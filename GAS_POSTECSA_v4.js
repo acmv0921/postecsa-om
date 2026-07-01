@@ -121,7 +121,7 @@ function doGet(e) {
         if (String(rows[i][0]) === num && String(rows[i][9]) !== 'BORRADA')
           return _ok({ya_existe: true});
       }
-      h.appendRow([
+      var newRow = [
         num,
         p.fecha     || '',
         p.area      || '',
@@ -134,7 +134,11 @@ function doGet(e) {
         'PENDIENTE',
         new Date().toISOString(),
         '', ''
-      ]);
+      ];
+      h.appendRow(newRow);
+      // Forzar Mecanico_CC como texto para que gviz no lo formatee con comas
+      var lastRow = h.getLastRow();
+      h.getRange(lastRow, 7).setNumberFormat('@');
       // Deduplicar al crear
       _deduplicar();
       return _ok({creada: num});
