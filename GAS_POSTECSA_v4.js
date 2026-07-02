@@ -8,6 +8,7 @@ var HOJA_MAT    = 'Hoja 1';
 var HOJA_OMS    = 'OMs-Pendientes';
 var HOJA_RES    = 'Resumen-OMs';
 var HOJA_KPI    = 'KPIs';
+var HOJA_MEC    = 'Mecanicos';
 var FOLDER_NAME = 'POSTECSA-OM-PDFs';
 
 var ESTADO_PRIO = {CERRADA:4, TOMADA:3, PENDIENTE:2, BORRADA:1};
@@ -44,6 +45,15 @@ function _kpiH()  {
     h.appendRow(['Tipo','Nombre','Total_OMs','Total_Minutos','Costo_Total',
                  'Costo_Promedio','Tiempo_Promedio_Min','Ultima_Actualizacion']);
     h.getRange(1,1,1,8).setBackground('#263238').setFontColor('#fff').setFontWeight('bold');
+  }
+  return h;
+}
+function _mecH()  {
+  var ss=_ss(), h=ss.getSheetByName(HOJA_MEC);
+  if(!h){
+    h=ss.insertSheet(HOJA_MEC);
+    h.appendRow(['CC','Nombre','Cargo','Tipo','Ts_Creacion']);
+    h.getRange(1,1,1,5).setBackground('#00695C').setFontColor('#fff').setFontWeight('bold');
   }
   return h;
 }
@@ -256,6 +266,36 @@ function doGet(e) {
 
     if(accion==='deduplicar'){
       return _ok({borradas:_deduplicar()});
+    }
+
+    if(accion==='crear_mecanico_get'){
+      var cc=String(p.cc||'').trim();
+      if(!cc) return _err('Cedula/NIT requerido');
+      var hm=_mecH(), rowsM=hm.getDataRange().getValues();
+      for(var m=1;m<rowsM.length;m++){
+        if(String(rowsM[m][0]).trim()===cc) return _ok({ya_existe:true});
+      }
+      hm.appendRow([cc, p.nombre||'', p.cargo||'', p.tipo||'INTERNO', new Date().toISOString()]);
+      return _ok({creado:cc});
+    }
+
+    if(accion==='listar_mecanicos'){
+      var rowsL=_mecH().getDataRange().getValues(), mecs=[];
+      for(var n=1;n<rowsL.length;n++){
+        var rL=rowsL[n];
+        if(!rL[0]) continue;
+        mecs.push({cc:String(rL[0]), nombre:String(rL[1]||''), cargo:String(rL[2]||''), tipo:String(rL[3]||'INTERNO')});
+      }
+      return _ok({mecanicos:mecs});
+    }
+
+    if(accion==='borrar_mecanico_get'){
+      var ccB=String(p.cc||'').trim();
+      var hmB=_mecH(), rowsB=hmB.getDataRange().getValues();
+      for(var q=rowsB.length-1;q>=1;q--){
+        if(String(rowsB[q][0]).trim()===ccB){ hmB.deleteRow(q+1); return _ok({borrado:ccB}); }
+      }
+      return _err('No encontrado');
     }
 
     if(accion==='todas_oms'){
