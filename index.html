@@ -151,7 +151,7 @@ input[type=number]{-moz-appearance:textfield}
 <input type="file" id="fi-cam-c" accept="image/*" capture="environment" multiple style="position:fixed;left:-9999px" aria-hidden="true">
 <input type="file" id="fi-gal-c" accept="image/*" multiple style="position:fixed;left:-9999px" aria-hidden="true">
 
-<div id="credito-acm">Diseño &amp; Desarrollo: ABDIEL CICAR MORENO &nbsp;···&nbsp; POSTECSA OM v6.2</div>
+<div id="credito-acm">Diseño &amp; Desarrollo: ABDIEL CICAR MORENO &nbsp;···&nbsp; POSTECSA OM v6.4</div>
 <div id="toast"></div>
 <div id="app"></div>
 
@@ -181,7 +181,7 @@ const LOGO_SRC = 'data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAMCAgI
 // ═══════════════════════════════════════════════
 // CONSTANTES
 // ═══════════════════════════════════════════════
-const VERSION = '6.2';
+const VERSION = '6.4';
 const CLAVE_DB='pst_om_v6';
 const CLAVE_ROL='pst_rol';
 const CLAVE_USER='pst_user_cc';
@@ -1091,7 +1091,7 @@ function _gvizOMs(raw){
   try{
     var s=raw.indexOf('{'),e=raw.lastIndexOf('}')+1;
     var t=JSON.parse(raw.slice(s,e)).table||{};
-    var COLS=['num','fecha','area','equipo','falla','tipo_mant','prioridad','mec_cc','mec_nom','obs_i','estado'];
+    var COLS=['num','fecha','area','equipo','falla','prioridad','mec_cc','mec_nom','obs_i','estado','ts_creacion','ts_tomada','ts_cerrada'];
     var cols=(t.cols||[]).map(function(c,i){
       return(c.label||'').trim().toLowerCase()||COLS[i]||'c'+i;
     });
