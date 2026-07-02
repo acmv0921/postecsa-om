@@ -151,7 +151,7 @@ input[type=number]{-moz-appearance:textfield}
 <input type="file" id="fi-cam-c" accept="image/*" capture="environment" multiple style="position:fixed;left:-9999px" aria-hidden="true">
 <input type="file" id="fi-gal-c" accept="image/*" multiple style="position:fixed;left:-9999px" aria-hidden="true">
 
-<div id="credito-acm">Diseño &amp; Desarrollo: ABDIEL CICAR MORENO &nbsp;···&nbsp; POSTECSA OM v6.4</div>
+<div id="credito-acm">Diseño &amp; Desarrollo: ABDIEL CICAR MORENO &nbsp;···&nbsp; POSTECSA OM v6.5</div>
 <div id="toast"></div>
 <div id="app"></div>
 
@@ -181,7 +181,7 @@ const LOGO_SRC = 'data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAMCAgI
 // ═══════════════════════════════════════════════
 // CONSTANTES
 // ═══════════════════════════════════════════════
-const VERSION = '6.4';
+const VERSION = '6.5';
 const CLAVE_DB='pst_om_v6';
 const CLAVE_ROL='pst_rol';
 const CLAVE_USER='pst_user_cc';
@@ -193,12 +193,13 @@ const GAS_URL = 'https://script.google.com/macros/s/AKfycbw_xoH7HoqvHK4x9RdWJpuT
 const SHEET_OMS = 'https://docs.google.com/spreadsheets/d/1IlxWD6QiCsntzyjEnJfE5KlB36Q39wJsQLnR0HE9gM4/gviz/tq?tqx=out:json&sheet=OMs-Pendientes';
 const GAS_GERENCIA = 'https://script.google.com/macros/s/AKfycbw_xoH7HoqvHK4x9RdWJpuTnXXVupxL_dsP08yMw-NBJD3WcZt8Zb1Es13QW4_SSnk0/exec';
 
-const MECANICOS = [
+const MECANICOS_BASE = [
   {cc:'16454304',nombre:'MARCOS RAÚL LÓPEZ LÓPEZ',cargo:'MECÁNICO'},
   {cc:'16462594',nombre:'MAURICIO LÓPEZ LÓPEZ',cargo:'AUX MECÁNICO'},
   {cc:'18470894',nombre:'FREDY QUINAYAS BALLESTEROS',cargo:'MECÁNICO'},
   {cc:'16613688',nombre:'JESÚS ALFREDO VARGAS OCAMPO',cargo:'ELECTRICISTA'},
 ];
+let MECANICOS = MECANICOS_BASE.slice();
 
 const AREAS_EQUIPOS = {
   'QFT': [
@@ -836,13 +837,17 @@ function limpiarFotosAntiguas(){
 function showHome(){
   OM={}; ACTS={i:[],a:[],c:[]}; FOTOS={i:[],a:[],c:[]}; FIR={}; INS={i:[],a:[],c:[]}; CHK={a:[],c:[]};
   BIB = DB.getBib();
-  // Cargar mecánicos guardados por el usuario
+  // Cargar mecánicos guardados por el usuario (cache local, offline-friendly)
   try{
     const mecGuardados=JSON.parse(localStorage.getItem('pst_mecanicos')||'[]');
     mecGuardados.forEach(m=>{
       if(m&&m.cc&&m.nombre&&!MECANICOS.find(x=>x.cc===m.cc)) MECANICOS.push(m);
     });
+    const mecExtra=JSON.parse(localStorage.getItem('pst_mecanicos_extra')||'[]');
+    _mergeMecanicos(mecExtra);
   }catch(e){}
+  // Sincronizar con el Sheet en segundo plano (no bloquea, no refresca esta pantalla)
+  cargarMecanicosServidor();
   procesarCola();
   if(ROL==='supervisor'){showHomeSupervisor();return;}
   showHomeMecanico();
@@ -1045,6 +1050,14 @@ function showSeleccionMecanico(){
   +'<button onclick="confirmarMecanico()" style="width:100%;padding:15px;background:#E65100;color:#fff;border:none;border-radius:12px;font-size:16px;font-weight:700;cursor:pointer">ENTRAR A LA APP \u2192</button>'
   +'<button onclick="showSeleccionRol()" style="width:100%;padding:10px;background:none;border:none;color:#546E7A;font-size:13px;cursor:pointer;margin-top:8px">\u2190 Volver</button>'
   +'</div></div>');
+  cargarMecanicosServidor(function(){
+    var sel=document.getElementById('sel-mec');
+    if(!sel) return;
+    var cur=sel.value;
+    var opts=MECANICOS.map(function(m){var pref=m.tipo==='EXTERNO'?'[EXT] ':'';return '<option value="'+m.cc+'">'+pref+m.nombre+' ('+m.cargo+')</option>';}).join('');
+    sel.innerHTML='<option value="">--- Seleccionar ---</option>'+opts+'<option value="__nuevo__">\u2795 Agregar mec\u00e1nico nuevo...</option>';
+    sel.value=cur;
+  });
 }
 
 function chkNuevoMecRol(v){
@@ -1057,10 +1070,15 @@ function guardarNuevoMecRol(){
   var cc=(document.getElementById('nc2').value||'').trim();
   if(!n||!cc){toast('Complete nombre y cedula');return;}
   if(MECANICOS.find(function(m){return m.cc===cc;})){toast('Ya existe');return;}
-  MECANICOS.push({cc:cc,nombre:n,cargo:'MECANICO'});
+  var nuevo={cc:cc,nombre:n,cargo:'MECÁNICO',tipo:'INTERNO'};
+  MECANICOS.push(nuevo);
   try{localStorage.setItem('pst_mecanicos',JSON.stringify(MECANICOS));}catch(e){}
+  if(navigator.onLine){
+    _gasGet(GAS_URL+'?accion=crear_mecanico_get&cc='+encodeURIComponent(cc)
+      +'&nombre='+encodeURIComponent(n)+'&cargo='+encodeURIComponent('MECÁNICO')+'&tipo=INTERNO');
+  }
   var sel=document.getElementById('sel-mec');
-  if(sel){var o=document.createElement('option');o.value=cc;o.textContent=n+' (MECANICO)';o.selected=true;sel.insertBefore(o,sel.lastElementChild);sel.value=cc;}
+  if(sel){var o=document.createElement('option');o.value=cc;o.textContent=n+' (MECÁNICO)';o.selected=true;sel.insertBefore(o,sel.lastElementChild);sel.value=cc;}
   document.getElementById('nw2').style.display='none';
   toast('Guardado: '+n);
 }
@@ -1106,6 +1124,28 @@ function _gvizOMs(raw){
     if(rows.length && rows[0].num==='num') rows=rows.slice(1);
     return rows.filter(function(r){return r.num&&String(r.num).trim();});
   }catch(e){return null;}
+}
+
+// ── Mecánicos/Proveedores: sincronización con el Sheet (server = fuente de verdad) ──
+function _mergeMecanicos(extras){
+  if(!Array.isArray(extras)) return;
+  extras.forEach(function(m){
+    if(!m||!m.cc) return;
+    var idx=MECANICOS.findIndex(function(x){return x.cc===m.cc;});
+    if(idx>=0) MECANICOS[idx]=m; else MECANICOS.push(m);
+  });
+}
+function cargarMecanicosServidor(refrescarPantalla){
+  if(!navigator.onLine) return;
+  fetch(GAS_URL+'?accion=listar_mecanicos&_t='+Date.now())
+    .then(function(r){return r.json();})
+    .then(function(res){
+      if(!res||!res.ok||!Array.isArray(res.mecanicos)) return;
+      _mergeMecanicos(res.mecanicos);
+      try{localStorage.setItem('pst_mecanicos_extra',JSON.stringify(res.mecanicos));}catch(e){}
+      if(refrescarPantalla) refrescarPantalla();
+    })
+    .catch(function(){/* offline: se sigue usando el cache local ya cargado */});
 }
 
 function sincronizarSupervisor(){
@@ -1246,6 +1286,14 @@ function showCrearOM(){
   +'<button class="btn btn-primary" style="margin-top:16px" onclick="crearOMSupervisor()">\ud83d\udce4 CREAR Y ENVIAR AL MEC\u00c1NICO</button>'
   +'<button class="btn btn-gris" style="margin-top:8px" onclick="showHome()">Cancelar</button>'
   +'</div>');
+  cargarMecanicosServidor(function(){
+    var sel=document.getElementById('sup-mec');
+    if(!sel) return;
+    var cur=sel.value;
+    var opts=MECANICOS.map(function(m){var pref=m.tipo==='EXTERNO'?'[EXT] ':'';return '<option value="'+m.cc+'|'+m.nombre+'">'+pref+m.nombre+' ('+m.cargo+')</option>';}).join('');
+    sel.innerHTML='<option value="">--- Seleccionar ---</option>'+opts;
+    sel.value=cur;
+  });
 }
 
 function actualizarEquiposSup(){
@@ -1396,6 +1444,7 @@ function showGestionMecanicos(){
   document.querySelectorAll('._del-mec').forEach(function(btn){
     btn.addEventListener('click',function(){eliminarMecExt(this.getAttribute('data-cc'));});
   });
+  cargarMecanicosServidor(showGestionMecanicos);
 }
 function addMecGestion(){
   var MECANICOS_EXTRA=[];
@@ -1423,6 +1472,10 @@ function addMecGestion(){
   MECANICOS.push(nv);
   MECANICOS_EXTRA.push(nv);
   localStorage.setItem('pst_mecanicos_extra',JSON.stringify(MECANICOS_EXTRA));
+  if(navigator.onLine){
+    _gasGet(GAS_URL+'?accion=crear_mecanico_get&cc='+encodeURIComponent(cc)
+      +'&nombre='+encodeURIComponent(nom)+'&cargo='+encodeURIComponent(car)+'&tipo='+encodeURIComponent(tipo));
+  }
   toast('OK: '+nom+' añadido como '+tipo);
   showGestionMecanicos();
 }
@@ -1433,6 +1486,9 @@ function eliminarMecExt(cc){
   MECANICOS_EXTRA=MECANICOS_EXTRA.filter(function(m){return m.cc!==cc;});
   MECANICOS=MECANICOS_BASE.concat(MECANICOS_EXTRA);
   localStorage.setItem('pst_mecanicos_extra',JSON.stringify(MECANICOS_EXTRA));
+  if(navigator.onLine){
+    _gasGet(GAS_URL+'?accion=borrar_mecanico_get&cc='+encodeURIComponent(cc));
+  }
   toast('Eliminado'); showGestionMecanicos();
 }
 
