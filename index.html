@@ -151,7 +151,7 @@ input[type=number]{-moz-appearance:textfield}
 <input type="file" id="fi-cam-c" accept="image/*" capture="environment" multiple style="position:fixed;left:-9999px" aria-hidden="true">
 <input type="file" id="fi-gal-c" accept="image/*" multiple style="position:fixed;left:-9999px" aria-hidden="true">
 
-<div id="credito-acm">Diseño &amp; Desarrollo: ABDIEL CICAR MORENO &nbsp;···&nbsp; POSTECSA OM v6.5</div>
+<div id="credito-acm">Diseño &amp; Desarrollo: ABDIEL CICAR MORENO &nbsp;···&nbsp; POSTECSA OM v6.6</div>
 <div id="toast"></div>
 <div id="app"></div>
 
@@ -181,7 +181,7 @@ const LOGO_SRC = 'data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAMCAgI
 // ═══════════════════════════════════════════════
 // CONSTANTES
 // ═══════════════════════════════════════════════
-const VERSION = '6.5';
+const VERSION = '6.6';
 const CLAVE_DB='pst_om_v6';
 const CLAVE_ROL='pst_rol';
 const CLAVE_USER='pst_user_cc';
@@ -1122,7 +1122,10 @@ function _gvizOMs(raw){
     });
     // Filtrar fila header si existe
     if(rows.length && rows[0].num==='num') rows=rows.slice(1);
-    return rows.filter(function(r){return r.num&&String(r.num).trim();});
+    return rows.filter(function(r){
+      var n=String(r.num||'').trim();
+      return n && n!=='0';
+    });
   }catch(e){return null;}
 }
 
