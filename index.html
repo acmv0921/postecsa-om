@@ -2760,19 +2760,45 @@ function generarPDF(){
   },100);
 }
 
+function _jpegSize(dataUri){
+  // Lee ancho/alto reales del JPEG directamente de los bytes (sin depender de APIs de jsPDF).
+  try{
+    const b64=dataUri.indexOf(',')>=0?dataUri.split(',')[1]:dataUri;
+    const bin=atob(b64);
+    let i=2;const len=bin.length;
+    while(i<len-8){
+      if(bin.charCodeAt(i)!==0xFF){i++;continue;}
+      const marker=bin.charCodeAt(i+1);
+      if(marker===0xFF){i++;continue;}
+      if(marker===0xD8||marker===0x01||(marker>=0xD0&&marker<=0xD7)){i+=2;continue;}
+      if(marker===0xD9||marker===0xDA)break;
+      const segLen=(bin.charCodeAt(i+2)<<8)|bin.charCodeAt(i+3);
+      if((marker>=0xC0&&marker<=0xCF)&&marker!==0xC4&&marker!==0xC8&&marker!==0xCC){
+        const height=(bin.charCodeAt(i+5)<<8)|bin.charCodeAt(i+6);
+        const width=(bin.charCodeAt(i+7)<<8)|bin.charCodeAt(i+8);
+        if(width>0&&height>0)return{width,height};
+        return null;
+      }
+      i+=2+segLen;
+    }
+  }catch(e){}
+  return null;
+}
 function _addImgContain(doc,data,x,y,boxW,boxH,bg){
   // Dibuja la foto dentro del recuadro preservando su relacion de aspecto real (sin estirar/distorsionar).
-  try{
-    if(bg!==false){doc.setFillColor(245,245,245);doc.rect(x,y,boxW,boxH,'F');}
-    const props=doc.getImageProperties(data);
-    const ratio=props.width/props.height;
-    let dw=boxW,dh=boxW/ratio;
-    if(dh>boxH){dh=boxH;dw=boxH*ratio;}
-    const dx=x+(boxW-dw)/2,dy=y+(boxH-dh)/2;
-    doc.addImage(data,'JPEG',dx,dy,dw,dh);
-  }catch(e){
-    try{doc.addImage(data,'JPEG',x,y,boxW,boxH);}catch(e2){}
+  if(bg!==false){try{doc.setFillColor(245,245,245);doc.rect(x,y,boxW,boxH,'F');}catch(e){}}
+  const dim=_jpegSize(data);
+  if(dim){
+    try{
+      const ratio=dim.width/dim.height;
+      let dw=boxW,dh=boxW/ratio;
+      if(dh>boxH){dh=boxH;dw=boxH*ratio;}
+      const dx=x+(boxW-dw)/2,dy=y+(boxH-dh)/2;
+      doc.addImage(data,'JPEG',dx,dy,dw,dh);
+      return;
+    }catch(e){}
   }
+  try{doc.addImage(data,'JPEG',x,y,boxW,boxH);}catch(e2){}
 }
 function _generarPDF(){
   const {jsPDF}=window.jspdf;
