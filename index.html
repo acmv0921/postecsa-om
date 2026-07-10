@@ -2760,6 +2760,20 @@ function generarPDF(){
   },100);
 }
 
+function _addImgContain(doc,data,x,y,boxW,boxH,bg){
+  // Dibuja la foto dentro del recuadro preservando su relacion de aspecto real (sin estirar/distorsionar).
+  try{
+    if(bg!==false){doc.setFillColor(245,245,245);doc.rect(x,y,boxW,boxH,'F');}
+    const props=doc.getImageProperties(data);
+    const ratio=props.width/props.height;
+    let dw=boxW,dh=boxW/ratio;
+    if(dh>boxH){dh=boxH;dw=boxH*ratio;}
+    const dx=x+(boxW-dw)/2,dy=y+(boxH-dh)/2;
+    doc.addImage(data,'JPEG',dx,dy,dw,dh);
+  }catch(e){
+    try{doc.addImage(data,'JPEG',x,y,boxW,boxH);}catch(e2){}
+  }
+}
 function _generarPDF(){
   const {jsPDF}=window.jspdf;
   const doc=new jsPDF({orientation:'portrait',unit:'mm',format:'a4'});
@@ -3082,7 +3096,7 @@ function _generarPDF(){
       nP(iH+10);
       const xP=M+col*(iW+2);
       try{
-        doc.addImage(f.data,'JPEG',xP,y,iW,iH);
+        _addImgContain(doc,f.data,xP,y,iW,iH);
         doc.setFillColor(245,245,245);doc.rect(xP,y+iH,iW,5,'F');
         doc.setFontSize(6.5);doc.setFont('helvetica','normal');doc.setTextColor(...GM);
         doc.text('Foto '+f.num+' · '+f.lab,xP+1,y+iH+3.5);
@@ -3296,7 +3310,7 @@ function _generarPDFBase64(){
       const iW=(CW-4)/3,iH=iW*0.75;let col=0;
       uniq.forEach((f,i)=>{
         if(col===0&&i>0){y+=iH+8;}nP(iH+10);
-        try{doc.addImage(f.data,'JPEG',M+col*(iW+2),y,iW,iH);}catch(e){}
+        _addImgContain(doc,f.data,M+col*(iW+2),y,iW,iH);
         col++;if(col===3){col=0;y+=iH+8;}
       });
       if(col>0)y+=iH+8;
