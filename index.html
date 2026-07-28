@@ -151,7 +151,7 @@ input[type=number]{-moz-appearance:textfield}
 <input type="file" id="fi-cam-c" accept="image/*" capture="environment" multiple style="position:fixed;left:-9999px" aria-hidden="true">
 <input type="file" id="fi-gal-c" accept="image/*" multiple style="position:fixed;left:-9999px" aria-hidden="true">
 
-<div id="credito-acm">Diseño &amp; Desarrollo: ABDIEL CICAR MORENO &nbsp;···&nbsp; POSTECSA OM v7.0</div>
+<div id="credito-acm">Diseño &amp; Desarrollo: ABDIEL CICAR MORENO &nbsp;···&nbsp; POSTECSA OM v7.1</div>
 <div id="toast"></div>
 <div id="app"></div>
 
@@ -181,7 +181,7 @@ const LOGO_SRC = 'data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAMCAgI
 // ═══════════════════════════════════════════════
 // CONSTANTES
 // ═══════════════════════════════════════════════
-const VERSION = '7.0';
+const VERSION = '7.1';
 const CLAVE_DB='pst_om_v6';
 const CLAVE_ROL='pst_rol';
 const CLAVE_USER='pst_user_cc';
@@ -1356,16 +1356,40 @@ function cargarOMsAsignadas(){
       var restauradas=oms.filter(function(o){
         return o.estado==='CERRADA'&&!local[o.num];
       });
-      restauradas.forEach(function(o){
-        DB.saveOM({num:o.num,equipo:o.equipo,area:o.area,
-          falla:o.falla,prioridad:o.prioridad,
-          mec_cc:o.mec_cc,mecanico_nombre:o.mec_nom,
-          obs_i:o.obs_i,etapa:'CERRADA',
-          ts_inicio:Date.now(),ts_cierre_final:Date.now()});
-      });
       if(restauradas.length){
-        toast('\ud83d\udd04 '+restauradas.length+' OM(s) cerrada(s) restaurada(s) desde el servidor');
-        showHomeMecanico();
+        // Traer los materiales/mano de obra reales para calcular el costo verdadero
+        // de cada OM que se está restaurando, en vez de dejarlas en $0
+        fetch(GAS_GERENCIA+'?accion=get_datos&_t='+Date.now())
+          .then(function(r2){return r2.json();})
+          .then(function(res2){
+            var datos=(res2&&res2.ok&&res2.datos)?res2.datos:[];
+            restauradas.forEach(function(o){
+              var filasOT=datos.filter(function(d){return String(d.otNum)===String(o.num);});
+              var costo=filasOT.reduce(function(s,d){return s+(Number(d.cant)||0)*(Number(d.precio)||0);},0);
+              var tsFecha=o.fecha?new Date(o.fecha).getTime():Date.now();
+              if(isNaN(tsFecha)) tsFecha=Date.now();
+              DB.saveOM({num:o.num,equipo:o.equipo,area:o.area,
+                falla:o.falla,prioridad:o.prioridad,
+                mec_cc:o.mec_cc,mecanico_nombre:o.mec_nom,
+                obs_i:o.obs_i,etapa:'CERRADA',
+                costo_mo:costo,
+                ts_inicio:tsFecha,ts_cierre_final:tsFecha});
+            });
+            toast('\ud83d\udd04 '+restauradas.length+' OM(s) cerrada(s) restaurada(s) desde el servidor');
+            showHomeMecanico();
+          }).catch(function(){
+            // Si falla la consulta de costos, restaurar igual pero con fecha real
+            restauradas.forEach(function(o){
+              var tsFecha=o.fecha?new Date(o.fecha).getTime():Date.now();
+              if(isNaN(tsFecha)) tsFecha=Date.now();
+              DB.saveOM({num:o.num,equipo:o.equipo,area:o.area,
+                falla:o.falla,prioridad:o.prioridad,
+                mec_cc:o.mec_cc,mecanico_nombre:o.mec_nom,
+                obs_i:o.obs_i,etapa:'CERRADA',
+                ts_inicio:tsFecha,ts_cierre_final:tsFecha});
+            });
+            showHomeMecanico();
+          });
         return;
       }
       var pendientes=oms.filter(function(o){
