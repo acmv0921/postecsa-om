@@ -1,4 +1,4 @@
-const CACHE_NAME='postecsa-om-v69-'+Date.now();
+const CACHE_NAME='postecsa-om-v70-'+Date.now();
 self.addEventListener('install', e => { self.skipWaiting(); });
 self.addEventListener('activate', e => {
   e.waitUntil(
