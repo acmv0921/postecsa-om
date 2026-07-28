@@ -151,7 +151,7 @@ input[type=number]{-moz-appearance:textfield}
 <input type="file" id="fi-cam-c" accept="image/*" capture="environment" multiple style="position:fixed;left:-9999px" aria-hidden="true">
 <input type="file" id="fi-gal-c" accept="image/*" multiple style="position:fixed;left:-9999px" aria-hidden="true">
 
-<div id="credito-acm">Diseño &amp; Desarrollo: ABDIEL CICAR MORENO &nbsp;···&nbsp; POSTECSA OM v6.8</div>
+<div id="credito-acm">Diseño &amp; Desarrollo: ABDIEL CICAR MORENO &nbsp;···&nbsp; POSTECSA OM v6.9</div>
 <div id="toast"></div>
 <div id="app"></div>
 
@@ -181,7 +181,7 @@ const LOGO_SRC = 'data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAMCAgI
 // ═══════════════════════════════════════════════
 // CONSTANTES
 // ═══════════════════════════════════════════════
-const VERSION = '6.8';
+const VERSION = '6.9';
 const CLAVE_DB='pst_om_v6';
 const CLAVE_ROL='pst_rol';
 const CLAVE_USER='pst_user_cc';
@@ -2499,21 +2499,25 @@ function cerrarOM(){
 // _gasGet: usa Image() para seguir redirects de Google Apps Script
 // fetch con no-cors no sigue los 302 de Google correctamente
 function _gasGet(url){
+  // Identificador único compartido por los 3 métodos — permite al servidor
+  // reconocer que son la MISMA solicitud y guardar los datos una sola vez
+  var _reqid = Date.now().toString(36)+Math.random().toString(36).slice(2,8);
+  var fullUrl = url + '&_reqid=' + _reqid;
   // Método 1: XMLHttpRequest (más compatible que fetch con redirects)
   try{
     var xhr=new XMLHttpRequest();
-    xhr.open('GET', url+'&_t='+Date.now(), true);
+    xhr.open('GET', fullUrl+'&_t='+Date.now(), true);
     xhr.withCredentials=false;
     xhr.send();
   }catch(e){}
   // Método 2: Image (sigue redirects automáticamente)
   try{
     var img=new Image();
-    img.src=url+'&_t2='+Date.now();
+    img.src=fullUrl+'&_t2='+Date.now();
   }catch(e){}
   // Método 3: fetch con redirect follow
   try{
-    fetch(url+'&_t3='+Date.now(),{
+    fetch(fullUrl+'&_t3='+Date.now(),{
       mode:'no-cors',
       redirect:'follow',
       cache:'no-store'
