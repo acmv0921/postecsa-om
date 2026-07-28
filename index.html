@@ -151,7 +151,7 @@ input[type=number]{-moz-appearance:textfield}
 <input type="file" id="fi-cam-c" accept="image/*" capture="environment" multiple style="position:fixed;left:-9999px" aria-hidden="true">
 <input type="file" id="fi-gal-c" accept="image/*" multiple style="position:fixed;left:-9999px" aria-hidden="true">
 
-<div id="credito-acm">Diseño &amp; Desarrollo: ABDIEL CICAR MORENO &nbsp;···&nbsp; POSTECSA OM v6.7</div>
+<div id="credito-acm">Diseño &amp; Desarrollo: ABDIEL CICAR MORENO &nbsp;···&nbsp; POSTECSA OM v6.8</div>
 <div id="toast"></div>
 <div id="app"></div>
 
@@ -181,7 +181,7 @@ const LOGO_SRC = 'data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAMCAgI
 // ═══════════════════════════════════════════════
 // CONSTANTES
 // ═══════════════════════════════════════════════
-const VERSION = '6.7';
+const VERSION = '6.8';
 const CLAVE_DB='pst_om_v6';
 const CLAVE_ROL='pst_rol';
 const CLAVE_USER='pst_user_cc';
@@ -2924,18 +2924,19 @@ function _generarPDF(){
     y+=10;
     let totMin=0;
     actsU.forEach((a,i)=>{
-      nP(7);
-      if(i%2===0){doc.setFillColor(...GF);doc.rect(M,y-4.5,CW,6.5,'F');}
+      const dL=doc.splitTextToSize(String(a.desc||''),69);
+      const rowH=6.5+Math.max(0,dL.length-1)*4;
+      nP(rowH+1);
+      if(i%2===0){doc.setFillColor(...GF);doc.rect(M,y-4.5,CW,rowH,'F');}
       doc.setFontSize(8);doc.setFont('helvetica','normal');doc.setTextColor(...GO);
       doc.text(String(a.etapa||''),AX[0]+1,y);
-      const dL=doc.splitTextToSize(String(a.desc||''),69);
-      doc.text(dL[0]+(dL.length>1?'...':''),AX[1]+1,y);
+      dL.forEach((ln,li)=>{ doc.text(ln,AX[1]+1,y+li*4); });
       doc.text(String(a.resp||'').split(' ').slice(0,2).join(' '),AX[2]+1,y);
       doc.text(String(a.min||0),AX[3]+1,y);
       doc.text(fCOP((a.min||0)*MIN_RATE),W-M-1,y,'right');
       totMin+=fNum(a.min);
-      doc.setDrawColor(...GL);doc.line(M,y+2,W-M,y+2);
-      y+=6.5;
+      doc.setDrawColor(...GL);doc.line(M,y+rowH-4.5,W-M,y+rowH-4.5);
+      y+=rowH;
     });
     nP(8);
     doc.setFillColor(238,238,238);doc.rect(M,y-4.5,CW,7,'F');
@@ -2962,18 +2963,19 @@ function _generarPDF(){
     y+=10;
     let totMat=0;
     ins_all.forEach((ins,i)=>{
-      nP(7);
       const sub=fNum(ins.p)*fNum(ins.qty); totMat+=sub;
-      if(i%2===0){doc.setFillColor(...GF);doc.rect(M,y-4.5,CW,6.5,'F');}
-      doc.setFontSize(8);doc.setFont('helvetica','normal');doc.setTextColor(...GO);
       const nl=doc.splitTextToSize(String(ins.n||''),73);
-      doc.text(nl[0]+(nl.length>1?'...':''),MX[0]+1,y);
+      const rowH=6.5+Math.max(0,nl.length-1)*4;
+      nP(rowH+1);
+      if(i%2===0){doc.setFillColor(...GF);doc.rect(M,y-4.5,CW,rowH,'F');}
+      doc.setFontSize(8);doc.setFont('helvetica','normal');doc.setTextColor(...GO);
+      nl.forEach((ln,li)=>{ doc.text(ln,MX[0]+1,y+li*4); });
       doc.text(String(ins.u||''),MX[1]+1,y);
       doc.text(String(ins.qty||0),MX[2]+1,y);
       doc.text(fCOP(ins.p||0),MX[3]+31,y,'right');
       doc.text(fCOP(sub),W-M-1,y,'right');
-      doc.setDrawColor(...GL);doc.line(M,y+2,W-M,y+2);
-      y+=6.5;
+      doc.setDrawColor(...GL);doc.line(M,y+rowH-4.5,W-M,y+rowH-4.5);
+      y+=rowH;
     });
     nP(8);
     doc.setFillColor(238,238,238);doc.rect(M,y-4.5,CW,7,'F');
