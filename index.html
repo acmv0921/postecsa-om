@@ -151,7 +151,7 @@ input[type=number]{-moz-appearance:textfield}
 <input type="file" id="fi-cam-c" accept="image/*" capture="environment" multiple style="position:fixed;left:-9999px" aria-hidden="true">
 <input type="file" id="fi-gal-c" accept="image/*" multiple style="position:fixed;left:-9999px" aria-hidden="true">
 
-<div id="credito-acm">Diseño &amp; Desarrollo: ABDIEL CICAR MORENO &nbsp;···&nbsp; POSTECSA OM v7.2</div>
+<div id="credito-acm">Diseño &amp; Desarrollo: ABDIEL CICAR MORENO &nbsp;···&nbsp; POSTECSA OM v7.4</div>
 <div id="toast"></div>
 <div id="app"></div>
 
@@ -181,7 +181,7 @@ const LOGO_SRC = 'data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAMCAgI
 // ═══════════════════════════════════════════════
 // CONSTANTES
 // ═══════════════════════════════════════════════
-const VERSION = '7.2';
+const VERSION = '7.3';
 const CLAVE_DB='pst_om_v6';
 const CLAVE_ROL='pst_rol';
 const CLAVE_USER='pst_user_cc';
@@ -849,6 +849,7 @@ function showHome(){
   // Sincronizar con el Sheet en segundo plano (no bloquea, no refresca esta pantalla)
   cargarMecanicosServidor();
   procesarCola();
+  if(ROL==='compras'){COMPRAS_NOMBRE=localStorage.getItem('pst_compras_nombre')||'';showHomeCompras();return;}
   if(ROL==='supervisor'){showHomeSupervisor();return;}
   showHomeMecanico();
 }
@@ -1021,6 +1022,9 @@ function showSeleccionRol(){
   +'<button onclick="pedirClaveSupervisor()" style="width:100%;padding:18px;background:#263238;color:#fff;border:none;border-radius:12px;font-size:16px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:12px">'
   +'<span style="font-size:28px">\ud83d\udc54</span>'
   +'<div style="text-align:left"><div>SOY SUPERVISOR</div><div style="font-size:11px;opacity:.85;font-weight:400">Crear y asignar \u00f3rdenes</div></div></button>'
+  +'<button onclick="pedirLoginCompras()" style="width:100%;padding:18px;background:#1565C0;color:#fff;border:none;border-radius:12px;font-size:16px;font-weight:700;cursor:pointer;margin-top:12px;display:flex;align-items:center;gap:12px">'
+  +'<span style="font-size:28px">\ud83d\udcE6</span>'
+  +'<div style="text-align:left"><div>SOY COMPRAS</div><div style="font-size:11px;opacity:.85;font-weight:400">Cotizar requisiciones</div></div></button>'
   +'<p style="font-size:11px;color:#90A4AE;margin-top:20px">Puedes cambiar esto despu\u00e9s en \u2699\ufe0f Configuraci\u00f3n</p>'
   +'<p style=\'font-size:9px;color:#bbb;margin-top:14px;letter-spacing:.3px\'>Dise\u00f1o &amp; Desarrollo: ABDIEL CICAR MORENO</p>'
   +'</div></div>');
@@ -1090,6 +1094,341 @@ function confirmarMecanico(){
   showHome();
 }
 
+// ============================================================
+// MODULO SICOT - REQUISICIONES DE MATERIALES (v7.3)
+// Rol COMPRAS: login individual por PIN (independiente de la
+// clave compartida de supervisor). El roster de personas con
+// acceso a Compras se administra desde Configuracion > Supervisor
+// para poder reemplazar a quien ocupe el cargo (vacaciones,
+// reubicacion, terminacion) sin tocar codigo.
+// ============================================================
+
+var COMPRAS_NOMBRE = '';
+
+function pedirLoginCompras(){
+  R('<div style="min-height:100vh;background:linear-gradient(160deg,#0D47A1,#1565C0);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px">'
+  +'<div style="background:#fff;border-radius:16px;padding:32px 24px;width:100%;max-width:340px;text-align:center">'
+  +'<div style="font-size:48px;margin-bottom:12px">\ud83d\udcE6</div>'
+  +'<h2 style="color:#263238;margin-bottom:4px;font-size:20px">Acceso Compras</h2>'
+  +'<p style="color:#78909C;font-size:13px;margin-bottom:20px">Ingresa tu c\u00e9dula y tu PIN</p>'
+  +'<input id="inp-cc-compras" type="text" inputmode="numeric" maxlength="15" placeholder="C\u00e9dula"'
+  +' style="width:100%;padding:14px;border:2px solid #E0E0E0;border-radius:10px;font-size:16px;text-align:center;box-sizing:border-box;margin-bottom:12px">'
+  +'<div style="position:relative;margin-bottom:16px">'
+  +'<input id="inp-pin-compras" type="password" maxlength="8" placeholder="PIN"'
+  +' style="width:100%;padding:14px 48px 14px 14px;border:2px solid #E0E0E0;border-radius:10px;font-size:18px;text-align:center;letter-spacing:4px;box-sizing:border-box">'
+  +'<button type="button" onclick="_toggleEye(\'inp-pin-compras\',this)" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;font-size:20px;padding:4px">\ud83d\udc41\ufe0f</button>'
+  +'</div>'
+  +'<button onclick="verificarLoginCompras()" style="width:100%;padding:14px;background:#1565C0;color:#fff;border:none;border-radius:10px;font-size:16px;font-weight:700;cursor:pointer;margin-bottom:10px">Entrar</button>'
+  +'<button onclick="showSeleccionRol()" style="width:100%;padding:10px;background:#ECEFF1;color:#546E7A;border:none;border-radius:10px;font-size:14px;cursor:pointer">\u2190 Volver</button>'
+  +'</div></div>');
+  setTimeout(function(){var i=document.getElementById('inp-cc-compras');if(i)i.focus();},200);
+}
+
+function verificarLoginCompras(){
+  var cc=(document.getElementById('inp-cc-compras').value||'').trim();
+  var pin=(document.getElementById('inp-pin-compras').value||'').trim();
+  if(!cc||!pin){toast('Ingrese c\u00e9dula y PIN');return;}
+  if(!navigator.onLine){toast('Necesita conexi\u00f3n para ingresar');return;}
+  fetch(GAS_URL+'?accion=compras_login&cc='+encodeURIComponent(cc)+'&pin='+encodeURIComponent(pin)+'&_t='+Date.now())
+    .then(function(r){return r.json();})
+    .then(function(res){
+      if(res&&res.ok){
+        ROL='compras'; USER_CC=cc; COMPRAS_NOMBRE=res.nombre||'';
+        localStorage.setItem('pst_rol','compras');
+        localStorage.setItem('pst_user_cc',cc);
+        localStorage.setItem('pst_compras_nombre',COMPRAS_NOMBRE);
+        showHomeCompras();
+      } else {
+        toast('C\u00e9dula o PIN incorrectos');
+      }
+    }).catch(function(){toast('Error de conexi\u00f3n, intenta de nuevo');});
+}
+
+function showHomeCompras(){
+  COMPRAS_NOMBRE = COMPRAS_NOMBRE || localStorage.getItem('pst_compras_nombre') || '';
+  R('<div class="hdr">'
+  +'<div class="hdr-logo"><img src="'+LOGO_SRC+'" alt="POSTECSA" draggable="false"></div>'
+  +'<div class="hdr-title"><h1>Compras</h1><p>'+sPDF(COMPRAS_NOMBRE)+'</p></div>'
+  +'<button onclick="showConfig()" style="background:rgba(255,255,255,.2);border:none;color:#fff;border-radius:8px;padding:8px 12px;font-size:13px;cursor:pointer">\u2699\ufe0f</button>'
+  +'</div>'
+  +'<div style="padding:16px;max-width:500px;margin:0 auto">'
+  +'<button class="btn btn-primary" onclick="showColaCompras()" style="margin-bottom:10px">\ud83d\udccb Cola de Requisiciones</button>'
+  +'<button class="btn btn-outline" onclick="cambiarRol()">Cambiar de rol</button>'
+  +'</div>');
+}
+
+function showColaCompras(){
+  R('<div class="hdr">'
+  +'<button onclick="showHomeCompras()" style="background:rgba(255,255,255,.2);border:none;color:#fff;border-radius:8px;padding:8px 12px;font-size:14px;cursor:pointer">\u2190 Volver</button>'
+  +'<div class="hdr-title" style="margin-left:8px"><h1>Cola de Requisiciones</h1></div></div>'
+  +'<div id="cola-req-wrap" style="padding:16px;max-width:600px;margin:0 auto">Cargando...</div>');
+  fetch(GAS_URL+'?accion=compras_listar_requisiciones&_t='+Date.now())
+    .then(function(r){return r.json();})
+    .then(function(res){
+      var wrap=document.getElementById('cola-req-wrap');
+      if(!wrap) return;
+      if(!res||!res.ok||!res.data||!res.data.length){wrap.innerHTML='<div class="card" style="text-align:center;color:#78909C;padding:24px">No hay requisiciones pendientes</div>';return;}
+      wrap.innerHTML=res.data.map(function(r){
+        var tipoColor=r.tipo==='Mantenimiento'?'#1565C0':'#78909C';
+        return '<div class="card" style="cursor:pointer;border-left:4px solid '+tipoColor+'" onclick="showRequisicionDetalleCompras(\''+r.num+'\')">'
+          +'<div style="display:flex;justify-content:space-between;align-items:center">'
+          +'<b style="font-size:15px">Req. #'+sPDF(r.num)+'</b>'
+          +'<span style="font-size:10px;background:'+tipoColor+';color:#fff;padding:2px 8px;border-radius:10px">'+sPDF(r.tipo)+'</span></div>'
+          +'<div style="font-size:13px;color:#546E7A;margin-top:4px">'+sPDF(r.justificacion)+'</div>'
+          +'<div style="font-size:11px;color:#90A4AE;margin-top:4px">'+sPDF(r.fecha)+(r.om?' \u00b7 OM #'+sPDF(r.om):'')+' \u00b7 '+sPDF(r.estado)+'</div>'
+          +'</div>';
+      }).join('');
+    }).catch(function(){toast('Error al cargar la cola');});
+}
+
+function showRequisicionDetalleCompras(numReq){
+  R('<div class="hdr">'
+  +'<button onclick="showColaCompras()" style="background:rgba(255,255,255,.2);border:none;color:#fff;border-radius:8px;padding:8px 12px;font-size:14px;cursor:pointer">\u2190 Volver</button>'
+  +'<div class="hdr-title" style="margin-left:8px"><h1>Requisici\u00f3n #'+sPDF(numReq)+'</h1></div></div>'
+  +'<div id="det-req-wrap" style="padding:16px;max-width:600px;margin:0 auto;padding-bottom:90px">Cargando...</div>');
+  fetch(GAS_URL+'?accion=compras_obtener_requisicion&num='+encodeURIComponent(numReq)+'&_t='+Date.now())
+    .then(function(r){return r.json();})
+    .then(function(res){
+      var wrap=document.getElementById('det-req-wrap');
+      if(!wrap) return;
+      if(!res||!res.ok){wrap.innerHTML='<div class="card">No se pudo cargar la requisici\u00f3n</div>';return;}
+      var cab=res.cabecera||{};
+      var items=res.items||[];
+      var html='<div class="card" style="margin-bottom:14px">'
+        +'<div class="info-row"><span class="info-label">\u00c1rea</span><span class="info-val">'+sPDF(cab.area)+'</span></div>'
+        +(cab.om?'<div class="info-row"><span class="info-label">OM vinculada</span><span class="info-val">#'+sPDF(cab.om)+'</span></div>':'')
+        +'<div class="info-row"><span class="info-label">Justificaci\u00f3n</span><span class="info-val" style="max-width:60%;text-align:right;font-size:12px">'+sPDF(cab.justificacion)+'</span></div>'
+        +'<div class="info-row"><span class="info-label">Solicitante</span><span class="info-val">'+sPDF(cab.solicitante_nombre)+'</span></div>'
+        +'</div>';
+      html+=items.map(function(it){
+        var faltaSegunda = !it.cot2_precio;
+        var justificada = (it.una_cotizacion_justificada===true||String(it.una_cotizacion_justificada).toUpperCase()==='TRUE');
+        var avisoHtml = '';
+        if(faltaSegunda && justificada){
+          avisoHtml = '<div style="margin-top:8px;background:#E8F5E9;border-radius:8px;padding:8px 10px;font-size:11px;color:#2E7D32">\u2705 Informaci\u00f3n suficiente con 1 sola cotizaci\u00f3n'+(it.motivo_una_cotizacion?' \u00b7 '+sPDF(it.motivo_una_cotizacion):'')+'</div>';
+        } else if(faltaSegunda){
+          avisoHtml = '<div style="margin-top:8px;background:#FFF3E0;border-radius:8px;padding:8px 10px">'
+            +'<div style="font-size:11px;color:#E65100;margin-bottom:6px">\u26a0\ufe0f Solo hay 1 cotizaci\u00f3n para este material. \u00bfQu\u00e9 hacemos?</div>'
+            +'<div style="display:flex;gap:6px">'
+            +'<button onclick="marcarSuficienteInformacion(\''+it.id+'\',\''+numReq+'\')" style="flex:1;padding:8px;background:#2E7D32;color:#fff;border:none;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer">\u2705 Suficiente informaci\u00f3n</button>'
+            +'<button onclick="toast(\'Sigue buscando y guarda cuando tengas la 2da cotizaci\u00f3n\')" style="flex:1;padding:8px;background:#ECEFF1;color:#37474F;border:none;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer">\ud83d\udd0d Adjuntar m\u00e1s cotizaciones</button>'
+            +'</div></div>';
+        }
+        return '<div class="card" style="margin-bottom:10px" data-item-id="'+it.id+'">'
+          +'<b style="font-size:14px">'+sPDF(it.cantidad)+' '+sPDF(it.unidad)+' \u00b7 '+sPDF(it.descripcion)+'</b>'
+          +'<div style="display:flex;gap:8px;margin-top:10px">'
+          +'<input placeholder="Proveedor 1" value="'+sPDF(it.cot1_proveedor||'')+'" id="p1-'+it.id+'" style="flex:1;padding:9px;border:1.5px solid #cdd5e0;border-radius:8px;font-size:12px">'
+          +'<input placeholder="Precio" type="number" value="'+(it.cot1_precio||'')+'" id="v1-'+it.id+'" style="width:110px;padding:9px;border:1.5px solid #cdd5e0;border-radius:8px;font-size:12px">'
+          +'</div>'
+          +'<div style="display:flex;gap:8px;margin-top:6px">'
+          +'<input placeholder="Proveedor 2" value="'+sPDF(it.cot2_proveedor||'')+'" id="p2-'+it.id+'" style="flex:1;padding:9px;border:1.5px solid #cdd5e0;border-radius:8px;font-size:12px">'
+          +'<input placeholder="Precio" type="number" value="'+(it.cot2_precio||'')+'" id="v2-'+it.id+'" style="width:110px;padding:9px;border:1.5px solid #cdd5e0;border-radius:8px;font-size:12px">'
+          +'</div>'
+          +'<button onclick="guardarCotizacionItem(\''+it.id+'\')" style="width:100%;margin-top:8px;padding:9px;background:#1565C0;color:#fff;border:none;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer">\ud83d\udcBE Guardar cotizaciones</button>'
+          +avisoHtml
+          +'</div>';
+      }).join('');
+      html+='<button class="btn btn-success" style="width:100%;margin-top:10px" onclick="enviarComparativoGerencia(\''+numReq+'\')">\ud83d\udCE4 Enviar comparativo a Gerencia</button>';
+      wrap.innerHTML=html;
+    }).catch(function(){toast('Error al cargar el detalle');});
+}
+
+function guardarCotizacionItem(itemId){
+  var p1=(document.getElementById('p1-'+itemId).value||'').trim();
+  var v1=(document.getElementById('v1-'+itemId).value||'').trim();
+  var p2=(document.getElementById('p2-'+itemId).value||'').trim();
+  var v2=(document.getElementById('v2-'+itemId).value||'').trim();
+  if(!p1||!v1){toast('Complete al menos la primera cotizaci\u00f3n');return;}
+  _gasGet(GAS_URL+'?accion=compras_guardar_cotizacion_get&item_id='+encodeURIComponent(itemId)
+    +'&cot1_proveedor='+encodeURIComponent(p1)+'&cot1_precio='+encodeURIComponent(v1)
+    +'&cot2_proveedor='+encodeURIComponent(p2)+'&cot2_precio='+encodeURIComponent(v2));
+  toast('Cotizaci\u00f3n guardada');
+}
+
+function marcarSuficienteInformacion(itemId, numReq){
+  var motivo=(prompt('Motivo (opcional) por el que 1 sola cotizaci\u00f3n es suficiente:\nEj: proveedor \u00fanico autorizado, urgencia, repuesto exclusivo de marca.','')||'').trim();
+  _gasGet(GAS_URL+'?accion=compras_marcar_suficiente_get&item_id='+encodeURIComponent(itemId)+'&motivo='+encodeURIComponent(motivo));
+  toast('Marcado como informaci\u00f3n suficiente');
+  setTimeout(function(){showRequisicionDetalleCompras(numReq);},500);
+}
+
+function enviarComparativoGerencia(numReq){
+  if(!confirm('Enviar el comparativo de la requisici\u00f3n #'+numReq+' a Gerencia para aprobaci\u00f3n?')) return;
+  fetch(GAS_URL+'?accion=compras_enviar_gerencia&num='+encodeURIComponent(numReq)+'&_t='+Date.now())
+    .then(function(r){return r.json();})
+    .then(function(res){
+      if(res&&res.ok){
+        toast('\u2705 Enviado a Gerencia');
+        showColaCompras();
+      } else if(res&&res.faltantes&&res.faltantes.length){
+        toast('Faltan cotizaciones o marcar "Suficiente informaci\u00f3n" en: '+res.faltantes.join(', '));
+      } else {
+        toast('No se pudo enviar, intenta de nuevo');
+      }
+    }).catch(function(){toast('Error de conexi\u00f3n al enviar a Gerencia');});
+}
+
+// --- Gesti\u00f3n del roster de Compras (para reasignar el cargo) ---
+function showGestionCompras(){
+  R('<div class="hdr">'
+  +'<button onclick="showConfig()" style="background:rgba(255,255,255,.2);border:none;color:#fff;border-radius:8px;padding:8px 14px;font-size:14px;cursor:pointer">\u2190 Volver</button>'
+  +'<div class="hdr-title" style="margin-left:8px"><h1>Usuarios de Compras</h1></div></div>'
+  +'<div style="padding:20px;max-width:500px;margin:0 auto">'
+  +'<div class="card" id="_lista-compras" style="margin-bottom:16px">Cargando...</div>'
+  +'<button onclick="agregarUsuarioCompras()" style="width:100%;padding:14px;background:#1565C0;color:#fff;border:none;border-radius:10px;font-size:15px;font-weight:700;cursor:pointer">\u2795 Agregar persona a Compras</button>'
+  +'</div>');
+  fetch(GAS_URL+'?accion=compras_listar_usuarios&_t='+Date.now())
+    .then(function(r){return r.json();})
+    .then(function(res){
+      var el=document.getElementById('_lista-compras');
+      if(!el) return;
+      var users=(res&&res.data)||[];
+      if(!users.length){el.innerHTML='<div style="color:#78909C;font-size:13px">Sin usuarios registrados a\u00fan</div>';return;}
+      el.innerHTML=users.map(function(u){
+        return '<div style="display:flex;align-items:center;gap:8px;padding:10px 0;border-bottom:1px solid #eee">'
+          +'<div style="flex:1"><b style="font-size:14px">'+sPDF(u.nombre)+'</b>'
+          +'<div style="font-size:12px;color:#78909C">CC: '+sPDF(u.cc)+(u.activo?'':' \u00b7 <span style=\"color:#c00\">INACTIVO</span>')+'</div></div>'
+          +'<button onclick="desactivarUsuarioCompras(\''+u.cc+'\')" style="background:#c00;color:#fff;border:none;border-radius:6px;padding:6px 10px;font-size:12px;cursor:pointer">Desactivar</button>'
+          +'</div>';
+      }).join('');
+    }).catch(function(){toast('Error al cargar usuarios de Compras');});
+}
+
+function agregarUsuarioCompras(){
+  var nom=(prompt('Nombre completo de la persona de Compras:','')||'').trim().toUpperCase();
+  if(!nom) return;
+  var cc=(prompt('C\u00e9dula:','')||'').trim();
+  if(!cc) return;
+  var pin=(prompt('PIN (4 a 8 d\u00edgitos) que usar\u00e1 esta persona para entrar:','')||'').trim();
+  if(!pin||pin.length<4){toast('El PIN debe tener al menos 4 d\u00edgitos');return;}
+  _gasGet(GAS_URL+'?accion=compras_crear_usuario_get&cc='+encodeURIComponent(cc)
+    +'&nombre='+encodeURIComponent(nom)+'&pin='+encodeURIComponent(pin));
+  toast('Usuario de Compras creado: '+nom);
+  setTimeout(showGestionCompras,600);
+}
+
+function desactivarUsuarioCompras(cc){
+  if(!confirm('Desactivar este usuario de Compras? Ya no podr\u00e1 iniciar sesi\u00f3n.')) return;
+  _gasGet(GAS_URL+'?accion=compras_desactivar_usuario_get&cc='+encodeURIComponent(cc));
+  toast('Usuario desactivado');
+  setTimeout(showGestionCompras,600);
+}
+
+// --- Solicitar materiales desde una OM en curso ---
+var _MAT_ITEMS = [];
+
+function showSolicitarMateriales(){
+  _MAT_ITEMS = [{cantidad:'',unidad:'UND',descripcion:''}];
+  renderSolicitarMateriales();
+}
+
+function renderSolicitarMateriales(){
+  var filas=_MAT_ITEMS.map(function(it,i){
+    return '<div style="display:flex;gap:6px;margin-bottom:8px;align-items:center">'
+      +'<input placeholder="Cant." value="'+sPDF(it.cantidad)+'" oninput="_MAT_ITEMS['+i+'].cantidad=this.value" style="width:60px;padding:9px;border:1.5px solid #cdd5e0;border-radius:8px;font-size:13px">'
+      +'<input placeholder="Und" value="'+sPDF(it.unidad)+'" oninput="_MAT_ITEMS['+i+'].unidad=this.value" style="width:60px;padding:9px;border:1.5px solid #cdd5e0;border-radius:8px;font-size:13px">'
+      +'<input placeholder="Descripci\u00f3n del material" value="'+sPDF(it.descripcion)+'" oninput="_MAT_ITEMS['+i+'].descripcion=this.value" style="flex:1;padding:9px;border:1.5px solid #cdd5e0;border-radius:8px;font-size:13px">'
+      +(_MAT_ITEMS.length>1?'<button onclick="_MAT_ITEMS.splice('+i+',1);renderSolicitarMateriales()" style="background:none;border:none;color:#c00;font-size:18px;cursor:pointer">\u2716</button>':'')
+      +'</div>';
+  }).join('');
+  R('<div class="hdr">'
+  +'<button onclick="showForm()" style="background:rgba(255,255,255,.2);border:none;color:#fff;border-radius:8px;padding:8px 12px;font-size:14px;cursor:pointer">\u2190 Volver</button>'
+  +'<div class="hdr-title" style="margin-left:8px"><h1>Solicitar Materiales</h1><p>OM #'+sPDF(OM.num)+' \u00b7 '+sPDF(OM.equipo)+'</p></div></div>'
+  +'<div style="padding:16px;max-width:500px;margin:0 auto;padding-bottom:90px">'
+  +'<div class="card" style="margin-bottom:12px">'+filas+'</div>'
+  +'<button onclick="_MAT_ITEMS.push({cantidad:\'\',unidad:\'UND\',descripcion:\'\'});renderSolicitarMateriales()" style="width:100%;padding:11px;background:#ECEFF1;color:#37474F;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;margin-bottom:14px">\u2795 Agregar otro material</button>'
+  +'<button class="btn btn-primary" onclick="enviarRequisicion()">\ud83d\udCE4 Enviar Requisici\u00f3n</button>'
+  +'</div>');
+}
+
+function enviarRequisicion(){
+  var validos=_MAT_ITEMS.filter(function(it){return (it.cantidad||'').trim()&&(it.descripcion||'').trim();});
+  if(!validos.length){toast('Complete al menos un material con cantidad y descripci\u00f3n');return;}
+  if(!navigator.onLine){toast('Necesita conexi\u00f3n para enviar la requisici\u00f3n');return;}
+  var payload=encodeURIComponent(JSON.stringify(validos));
+  _gasGet(GAS_URL+'?accion=crear_requisicion_get&om='+encodeURIComponent(OM.num)
+    +'&area='+encodeURIComponent(OM.area||'')
+    +'&tipo=Mantenimiento'
+    +'&justificacion='+encodeURIComponent('OM '+OM.num+' - '+(OM.falla||OM.equipo||''))
+    +'&solicitante_cc='+encodeURIComponent(USER_CC)
+    +'&items='+payload);
+  toast('\u2705 Requisici\u00f3n enviada a Compras');
+  showForm();
+}
+
+// ============================================================
+// NUEVA REQUISICION LIBRE (v7.4) - no depende de una OM en curso
+// Cubre el hueco: crear una requisicion para Administracion,
+// Laboratorio, Almacen u otra area SIN pasar por una orden de
+// mantenimiento. Reutiliza la misma cola/backend de Compras y
+// Gerencia que ya existe (crear_requisicion_get).
+// ============================================================
+
+var _AREAS_LIBRES = ['LABORATORIO','ALMACEN','OFICINA','PORTERIA','PLANTA FISICA','OTRO'];
+var _MAT_ITEMS_LIBRE = [];
+
+function showNuevaRequisicionLibre(){
+  _MAT_ITEMS_LIBRE = [{cantidad:'',unidad:'UND',descripcion:''}];
+  renderNuevaRequisicionLibre();
+}
+
+function renderNuevaRequisicionLibre(){
+  var todasAreas = Object.keys(AREAS_EQUIPOS || {}).concat(_AREAS_LIBRES);
+  var areaOpts = todasAreas.map(function(a){return '<option value="'+a+'">'+a+'</option>';}).join('');
+
+  var filas = _MAT_ITEMS_LIBRE.map(function(it,i){
+    return '<div style="display:flex;gap:6px;margin-bottom:8px;align-items:center">'
+      +'<input placeholder="Cant." value="'+sPDF(it.cantidad)+'" oninput="_MAT_ITEMS_LIBRE['+i+'].cantidad=this.value" style="width:60px;padding:9px;border:1.5px solid #cdd5e0;border-radius:8px;font-size:13px">'
+      +'<input placeholder="Und" value="'+sPDF(it.unidad)+'" oninput="_MAT_ITEMS_LIBRE['+i+'].unidad=this.value" style="width:60px;padding:9px;border:1.5px solid #cdd5e0;border-radius:8px;font-size:13px">'
+      +'<input placeholder="Descripcion del material" value="'+sPDF(it.descripcion)+'" oninput="_MAT_ITEMS_LIBRE['+i+'].descripcion=this.value" style="flex:1;padding:9px;border:1.5px solid #cdd5e0;border-radius:8px;font-size:13px">'
+      +(_MAT_ITEMS_LIBRE.length>1?'<button onclick="_MAT_ITEMS_LIBRE.splice('+i+',1);renderNuevaRequisicionLibre()" style="background:none;border:none;color:#c00;font-size:18px;cursor:pointer">\u2716</button>':'')
+      +'</div>';
+  }).join('');
+
+  R('<div class="hdr">'
+  +'<button onclick="showHomeSupervisor()" style="background:rgba(255,255,255,.2);border:none;color:#fff;border-radius:8px;padding:8px 12px;font-size:14px;cursor:pointer">\u2190 Volver</button>'
+  +'<div class="hdr-title" style="margin-left:8px"><h1>Nueva Requisicion</h1><p>Sin orden de mantenimiento asociada</p></div></div>'
+  +'<div style="padding:16px;max-width:500px;margin:0 auto;padding-bottom:90px">'
+  +'<div class="card" style="margin-bottom:12px">'
+  +'<label style="font-size:12px;font-weight:600;color:#546E7A;margin-bottom:4px;display:block">Area</label>'
+  +'<select id="nrl-area" style="width:100%;padding:10px;border:1.5px solid #cdd5e0;border-radius:8px;font-size:14px;margin-bottom:12px">'
+  +'<option value="">--- Seleccionar ---</option>'+areaOpts+'</select>'
+  +'<label style="font-size:12px;font-weight:600;color:#546E7A;margin-bottom:4px;display:block">Tipo</label>'
+  +'<select id="nrl-tipo" style="width:100%;padding:10px;border:1.5px solid #cdd5e0;border-radius:8px;font-size:14px;margin-bottom:12px">'
+  +'<option value="Administracion">Administracion</option>'
+  +'<option value="Mantenimiento">Mantenimiento</option></select>'
+  +'<label style="font-size:12px;font-weight:600;color:#546E7A;margin-bottom:4px;display:block">Justificacion</label>'
+  +'<textarea id="nrl-justificacion" placeholder="Motivo de la solicitud" rows="2" style="width:100%;padding:10px;border:1.5px solid #cdd5e0;border-radius:8px;font-size:13px;resize:vertical"></textarea>'
+  +'</div>'
+  +'<div class="card" style="margin-bottom:12px">'+filas+'</div>'
+  +'<button onclick="_MAT_ITEMS_LIBRE.push({cantidad:\'\',unidad:\'UND\',descripcion:\'\'});renderNuevaRequisicionLibre()" style="width:100%;padding:11px;background:#ECEFF1;color:#37474F;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;margin-bottom:14px">\u2795 Agregar otro material</button>'
+  +'<button class="btn btn-primary" onclick="enviarRequisicionLibre()">\ud83d\udCE4 Enviar Requisicion</button>'
+  +'</div>');
+}
+
+function enviarRequisicionLibre(){
+  var area = (document.getElementById('nrl-area').value || '').trim();
+  var tipo = (document.getElementById('nrl-tipo').value || '').trim();
+  var justificacion = (document.getElementById('nrl-justificacion').value || '').trim();
+  var validos = _MAT_ITEMS_LIBRE.filter(function(it){return (it.cantidad||'').trim() && (it.descripcion||'').trim();});
+
+  if(!area){ toast('Seleccione el area'); return; }
+  if(!justificacion){ toast('Escriba la justificacion'); return; }
+  if(!validos.length){ toast('Complete al menos un material con cantidad y descripcion'); return; }
+  if(!navigator.onLine){ toast('Necesita conexion para enviar la requisicion'); return; }
+
+  var payload = encodeURIComponent(JSON.stringify(validos));
+  _gasGet(GAS_URL+'?accion=crear_requisicion_get&om='
+    +'&area='+encodeURIComponent(area)
+    +'&tipo='+encodeURIComponent(tipo)
+    +'&justificacion='+encodeURIComponent(justificacion)
+    +'&solicitante_cc='+encodeURIComponent(USER_CC)
+    +'&items='+payload);
+
+  toast('\u2705 Requisicion enviada a Compras');
+  showHomeSupervisor();
+}
+
 function showHomeSupervisor(){
   R('<div class="hdr">'
   +'<div class="hdr-logo"><img src="'+LOGO_SRC+'" alt="POSTECSA" draggable="false"></div>'
@@ -1099,6 +1438,7 @@ function showHomeSupervisor(){
   +'<button onclick="showConfig()" style="background:rgba(255,255,255,.2);border:none;color:#fff;border-radius:8px;padding:6px 10px;font-size:13px;cursor:pointer">\u2699\ufe0f</button>'
   +'</div></div>'
   +'<div class="card"><button class="btn btn-primary" onclick="showCrearOM()">\u2795 CREAR Y ASIGNAR NUEVA OM</button></div>'
+  +'<div class="card"><button class="btn" style="background:#1565C0;color:#fff" onclick="showNuevaRequisicionLibre()">\ud83d\udCE6 Nueva Requisici\u00f3n (sin OM)</button></div>'
   +'<div id="panel-supervisor"><div style="text-align:center;padding:40px;color:var(--txt2)"><div style="font-size:36px">\ud83d\udd04</div><p style="margin-top:8px">Cargando...</p></div></div>'
   +'<div style="height:20px"></div>');
   sincronizarSupervisor();
@@ -1539,6 +1879,7 @@ function showConfig(){
   +'<button class="btn btn-primary" onclick="cambiarRol()">Cambiar rol</button></div>'
   +(esSup?'<div class="card"><div class="card-title">SUPERVISOR</div>'
     +'<button onclick="showGestionMecanicos()" style="width:100%;padding:13px;background:#1565C0;color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;margin-bottom:8px">Gestionar Mecanicos y Proveedores</button>'
+    +'<button onclick="showGestionCompras()" style="width:100%;padding:13px;background:#0D47A1;color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;margin-bottom:8px">Gestionar Usuarios de Compras</button>'
     +'<button onclick="cambiarClaveSup()" style="width:100%;padding:13px;background:#263238;color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer">Cambiar clave supervisor</button>'
     +'</div>':'')
   +'<div class="card"><div class="card-title">DATOS</div>'
@@ -1549,7 +1890,8 @@ function cambiarRol(){
   if(!confirm('Cambiar de rol? Se cerrara la sesion actual.')) return;
   localStorage.removeItem('pst_rol');
   localStorage.removeItem('pst_user_cc');
-  ROL=''; USER_CC='';
+  localStorage.removeItem('pst_compras_nombre');
+  ROL=''; USER_CC=''; COMPRAS_NOMBRE='';
   showSeleccionRol();
 }
 
@@ -1866,6 +2208,10 @@ function _showForm(){
       <div class="info-row"><span class="info-label">Falla</span><span class="info-val" style="max-width:60%;text-align:right;font-size:12px">${sPDF(OM.falla)}</span></div>
       <div class="info-row"><span class="info-label">Inicio</span><span class="info-val">${fFecha(OM.ts_inicio)}</span></div>
       <div class="info-row"><span class="info-label">Costo M.O.</span><span class="info-val" style="color:var(--verde)">${fCOP(getCosto().costo)}</span></div>
+    </div>
+
+    <div style="margin:0 12px 8px 12px">
+      <button onclick="showSolicitarMateriales()" style="width:100%;padding:12px;background:#1565C0;color:#fff;border:none;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer">\ud83d\udCE6 Solicitar Materiales</button>
     </div>
 
     <!-- TABS -->
