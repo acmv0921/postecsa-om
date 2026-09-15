@@ -150,8 +150,10 @@ input[type=number]{-moz-appearance:textfield}
 <input type="file" id="fi-gal-a" accept="image/*" multiple style="position:fixed;left:-9999px" aria-hidden="true">
 <input type="file" id="fi-cam-c" accept="image/*" capture="environment" multiple style="position:fixed;left:-9999px" aria-hidden="true">
 <input type="file" id="fi-gal-c" accept="image/*" multiple style="position:fixed;left:-9999px" aria-hidden="true">
+<input type="file" id="fi-cam-nrl" accept="image/*" capture="environment" multiple style="position:fixed;left:-9999px" aria-hidden="true">
+<input type="file" id="fi-gal-nrl" accept="image/*" multiple style="position:fixed;left:-9999px" aria-hidden="true">
 
-<div id="credito-acm">Diseño &amp; Desarrollo: ABDIEL CICAR MORENO &nbsp;···&nbsp; POSTECSA OM v7.4</div>
+<div id="credito-acm">Diseño &amp; Desarrollo: ABDIEL CICAR MORENO &nbsp;···&nbsp; POSTECSA OM v7.5</div>
 <div id="toast"></div>
 <div id="app"></div>
 
@@ -1369,7 +1371,59 @@ var _MAT_ITEMS_LIBRE = [];
 
 function showNuevaRequisicionLibre(){
   _MAT_ITEMS_LIBRE = [{cantidad:'',unidad:'UND',descripcion:''}];
+  FOTOS_LIBRE = [];
   renderNuevaRequisicionLibre();
+}
+
+
+// ─── Fotos de evidencia para Nueva Requisicion Libre (independiente de OM) ───
+var FOTOS_LIBRE = [];
+
+function procFotosLibre(files){
+  if(!files||!files.length) return;
+  let procesadas=0;
+  Array.from(files).forEach(file=>{
+    const reader=new FileReader();
+    reader.onload=e=>{
+      const img=new Image();
+      img.onload=()=>{
+        const MAX2=800;
+        let w2=img.width, h2=img.height;
+        if(w2>MAX2){h2=Math.round(h2*MAX2/w2);w2=MAX2;}
+        if(h2>MAX2){w2=Math.round(w2*MAX2/h2);h2=MAX2;}
+        const cv2=document.createElement('canvas');
+        cv2.width=w2; cv2.height=h2;
+        cv2.getContext('2d').drawImage(img,0,0,w2,h2);
+        const data=cv2.toDataURL('image/jpeg',0.5);
+
+        FOTOS_LIBRE.push({data,ts:Date.now()});
+        procesadas++;
+        _actualizarGridFotosLibre();
+        if(procesadas===files.length){
+          toast(procesadas+' foto'+(procesadas>1?'s':'')+' agregada'+(procesadas>1?'s':''));
+        }
+      };
+      img.src=e.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+function delFotoLibre(idx){
+  FOTOS_LIBRE.splice(idx,1);
+  _actualizarGridFotosLibre();
+}
+
+function _actualizarGridFotosLibre(){
+  const grid=document.getElementById('foto-grid-nrl');
+  if(!grid) return;
+  grid.innerHTML=FOTOS_LIBRE.map((f,i)=>`
+    <div style="position:relative">
+      <img class="foto-thumb" src="${f.data}" alt="Foto ${i+1}">
+      <button onclick="delFotoLibre(${i})" style="position:absolute;top:2px;right:2px;background:rgba(0,0,0,.6);color:#fff;border:none;border-radius:50%;width:20px;height:20px;font-size:12px;cursor:pointer">×</button>
+    </div>`).join('');
+  const badge=document.getElementById('foto-count-nrl');
+  if(badge) badge.textContent=FOTOS_LIBRE.length+' foto(s) adjunta(s)';
 }
 
 function renderNuevaRequisicionLibre(){
@@ -1399,6 +1453,16 @@ function renderNuevaRequisicionLibre(){
   +'<option value="Mantenimiento">Mantenimiento</option></select>'
   +'<label style="font-size:12px;font-weight:600;color:#546E7A;margin-bottom:4px;display:block">Justificacion</label>'
   +'<textarea id="nrl-justificacion" placeholder="Motivo de la solicitud" rows="2" style="width:100%;padding:10px;border:1.5px solid #cdd5e0;border-radius:8px;font-size:13px;resize:vertical"></textarea>'
+  +'</div>'
+  +'<div class="card" style="margin-bottom:12px">'
+  +'<div class="card-title">\ud83d\udcf7 Foto de la requisicion (WhatsApp o papel)</div>'
+  +'<p style="font-size:11px;color:#78909C;margin-bottom:10px">Toma o adjunta la foto para tenerla de referencia mientras llenas los datos abajo</p>'
+  +'<div style="display:flex;gap:8px;margin-bottom:10px">'
+  +'<button class="btn btn-gris btn-small" style="margin-top:0" onclick="document.getElementById(\'fi-cam-nrl\').click()">\ud83d\udcf7 Camara</button>'
+  +'<button class="btn btn-outline btn-small" style="margin-top:0" onclick="document.getElementById(\'fi-gal-nrl\').click()">\ud83d\uddbc Galeria</button>'
+  +'</div>'
+  +'<div class="foto-grid" id="foto-grid-nrl"></div>'
+  +'<p id="foto-count-nrl" style="font-size:11px;color:#546E7A;margin-top:6px">0 foto(s) adjunta(s)</p>'
   +'</div>'
   +'<div class="card" style="margin-bottom:12px">'+filas+'</div>'
   +'<button onclick="_MAT_ITEMS_LIBRE.push({cantidad:\'\',unidad:\'UND\',descripcion:\'\'});renderNuevaRequisicionLibre()" style="width:100%;padding:11px;background:#ECEFF1;color:#37474F;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;margin-bottom:14px">\u2795 Agregar otro material</button>'
@@ -3807,6 +3871,12 @@ document.addEventListener('DOMContentLoaded',()=>{
     if(cam) cam.addEventListener('change',e=>{ procFotos(et,e.target.files); e.target.value=''; });
     if(gal) gal.addEventListener('change',e=>{ procFotos(et,e.target.files); e.target.value=''; });
   });
+
+  // Nueva Requisicion Libre: fotos de evidencia (independientes de cualquier OM activa)
+  const camNRL=document.getElementById('fi-cam-nrl');
+  const galNRL=document.getElementById('fi-gal-nrl');
+  if(camNRL) camNRL.addEventListener('change',e=>{ procFotosLibre(e.target.files); e.target.value=''; });
+  if(galNRL) galNRL.addEventListener('change',e=>{ procFotosLibre(e.target.files); e.target.value=''; });
 
   // Detectar online/offline
   window.addEventListener('online',()=>{ toast('✅ Conexión restaurada'); procesarCola(); });
