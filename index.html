@@ -153,7 +153,7 @@ input[type=number]{-moz-appearance:textfield}
 <input type="file" id="fi-cam-nrl" accept="image/*" capture="environment" multiple style="position:fixed;left:-9999px" aria-hidden="true">
 <input type="file" id="fi-gal-nrl" accept="image/*" multiple style="position:fixed;left:-9999px" aria-hidden="true">
 
-<div id="credito-acm">Diseño &amp; Desarrollo: ABDIEL CICAR MORENO &nbsp;···&nbsp; POSTECSA OM v7.5</div>
+<div id="credito-acm">Diseño &amp; Desarrollo: ABDIEL CICAR MORENO &nbsp;···&nbsp; POSTECSA OM v7.6</div>
 <div id="toast"></div>
 <div id="app"></div>
 
@@ -1159,12 +1159,30 @@ function showHomeCompras(){
   +'</div>');
 }
 
+
+function alertaBadge(nivel, dias){
+  var cfg = {
+    ok:      {color:'#78909C', bg:'#ECEFF1', label: dias+' d\u00eda'+(dias===1?'':'s')},
+    amarillo:{color:'#F9A825', bg:'#FFF8E1', label:'\ud83d\udfe1 '+dias+' d\u00edas'},
+    naranja: {color:'#E65100', bg:'#FFF3E0', label:'\ud83d\udfe0 '+dias+' d\u00edas'},
+    rojo:    {color:'#C62828', bg:'#FFEBEE', label:'\ud83d\udd34 '+dias+' d\u00edas \u00b7 urgente'},
+    vencida: {color:'#B71C1C', bg:'#FFCDD2', label:'\u274c Vencida'}
+  };
+  var c = cfg[nivel] || cfg.ok;
+  return '<span style="font-size:10px;font-weight:800;background:'+c.bg+';color:'+c.color+';padding:3px 9px;border-radius:10px;white-space:nowrap">'+c.label+'</span>';
+}
+function setFechaLimiteCompras(num){
+  var val = document.getElementById('fl-'+num).value;
+  _gasGet(GAS_URL+'?accion=sicot_set_fecha_limite_get&num='+encodeURIComponent(num)+'&fecha_limite='+encodeURIComponent(val));
+  toast(val ? '\ud83d\udcc5 Fecha l\u00edmite guardada' : '\ud83d\udcc5 Fecha l\u00edmite eliminada');
+}
+
 function showColaCompras(){
   R('<div class="hdr">'
   +'<button onclick="showHomeCompras()" style="background:rgba(255,255,255,.2);border:none;color:#fff;border-radius:8px;padding:8px 12px;font-size:14px;cursor:pointer">\u2190 Volver</button>'
   +'<div class="hdr-title" style="margin-left:8px"><h1>Cola de Requisiciones</h1></div></div>'
   +'<div id="cola-req-wrap" style="padding:16px;max-width:600px;margin:0 auto">Cargando...</div>');
-  fetch(GAS_URL+'?accion=compras_listar_requisiciones&_t='+Date.now())
+  fetch(GAS_URL+'?accion=compras_listar_requisiciones_alertas&_t='+Date.now())
     .then(function(r){return r.json();})
     .then(function(res){
       var wrap=document.getElementById('cola-req-wrap');
@@ -1173,9 +1191,9 @@ function showColaCompras(){
       wrap.innerHTML=res.data.map(function(r){
         var tipoColor=r.tipo==='Mantenimiento'?'#1565C0':'#78909C';
         return '<div class="card" style="cursor:pointer;border-left:4px solid '+tipoColor+'" onclick="showRequisicionDetalleCompras(\''+r.num+'\')">'
-          +'<div style="display:flex;justify-content:space-between;align-items:center">'
+          +'<div style="display:flex;justify-content:space-between;align-items:center;gap:6px">'
           +'<b style="font-size:15px">Req. #'+sPDF(r.num)+'</b>'
-          +'<span style="font-size:10px;background:'+tipoColor+';color:#fff;padding:2px 8px;border-radius:10px">'+sPDF(r.tipo)+'</span></div>'
+          +'<div style="display:flex;gap:6px;align-items:center">'+alertaBadge(r.nivel_alerta,r.dias_transcurridos)+'<span style="font-size:10px;background:'+tipoColor+';color:#fff;padding:2px 8px;border-radius:10px">'+sPDF(r.tipo)+'</span></div></div>'
           +'<div style="font-size:13px;color:#546E7A;margin-top:4px">'+sPDF(r.justificacion)+'</div>'
           +'<div style="font-size:11px;color:#90A4AE;margin-top:4px">'+sPDF(r.fecha)+(r.om?' \u00b7 OM #'+sPDF(r.om):'')+' \u00b7 '+sPDF(r.estado)+'</div>'
           +'</div>';
@@ -1201,6 +1219,14 @@ function showRequisicionDetalleCompras(numReq){
         +(cab.om?'<div class="info-row"><span class="info-label">OM vinculada</span><span class="info-val">#'+sPDF(cab.om)+'</span></div>':'')
         +'<div class="info-row"><span class="info-label">Justificaci\u00f3n</span><span class="info-val" style="max-width:60%;text-align:right;font-size:12px">'+sPDF(cab.justificacion)+'</span></div>'
         +'<div class="info-row"><span class="info-label">Solicitante</span><span class="info-val">'+sPDF(cab.solicitante_nombre)+'</span></div>'
+        +'</div>'
+        +'<div class="card" style="margin-bottom:14px">'
+        +'<div class="card-title">\ud83d\udcc5 Fecha l\u00edmite (opcional)</div>'
+        +'<div style="display:flex;gap:8px">'
+        +'<input type="date" id="fl-'+numReq+'" value="'+sPDF(cab.fecha_limite||'')+'" style="flex:1">'
+        +'<button class="btn btn-primary btn-small" style="margin-top:0;width:auto;padding:9px 16px" onclick="setFechaLimiteCompras(\''+numReq+'\')">Guardar</button>'
+        +'</div>'
+        +'<p style="font-size:11px;color:#78909C;margin-top:6px">Define un plazo m\u00e1ximo para esta requisici\u00f3n. D\u00e9jalo vac\u00edo y guarda para quitarlo.</p>'
         +'</div>';
       html+=items.map(function(it){
         var faltaSegunda = !it.cot2_precio;
