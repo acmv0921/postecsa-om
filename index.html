@@ -1160,6 +1160,21 @@ function showHomeCompras(){
 }
 
 
+function _sicotParseFecha(v){
+  if(!v) return null;
+  var m = String(v).match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if(m) return new Date(Number(m[3]), Number(m[2])-1, Number(m[1]));
+  var d = new Date(v);
+  return isNaN(d.getTime()) ? null : d;
+}
+function alertaInfo(fechaStr){
+  var f = _sicotParseFecha(fechaStr);
+  if(!f) return {dias:0, nivel:'ok'};
+  var hoy = new Date();
+  var dias = Math.max(0, Math.round((hoy.setHours(0,0,0,0) - new Date(f).setHours(0,0,0,0)) / 86400000));
+  var nivel = dias>=30 ? 'rojo' : (dias>=15 ? 'naranja' : (dias>=7 ? 'amarillo' : 'ok'));
+  return {dias:dias, nivel:nivel};
+}
 function alertaBadge(nivel, dias){
   var cfg = {
     ok:      {color:'#78909C', bg:'#ECEFF1', label: dias+' d\u00eda'+(dias===1?'':'s')},
@@ -1174,7 +1189,7 @@ function alertaBadge(nivel, dias){
 function setFechaLimiteCompras(num){
   var val = document.getElementById('fl-'+num).value;
   _gasGet(GAS_URL+'?accion=sicot_set_fecha_limite_get&num='+encodeURIComponent(num)+'&fecha_limite='+encodeURIComponent(val));
-  toast(val ? '\ud83d\udcc5 Fecha l\u00edmite guardada' : '\ud83d\udcc5 Fecha l\u00edmite eliminada');
+  toast(val ? '\ud83d\udcc5 Fecha l\u00edmite guardada (verificar en el backend)' : '\ud83d\udcc5 Fecha l\u00edmite eliminada');
 }
 
 function showColaCompras(){
@@ -1182,7 +1197,7 @@ function showColaCompras(){
   +'<button onclick="showHomeCompras()" style="background:rgba(255,255,255,.2);border:none;color:#fff;border-radius:8px;padding:8px 12px;font-size:14px;cursor:pointer">\u2190 Volver</button>'
   +'<div class="hdr-title" style="margin-left:8px"><h1>Cola de Requisiciones</h1></div></div>'
   +'<div id="cola-req-wrap" style="padding:16px;max-width:600px;margin:0 auto">Cargando...</div>');
-  fetch(GAS_URL+'?accion=compras_listar_requisiciones_alertas&_t='+Date.now())
+  fetch(GAS_URL+'?accion=compras_listar_requisiciones&_t='+Date.now())
     .then(function(r){return r.json();})
     .then(function(res){
       var wrap=document.getElementById('cola-req-wrap');
@@ -1193,7 +1208,7 @@ function showColaCompras(){
         return '<div class="card" style="cursor:pointer;border-left:4px solid '+tipoColor+'" onclick="showRequisicionDetalleCompras(\''+r.num+'\')">'
           +'<div style="display:flex;justify-content:space-between;align-items:center;gap:6px">'
           +'<b style="font-size:15px">Req. #'+sPDF(r.num)+'</b>'
-          +'<div style="display:flex;gap:6px;align-items:center">'+alertaBadge(r.nivel_alerta,r.dias_transcurridos)+'<span style="font-size:10px;background:'+tipoColor+';color:#fff;padding:2px 8px;border-radius:10px">'+sPDF(r.tipo)+'</span></div></div>'
+          +'<div style="display:flex;gap:6px;align-items:center">'+(function(){var a=alertaInfo(r.fecha);return alertaBadge(a.nivel,a.dias);})()+'<span style="font-size:10px;background:'+tipoColor+';color:#fff;padding:2px 8px;border-radius:10px">'+sPDF(r.tipo)+'</span></div></div>'
           +'<div style="font-size:13px;color:#546E7A;margin-top:4px">'+sPDF(r.justificacion)+'</div>'
           +'<div style="font-size:11px;color:#90A4AE;margin-top:4px">'+sPDF(r.fecha)+(r.om?' \u00b7 OM #'+sPDF(r.om):'')+' \u00b7 '+sPDF(r.estado)+'</div>'
           +'</div>';
@@ -1395,9 +1410,12 @@ function enviarRequisicion(){
 var _AREAS_LIBRES = ['LABORATORIO','ALMACEN','OFICINA','PORTERIA','PLANTA FISICA','OTRO'];
 var _MAT_ITEMS_LIBRE = [];
 
+var _NRL_CON_OM = false;
+
 function showNuevaRequisicionLibre(){
   _MAT_ITEMS_LIBRE = [{cantidad:'',unidad:'UND',descripcion:''}];
   FOTOS_LIBRE = [];
+  _NRL_CON_OM = false;
   renderNuevaRequisicionLibre();
 }
 
@@ -1465,18 +1483,37 @@ function renderNuevaRequisicionLibre(){
       +'</div>';
   }).join('');
 
+  var areasOM = Object.keys(AREAS_EQUIPOS || {});
+  var areaOptsOM = areasOM.map(function(a){return '<option value="'+a+'">'+a+'</option>';}).join('');
+  var areaOptsLibres = _AREAS_LIBRES.map(function(a){return '<option value="'+a+'">'+a+'</option>';}).join('');
+
+  var bloqueOM = _NRL_CON_OM
+    ? ('<label style="font-size:12px;font-weight:600;color:#546E7A;margin-bottom:4px;display:block">N\u00famero de OM</label>'
+      +'<input id="nrl-om" type="text" inputmode="numeric" placeholder="Ej: 4317" style="width:100%;padding:10px;border:1.5px solid #cdd5e0;border-radius:8px;font-size:14px;margin-bottom:12px">'
+      +'<label style="font-size:12px;font-weight:600;color:#546E7A;margin-bottom:4px;display:block">Area (de la OM)</label>'
+      +'<select id="nrl-area" style="width:100%;padding:10px;border:1.5px solid #cdd5e0;border-radius:8px;font-size:14px;margin-bottom:12px">'
+      +'<option value="">--- Seleccionar ---</option>'+areaOptsOM+'</select>'
+      +'<input type="hidden" id="nrl-tipo" value="Mantenimiento">')
+    : ('<label style="font-size:12px;font-weight:600;color:#546E7A;margin-bottom:4px;display:block">Area</label>'
+      +'<select id="nrl-area" style="width:100%;padding:10px;border:1.5px solid #cdd5e0;border-radius:8px;font-size:14px;margin-bottom:12px">'
+      +'<option value="">--- Seleccionar ---</option>'+areaOptsLibres+'</select>'
+      +'<label style="font-size:12px;font-weight:600;color:#546E7A;margin-bottom:4px;display:block">Tipo</label>'
+      +'<select id="nrl-tipo" style="width:100%;padding:10px;border:1.5px solid #cdd5e0;border-radius:8px;font-size:14px;margin-bottom:12px">'
+      +'<option value="Administracion">Administracion</option>'
+      +'<option value="Mantenimiento">Mantenimiento</option></select>');
+
   R('<div class="hdr">'
   +'<button onclick="showHomeSupervisor()" style="background:rgba(255,255,255,.2);border:none;color:#fff;border-radius:8px;padding:8px 12px;font-size:14px;cursor:pointer">\u2190 Volver</button>'
-  +'<div class="hdr-title" style="margin-left:8px"><h1>Nueva Requisicion</h1><p>Sin orden de mantenimiento asociada</p></div></div>'
+  +'<div class="hdr-title" style="margin-left:8px"><h1>Nueva Requisicion</h1></div></div>'
   +'<div style="padding:16px;max-width:500px;margin:0 auto;padding-bottom:90px">'
   +'<div class="card" style="margin-bottom:12px">'
-  +'<label style="font-size:12px;font-weight:600;color:#546E7A;margin-bottom:4px;display:block">Area</label>'
-  +'<select id="nrl-area" style="width:100%;padding:10px;border:1.5px solid #cdd5e0;border-radius:8px;font-size:14px;margin-bottom:12px">'
-  +'<option value="">--- Seleccionar ---</option>'+areaOpts+'</select>'
-  +'<label style="font-size:12px;font-weight:600;color:#546E7A;margin-bottom:4px;display:block">Tipo</label>'
-  +'<select id="nrl-tipo" style="width:100%;padding:10px;border:1.5px solid #cdd5e0;border-radius:8px;font-size:14px;margin-bottom:12px">'
-  +'<option value="Administracion">Administracion</option>'
-  +'<option value="Mantenimiento">Mantenimiento</option></select>'
+  +'<label style="font-size:12px;font-weight:600;color:#546E7A;margin-bottom:6px;display:block">\u00bfEsta requisicion tiene una Orden de Mantenimiento asociada?</label>'
+  +'<div style="display:flex;gap:8px">'
+  +'<button type="button" onclick="_NRL_CON_OM=true;renderNuevaRequisicionLibre()" style="flex:1;padding:11px;border-radius:8px;border:2px solid '+(_NRL_CON_OM?"#1565C0":"#cdd5e0")+';background:'+(_NRL_CON_OM?"#E3F2FD":"#fff")+';font-weight:700;font-size:13px;cursor:pointer;color:#263238">Si, tiene OM</button>'
+  +'<button type="button" onclick="_NRL_CON_OM=false;renderNuevaRequisicionLibre()" style="flex:1;padding:11px;border-radius:8px;border:2px solid '+(!_NRL_CON_OM?"#1565C0":"#cdd5e0")+';background:'+(!_NRL_CON_OM?"#E3F2FD":"#fff")+';font-weight:700;font-size:13px;cursor:pointer;color:#263238">No, otra area</button>'
+  +'</div></div>'
+  +'<div class="card" style="margin-bottom:12px">'
+  +bloqueOM
   +'<label style="font-size:12px;font-weight:600;color:#546E7A;margin-bottom:4px;display:block">Justificacion</label>'
   +'<textarea id="nrl-justificacion" placeholder="Motivo de la solicitud" rows="2" style="width:100%;padding:10px;border:1.5px solid #cdd5e0;border-radius:8px;font-size:13px;resize:vertical"></textarea>'
   +'</div>'
@@ -1499,16 +1536,18 @@ function renderNuevaRequisicionLibre(){
 function enviarRequisicionLibre(){
   var area = (document.getElementById('nrl-area').value || '').trim();
   var tipo = (document.getElementById('nrl-tipo').value || '').trim();
+  var om = _NRL_CON_OM ? (document.getElementById('nrl-om').value || '').trim() : '';
   var justificacion = (document.getElementById('nrl-justificacion').value || '').trim();
   var validos = _MAT_ITEMS_LIBRE.filter(function(it){return (it.cantidad||'').trim() && (it.descripcion||'').trim();});
 
+  if(_NRL_CON_OM && !om){ toast('Escriba el numero de OM'); return; }
   if(!area){ toast('Seleccione el area'); return; }
   if(!justificacion){ toast('Escriba la justificacion'); return; }
   if(!validos.length){ toast('Complete al menos un material con cantidad y descripcion'); return; }
   if(!navigator.onLine){ toast('Necesita conexion para enviar la requisicion'); return; }
 
   var payload = encodeURIComponent(JSON.stringify(validos));
-  _gasGet(GAS_URL+'?accion=crear_requisicion_get&om='
+  _gasGet(GAS_URL+'?accion=crear_requisicion_get&om='+encodeURIComponent(om)
     +'&area='+encodeURIComponent(area)
     +'&tipo='+encodeURIComponent(tipo)
     +'&justificacion='+encodeURIComponent(justificacion)
@@ -1528,7 +1567,7 @@ function showHomeSupervisor(){
   +'<button onclick="showConfig()" style="background:rgba(255,255,255,.2);border:none;color:#fff;border-radius:8px;padding:6px 10px;font-size:13px;cursor:pointer">\u2699\ufe0f</button>'
   +'</div></div>'
   +'<div class="card"><button class="btn btn-primary" onclick="showCrearOM()">\u2795 CREAR Y ASIGNAR NUEVA OM</button></div>'
-  +'<div class="card"><button class="btn" style="background:#1565C0;color:#fff" onclick="showNuevaRequisicionLibre()">\ud83d\udCE6 Nueva Requisici\u00f3n (sin OM)</button></div>'
+  +'<div class="card"><button class="btn" style="background:#1565C0;color:#fff" onclick="showNuevaRequisicionLibre()">\ud83d\udCE6 Nueva Requisici\u00f3n</button></div>'
   +'<div id="panel-supervisor"><div style="text-align:center;padding:40px;color:var(--txt2)"><div style="font-size:36px">\ud83d\udd04</div><p style="margin-top:8px">Cargando...</p></div></div>'
   +'<div style="height:20px"></div>');
   sincronizarSupervisor();
@@ -3940,6 +3979,38 @@ document.addEventListener('DOMContentLoaded',()=>{
       '</div>';
   }
 });
+
+// ============================================================
+// AVISO DE NOVEDADES (como en SIVIL) - aparece una vez por
+// version nueva, para saber con certeza que la actualizacion
+// realmente se cargo (evita la confusion de version cacheada).
+// ============================================================
+var VERSION_ACTUAL = 'v7.7';
+var NOVEDADES_VERSION = [
+  'Corregido: la Cola de Requisiciones de Compras volvia a mostrar "0 pendientes" por error \u2014 ya funciona de nuevo',
+  'Alertas de dias transcurridos en cada requisicion: \ud83d\udfe1 7+ dias \u00b7 \ud83d\udfe0 15+ dias \u00b7 \ud83d\udd34 30+ dias',
+  'Nueva Requisicion ahora pregunta si tiene OM asociada o es de otra area, y permite adjuntar foto de referencia'
+];
+function mostrarNovedadesSiAplica(){
+  try{
+    var vista = localStorage.getItem('pst_version_vista');
+    if(vista === VERSION_ACTUAL) return;
+    var html = '<div id="modal-novedades" style="position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:99999;display:flex;align-items:center;justify-content:center;padding:20px">'
+      +'<div style="background:#fff;border-radius:16px;padding:24px;max-width:360px;width:100%;box-shadow:0 8px 30px rgba(0,0,0,.3)">'
+      +'<div style="font-size:36px;margin-bottom:8px">\ud83c\udf89</div>'
+      +'<h2 style="font-size:18px;margin-bottom:2px;color:#263238">Novedades '+VERSION_ACTUAL+'</h2>'
+      +'<p style="font-size:12px;color:#90A4AE;margin-bottom:14px">Si ves esta pantalla, la actualizaci\u00f3n s\u00ed se carg\u00f3 en tu celular</p>'
+      +'<ul style="margin:0 0 16px;padding-left:18px;font-size:13px;color:#546E7A;line-height:1.7">'
+      +NOVEDADES_VERSION.map(function(i){return '<li>'+i+'</li>';}).join('')
+      +'</ul>'
+      +'<button onclick="localStorage.setItem(\'pst_version_vista\',\''+VERSION_ACTUAL+'\');document.getElementById(\'modal-novedades\').remove();" style="width:100%;padding:13px;background:#E65100;color:#fff;border:none;border-radius:10px;font-size:15px;font-weight:700;cursor:pointer">Entendido</button>'
+      +'</div></div>';
+    var wrap=document.createElement('div');
+    wrap.innerHTML=html;
+    document.body.appendChild(wrap.firstChild);
+  }catch(e){}
+}
+setTimeout(mostrarNovedadesSiAplica, 600);
 </script>
 
 </body>
