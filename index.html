@@ -153,7 +153,7 @@ input[type=number]{-moz-appearance:textfield}
 <input type="file" id="fi-cam-nrl" accept="image/*" capture="environment" multiple style="position:fixed;left:-9999px" aria-hidden="true">
 <input type="file" id="fi-gal-nrl" accept="image/*" multiple style="position:fixed;left:-9999px" aria-hidden="true">
 
-<div id="credito-acm">Diseño &amp; Desarrollo: ABDIEL CICAR MORENO &nbsp;···&nbsp; POSTECSA OM v7.6</div>
+<div id="credito-acm">Diseño &amp; Desarrollo: ABDIEL CICAR MORENO &nbsp;···&nbsp; POSTECSA OM v7.8</div>
 <div id="toast"></div>
 <div id="app"></div>
 
@@ -1547,15 +1547,52 @@ function enviarRequisicionLibre(){
   if(!navigator.onLine){ toast('Necesita conexion para enviar la requisicion'); return; }
 
   var payload = encodeURIComponent(JSON.stringify(validos));
-  _gasGet(GAS_URL+'?accion=crear_requisicion_get&om='+encodeURIComponent(om)
+  var fotosParaSubir = FOTOS_LIBRE.slice();
+
+  toast('Enviando requisicion...');
+
+  fetch(GAS_URL+'?accion=crear_requisicion_get&om='+encodeURIComponent(om)
     +'&area='+encodeURIComponent(area)
     +'&tipo='+encodeURIComponent(tipo)
     +'&justificacion='+encodeURIComponent(justificacion)
     +'&solicitante_cc='+encodeURIComponent(USER_CC)
-    +'&items='+payload);
-
-  toast('\u2705 Requisicion enviada a Compras');
-  showHomeSupervisor();
+    +'&items='+payload)
+    .then(function(r){ return r.json(); })
+    .then(function(resp){
+      if(!resp || !resp.ok || !resp.num){
+        toast('Requisicion enviada (no se pudo confirmar el numero)');
+        showHomeSupervisor();
+        return;
+      }
+      var numCreado = resp.num;
+      if(!fotosParaSubir.length){
+        toast('\u2705 Requisicion #'+numCreado+' enviada a Compras');
+        showHomeSupervisor();
+        return;
+      }
+      toast('Subiendo '+fotosParaSubir.length+' foto(s)...');
+      var subidas = fotosParaSubir.map(function(f){
+        return fetch(GAS_URL, {
+          method:'POST',
+          body: JSON.stringify({accion:'sicot_subir_foto', foto_base64: f.data, mime:'image/jpeg'}),
+          headers: {'Content-Type':'text/plain;charset=utf-8'}
+        }).then(function(r){return r.json();}).catch(function(){return {ok:false};});
+      });
+      Promise.all(subidas).then(function(results){
+        var urls = results.filter(function(r){return r && r.ok && r.url;}).map(function(r){return r.url;});
+        if(!urls.length){
+          toast('\u2705 Requisicion #'+numCreado+' enviada (las fotos no se pudieron subir)');
+          showHomeSupervisor();
+          return;
+        }
+        _gasGet(GAS_URL+'?accion=sicot_agregar_fotos_get&num='+encodeURIComponent(numCreado)+'&urls='+encodeURIComponent(urls.join(', ')));
+        toast('\u2705 Requisicion #'+numCreado+' enviada con '+urls.length+' foto(s)');
+        showHomeSupervisor();
+      });
+    })
+    .catch(function(){
+      toast('Error de conexion al enviar la requisicion');
+    });
 }
 
 function showHomeSupervisor(){
@@ -3985,11 +4022,10 @@ document.addEventListener('DOMContentLoaded',()=>{
 // version nueva, para saber con certeza que la actualizacion
 // realmente se cargo (evita la confusion de version cacheada).
 // ============================================================
-var VERSION_ACTUAL = 'v7.7';
+var VERSION_ACTUAL = 'v7.8';
 var NOVEDADES_VERSION = [
-  'Corregido: la Cola de Requisiciones de Compras volvia a mostrar "0 pendientes" por error \u2014 ya funciona de nuevo',
-  'Alertas de dias transcurridos en cada requisicion: \ud83d\udfe1 7+ dias \u00b7 \ud83d\udfe0 15+ dias \u00b7 \ud83d\udd34 30+ dias',
-  'Nueva Requisicion ahora pregunta si tiene OM asociada o es de otra area, y permite adjuntar foto de referencia'
+  'Las fotos adjuntas en Nueva Requisicion ahora si se suben a Drive y quedan vinculadas a la requisicion',
+  'La fecha limite de una requisicion (en Compras) ahora si se guarda correctamente'
 ];
 function mostrarNovedadesSiAplica(){
   try{
