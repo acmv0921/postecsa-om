@@ -152,8 +152,10 @@ input[type=number]{-moz-appearance:textfield}
 <input type="file" id="fi-gal-c" accept="image/*" multiple style="position:fixed;left:-9999px" aria-hidden="true">
 <input type="file" id="fi-cam-nrl" accept="image/*" capture="environment" multiple style="position:fixed;left:-9999px" aria-hidden="true">
 <input type="file" id="fi-gal-nrl" accept="image/*" multiple style="position:fixed;left:-9999px" aria-hidden="true">
+<input type="file" id="fi-cam-cot" accept="image/*" capture="environment" style="position:fixed;left:-9999px" aria-hidden="true">
+<input type="file" id="fi-gal-cot" accept="image/*" style="position:fixed;left:-9999px" aria-hidden="true">
 
-<div id="credito-acm">Diseño &amp; Desarrollo: ABDIEL CICAR MORENO &nbsp;···&nbsp; POSTECSA OM v7.8</div>
+<div id="credito-acm">Diseño &amp; Desarrollo: ABDIEL CICAR MORENO &nbsp;···&nbsp; POSTECSA OM v7.9</div>
 <div id="toast"></div>
 <div id="app"></div>
 
@@ -1267,6 +1269,8 @@ function showRequisicionDetalleCompras(numReq){
           +'<input placeholder="Proveedor 2" value="'+sPDF(it.cot2_proveedor||'')+'" id="p2-'+it.id+'" style="flex:1;padding:9px;border:1.5px solid #cdd5e0;border-radius:8px;font-size:12px">'
           +'<input placeholder="Precio" type="number" value="'+(it.cot2_precio||'')+'" id="v2-'+it.id+'" style="width:110px;padding:9px;border:1.5px solid #cdd5e0;border-radius:8px;font-size:12px">'
           +'</div>'
+          +'<div style="display:flex;gap:6px;align-items:center;margin-top:4px">'+'<button onclick="abrirFotoCotizacion(\''+it.id+'\',1,\'cam\')" style="padding:5px 8px;font-size:11px;background:#ECEFF1;border:none;border-radius:6px;cursor:pointer">📷</button>'+'<button onclick="abrirFotoCotizacion(\''+it.id+'\',1,\'gal\')" style="padding:5px 8px;font-size:11px;background:#ECEFF1;border:none;border-radius:6px;cursor:pointer">🖼</button>'+'<span id="fotoCotBadge-'+it.id+'_1" style="font-size:10px;color:#78909C">'+(it.cot1_foto_url?'✅ Foto · <a href="'+it.cot1_foto_url+'" target="_blank" style="color:#1565C0">Ver</a>':'Adjuntar foto Cot.1')+'</span>'+'</div>'
+          +'<div style="display:flex;gap:6px;align-items:center;margin-top:4px;margin-bottom:6px">'+'<button onclick="abrirFotoCotizacion(\''+it.id+'\',2,\'cam\')" style="padding:5px 8px;font-size:11px;background:#ECEFF1;border:none;border-radius:6px;cursor:pointer">📷</button>'+'<button onclick="abrirFotoCotizacion(\''+it.id+'\',2,\'gal\')" style="padding:5px 8px;font-size:11px;background:#ECEFF1;border:none;border-radius:6px;cursor:pointer">🖼</button>'+'<span id="fotoCotBadge-'+it.id+'_2" style="font-size:10px;color:#78909C">'+(it.cot2_foto_url?'✅ Foto · <a href="'+it.cot2_foto_url+'" target="_blank" style="color:#1565C0">Ver</a>':'Adjuntar foto Cot.2')+'</span>'+'</div>'
           +'<button onclick="guardarCotizacionItem(\''+it.id+'\')" style="width:100%;margin-top:8px;padding:9px;background:#1565C0;color:#fff;border:none;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer">\ud83d\udcBE Guardar cotizaciones</button>'
           +avisoHtml
           +'</div>';
@@ -1282,10 +1286,54 @@ function guardarCotizacionItem(itemId){
   var p2=(document.getElementById('p2-'+itemId).value||'').trim();
   var v2=(document.getElementById('v2-'+itemId).value||'').trim();
   if(!p1||!v1){toast('Complete al menos la primera cotizaci\u00f3n');return;}
+  var foto1=_COT_FOTOS[itemId+'_1']||'';
+  var foto2=_COT_FOTOS[itemId+'_2']||'';
   _gasGet(GAS_URL+'?accion=compras_guardar_cotizacion_get&item_id='+encodeURIComponent(itemId)
     +'&cot1_proveedor='+encodeURIComponent(p1)+'&cot1_precio='+encodeURIComponent(v1)
-    +'&cot2_proveedor='+encodeURIComponent(p2)+'&cot2_precio='+encodeURIComponent(v2));
+    +'&cot2_proveedor='+encodeURIComponent(p2)+'&cot2_precio='+encodeURIComponent(v2)
+    +'&cot1_foto_url='+encodeURIComponent(foto1)+'&cot2_foto_url='+encodeURIComponent(foto2));
   toast('Cotizaci\u00f3n guardada');
+}
+
+var _COT_TARGET=null;
+var _COT_FOTOS={};
+function abrirFotoCotizacion(itemId,slot,modo){
+  _COT_TARGET={itemId:itemId,slot:slot};
+  document.getElementById(modo==='cam'?'fi-cam-cot':'fi-gal-cot').click();
+}
+function procFotoCotizacion(files){
+  if(!files||!files.length||!_COT_TARGET) return;
+  var target=_COT_TARGET;
+  var file=files[0];
+  var reader=new FileReader();
+  reader.onload=function(e){
+    var img=new Image();
+    img.onload=function(){
+      var MAX2=800;
+      var w2=img.width,h2=img.height;
+      if(w2>MAX2){h2=Math.round(h2*MAX2/w2);w2=MAX2;}
+      if(h2>MAX2){w2=Math.round(w2*MAX2/h2);h2=MAX2;}
+      var cv2=document.createElement('canvas');
+      cv2.width=w2;cv2.height=h2;
+      cv2.getContext('2d').drawImage(img,0,0,w2,h2);
+      var data=cv2.toDataURL('image/jpeg',0.6);
+      var key=target.itemId+'_'+target.slot;
+      var badge=document.getElementById('fotoCotBadge-'+key);
+      if(badge) badge.textContent='Subiendo...';
+      fetch(GAS_URL,{method:'POST',body:JSON.stringify({accion:'sicot_subir_foto',foto_base64:data,mime:'image/jpeg'}),headers:{'Content-Type':'text/plain;charset=utf-8'}})
+        .then(function(r){return r.json();})
+        .then(function(res){
+          if(res&&res.ok&&res.url){
+            _COT_FOTOS[key]=res.url;
+            if(badge) badge.innerHTML='\u2705 Foto adjunta \u00b7 <a href="'+res.url+'" target="_blank" style="color:#1565C0">Ver</a>';
+          } else {
+            if(badge) badge.textContent='Error al subir';
+          }
+        }).catch(function(){ if(badge) badge.textContent='Error al subir'; });
+    };
+    img.src=e.target.result;
+  };
+  reader.readAsDataURL(file);
 }
 
 function marcarSuficienteInformacion(itemId, numReq){
@@ -3979,6 +4027,10 @@ document.addEventListener('DOMContentLoaded',()=>{
   const galNRL=document.getElementById('fi-gal-nrl');
   if(camNRL) camNRL.addEventListener('change',e=>{ procFotosLibre(e.target.files); e.target.value=''; });
   if(galNRL) galNRL.addEventListener('change',e=>{ procFotosLibre(e.target.files); e.target.value=''; });
+  const camCOT=document.getElementById('fi-cam-cot');
+  const galCOT=document.getElementById('fi-gal-cot');
+  if(camCOT) camCOT.addEventListener('change',e=>{ procFotoCotizacion(e.target.files); e.target.value=''; });
+  if(galCOT) galCOT.addEventListener('change',e=>{ procFotoCotizacion(e.target.files); e.target.value=''; });
 
   // Detectar online/offline
   window.addEventListener('online',()=>{ toast('✅ Conexión restaurada'); procesarCola(); });
@@ -4022,10 +4074,9 @@ document.addEventListener('DOMContentLoaded',()=>{
 // version nueva, para saber con certeza que la actualizacion
 // realmente se cargo (evita la confusion de version cacheada).
 // ============================================================
-var VERSION_ACTUAL = 'v7.8';
+var VERSION_ACTUAL = 'v7.9';
 var NOVEDADES_VERSION = [
-  'Las fotos adjuntas en Nueva Requisicion ahora si se suben a Drive y quedan vinculadas a la requisicion',
-  'La fecha limite de una requisicion (en Compras) ahora si se guarda correctamente'
+  'Compras ahora puede adjuntar una foto de cada cotizacion (Cot.1 y Cot.2) al guardarlas'
 ];
 function mostrarNovedadesSiAplica(){
   try{
