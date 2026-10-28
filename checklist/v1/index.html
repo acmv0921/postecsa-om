@@ -6,7 +6,7 @@
 <meta name="theme-color" content="#1a3a5c">
 <link rel="manifest" href="./manifest.json">
 <link rel="icon" href="./icon-192.png">
-<title>POSTECSA Checklist v1.0</title>
+<title>POSTECSA Checklist v1.1</title>
 <!-- deploy: 2026-10-28 -->
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
@@ -52,23 +52,8 @@ label{display:block;font-size:.8rem;font-weight:700;margin:8px 0 4px}
 </head>
 <body>
 
-<div id="loginScreen">
-  <div class="header"><h1>POSTECSA &middot; Checklist de equipos</h1><small>v1.0</small></div>
-  <div class="wrap">
-    <div class="card">
-      <h2>Ingreso</h2>
-      <label for="loginCorreo">Correo</label>
-      <input id="loginCorreo" class="form-control" type="email" autocomplete="username" placeholder="correo@postecsa.com">
-      <label for="loginPin">PIN</label>
-      <input id="loginPin" class="form-control" type="password" autocomplete="current-password" maxlength="20" placeholder="Tu PIN">
-      <div class="err" id="loginErr"></div>
-      <button class="btn" onclick="hacerLogin()">Entrar</button>
-    </div>
-  </div>
-</div>
-
-<div id="appMain" class="hide">
-  <div class="header"><h1 id="hdrTitulo">Checklist</h1><small id="hdrUser"></small></div>
+<div id="appMain">
+  <div class="header"><h1 id="hdrTitulo">POSTECSA &middot; Checklist de equipos</h1><small>v1.1</small></div>
   <div id="sbBanner" class="sandbox-banner hide">MODO PRUEBA &mdash; nada se guarda</div>
   <div class="wrap">
 
@@ -76,7 +61,8 @@ label{display:block;font-size:.8rem;font-weight:700;margin:8px 0 4px}
       <div class="card">
         <h2>1. Operario</h2>
         <label for="opNombre">Nombre del operario</label>
-        <input id="opNombre" class="form-control" type="text" placeholder="Nombre y apellido">
+        <input id="opNombre" class="form-control" type="text" list="listaOperarios" placeholder="Nombre y apellido" autocomplete="off">
+        <datalist id="listaOperarios"></datalist>
       </div>
       <div class="card">
         <h2>2. Categor&iacute;a del equipo</h2>
@@ -138,16 +124,13 @@ label{display:block;font-size:.8rem;font-weight:700;margin:8px 0 4px}
 
 <script>
 /* ===== CONFIG ===== */
-const VERSION = 'v1.0';
+const VERSION = 'v1.1';
 const SHEET_ID = '1IlxWD6QiCsntzyjEnJfE5KlB36Q39wJsQLnR0HE9gM4';
 const GAS_URL = 'https://script.google.com/macros/s/AKfycbw_xoH7HoqvHK4x9RdWJpuTnXXVupxL_dsP08yMw-NBJD3WcZt8Zb1Es13QW4_SSnk0/exec';
 const WA_DESTINOS = [
   {nombre:'Abdiel', numero:'573136264397'},
   {nombre:'Wbeimer', numero:'573176549574'}
 ].filter(function(d){ return d.numero.indexOf('X')<0; });
-const SUPERUSUARIOS = ['acmv0921@gmail.com'];
-const ROLES_APP = ['OPERARIO','TECNICO','SUPERVISOR','ADMIN','GERENTE'];
-const ROLES_SUP = ['SUPERVISOR','ADMIN','GERENTE'];
 
 /* Zonas y puntos por categoria (editables) */
 const PLANTILLAS = {
@@ -181,7 +164,7 @@ function toast(m){ const t=$('toast'); t.textContent=m; t.classList.add('on'); s
 function show(id,v){ $(id).classList.toggle('hide', !v); }
 
 async function leerGVIZ(hoja){
-  const url='https://docs.google.com/spreadsheets/d/'+SHEET_ID+'/gviz/tq?tqx=out:json&sheet='+encodeURIComponent(hoja);
+  const url='https://docs.google.com/spreadsheets/d/'+SHEET_ID+'/gviz/tq?tqx=out:json&headers=1&sheet='+encodeURIComponent(hoja);
   const r=await fetch(url); const t=await r.text();
   const j=JSON.parse(t.substring(47,t.length-2));
   const cols=j.table.cols.map(c=>c.label||c.id);
@@ -198,42 +181,27 @@ async function escribirGAS(body){
   await new Promise(r=>setTimeout(r,900));
 }
 
-/* ===== LOGIN ===== */
-async function hacerLogin(){
-  const correo=$('loginCorreo').value.trim().toLowerCase();
-  const pin=$('loginPin').value.trim();
-  const err=$('loginErr');
-  if(!correo||!pin){ err.textContent='Completa correo y PIN'; return; }
-  err.textContent='Verificando...';
-  try{
-    _usuarios=await leerGVIZ('USUARIOS_MAESTRO');
-    const u=_usuarios.find(x=>String(x.correo||'').toLowerCase().trim()===correo);
-    if(!u){ err.textContent='Correo no registrado'; return; }
-    const est=String(u.estado||'').trim().toUpperCase();
-    if(est!=='ACTIVO'){ err.textContent='Usuario inactivo'; return; }
-    if(pin!==String(u.pin_individual||u.pin||'').trim()){ err.textContent='PIN incorrecto'; return; }
-    const rol=String(u.rol||u.cargo||'').trim().toUpperCase();
-    if(SUPERUSUARIOS.indexOf(correo)<0 && ROLES_APP.indexOf(rol)<0){ err.textContent='Sin acceso a esta app ('+rol+')'; return; }
-    STATE.usuario=correo; STATE.rol=rol;
-    STATE.nombre=u.nombre_completo||u.nombre||correo;
-    $('hdrUser').textContent=STATE.nombre;
-    if(correo==='acmv0921@gmail.com'){ activarSandbox(); }
-    iniciarApp();
-  }catch(e){ err.textContent='Error de conexión: '+e.message; console.error(e); }
-}
+/* ===== INICIO (sin login, como OM: el operario se identifica por nombre) ===== */
 function activarSandbox(){ _SANDBOX=true; show('sbBanner',true); }
 
-function iniciarApp(){
-  show('loginScreen',false); show('appMain',true);
-  $('hdrTitulo').textContent='Checklist de equipos';
-  $('opNombre').value=STATE.nombre;
+async function iniciarApp(){
+  if(/[?&]prueba=1/.test(location.search)) activarSandbox();
+  try{
+    const m=await leerGVIZ('Mecanicos');
+    const dl=$('listaOperarios'); const vistos={};
+    m.forEach(function(r){
+      const n=String(r.Nombre||r.nombre||'').trim();
+      if(n && !vistos[n]){ vistos[n]=1; const o=document.createElement('option'); o.value=n; dl.appendChild(o); }
+    });
+  }catch(e){ console.warn('Sin lista de operarios',e); }
+  try{ _usuarios=await leerGVIZ('SUPERVISORES_CHECKLIST'); }catch(e){ _usuarios=[]; }
   llenarSupervisores();
 }
 
 function llenarSupervisores(){
   const s=$('supSel'); s.innerHTML='';
-  _usuarios.filter(u=>ROLES_SUP.indexOf(String(u.rol||'').trim().toUpperCase())>=0 && String(u.estado||'').trim().toUpperCase()==='ACTIVO')
-    .forEach(u=>{ const o=document.createElement('option'); o.value=String(u.correo||'').toLowerCase(); o.textContent=u.nombre_completo||u.correo; s.appendChild(o); });
+  _usuarios.filter(function(u){ return String(u.nombre||'').trim() && String(u.estado||'ACTIVO').trim().toUpperCase()==='ACTIVO'; })
+    .forEach(function(u){ const o=document.createElement('option'); o.value=String(u.nombre).trim(); o.textContent=String(u.nombre).trim(); s.appendChild(o); });
 }
 
 /* ===== PASO 1: categoria y equipo ===== */
@@ -368,13 +336,13 @@ function toggleAut(){
 }
 
 function validarSupervisor(){
-  const correo=$('supSel').value;
+  const nombre=$('supSel').value;
   const pin=$('supPin').value.trim();
-  const u=_usuarios.find(x=>String(x.correo||'').toLowerCase()===correo);
+  const u=_usuarios.find(function(x){ return String(x.nombre||'').trim()===nombre; });
   const msg=$('autMsg');
-  if(!u||pin!==String(u.pin_individual||u.pin||'').trim()){ msg.style.color='#b3261e'; msg.textContent='PIN del supervisor incorrecto'; STATE.autorizado=null; return; }
-  STATE.autorizado={correo:correo,nombre:u.nombre_completo||correo,ts:new Date().toISOString()};
-  msg.style.color='#2e7d32'; msg.textContent='Autorizado por '+STATE.autorizado.nombre;
+  if(!u||!pin||pin!==String(u.pin||'').trim()){ msg.style.color='#b3261e'; msg.textContent='PIN del supervisor incorrecto'; STATE.autorizado=null; return; }
+  STATE.autorizado={correo:'',nombre:nombre,ts:new Date().toISOString()};
+  msg.style.color='#2e7d32'; msg.textContent='Autorizado por '+nombre;
   $('supPin').value='';
 }
 
@@ -394,7 +362,7 @@ async function guardarChecklist(){
     const id='CHK-'+Date.now();
     const body={
       accion:'guardarChecklist', id:id, version:VERSION,
-      fecha:new Date().toISOString(), operario:STATE.nombre, usuario:STATE.usuario,
+      fecha:new Date().toISOString(), operario:STATE.nombre, usuario:'',
       categoria:STATE.cat, equipo:STATE.equipo, lectura:$('horometro').value||'',
       total_puntos:todas.length, total_nc:nc.length,
       opera_con_fallas:($('chkOperar').checked&&nc.length>0)?'SI':'NO',
@@ -440,6 +408,7 @@ function nuevo(){
   window.scrollTo(0,0);
 }
 
+iniciarApp();
 if('serviceWorker' in navigator){
   window.addEventListener('load',function(){ navigator.serviceWorker.register('./sw.js',{scope:'./'}).catch(function(e){console.warn('SW error',e);}); });
 }
