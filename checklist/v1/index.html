@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html lang="es-CO">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#1a3a5c">
+<link rel="manifest" href="./manifest.json">
+<link rel="icon" href="./icon-192.png">
+<title>POSTECSA Checklist v1.0</title>
+<!-- deploy: 2026-10-28 -->
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:Arial,Helvetica,sans-serif;background:#eef2f6;color:#1d2b3a;min-height:100vh}
+.header{background:#1a3a5c;color:#fff;padding:12px 14px;display:flex;align-items:center;gap:10px}
+.header h1{font-size:1rem;flex:1}
+.header small{opacity:.8;font-size:.7rem}
+.wrap{max-width:640px;margin:0 auto;padding:12px}
+.card{background:#fff;border-radius:10px;padding:14px;margin-bottom:12px;box-shadow:0 1px 4px rgba(0,0,0,.12)}
+.card h2{font-size:.95rem;margin-bottom:10px;color:#1a3a5c}
+label{display:block;font-size:.8rem;font-weight:700;margin:8px 0 4px}
+.form-control{width:100%;padding:10px;border:1px solid #b8c4d0;border-radius:7px;font-size:1rem}
+.btn{display:block;width:100%;padding:13px;border:0;border-radius:8px;font-size:1rem;font-weight:700;cursor:pointer;background:#e05c1a;color:#fff;margin-top:12px}
+.btn.sec{background:#1a3a5c}
+.btn.gris{background:#8794a1}
+.btn:disabled{opacity:.5}
+.err{color:#b3261e;font-size:.8rem;margin-top:8px;min-height:1em}
+.cats{display:flex;gap:10px}
+.cat{flex:1;padding:16px 8px;border:2px solid #b8c4d0;border-radius:10px;text-align:center;font-weight:700;cursor:pointer;background:#fff}
+.cat.on{border-color:#e05c1a;background:#fff1ea}
+.cat span{display:block;font-size:.7rem;font-weight:400;color:#555;margin-top:4px}
+.zona{border-left:5px solid #1a3a5c}
+.zona h3{font-size:.9rem;margin-bottom:8px}
+.item{border-top:1px solid #e3e8ee;padding:10px 0}
+.item .t{font-size:.9rem;margin-bottom:8px}
+.cn{display:flex;gap:8px}
+.cn button{flex:1;padding:11px;border-radius:7px;border:2px solid #b8c4d0;background:#fff;font-weight:700;font-size:.9rem;cursor:pointer}
+.cn button.ok.on{background:#2e7d32;border-color:#2e7d32;color:#fff}
+.cn button.nc.on{background:#c62828;border-color:#c62828;color:#fff}
+.ncbox{background:#fdecea;border-radius:7px;padding:10px;margin-top:8px}
+.ncbox textarea{width:100%;min-height:60px;padding:8px;border:1px solid #d99;border-radius:6px;font-size:.9rem}
+.ncbox .foto{margin-top:6px;font-size:.8rem}
+.ncbox img{max-width:100%;border-radius:6px;margin-top:6px;display:block}
+.prog{height:8px;background:#d5dde6;border-radius:5px;overflow:hidden;margin:6px 0 12px}
+.prog i{display:block;height:100%;background:#2e7d32;width:0}
+.warn{background:#fff4d6;border:1px solid #e5b400;border-radius:8px;padding:10px;font-size:.85rem;margin-top:8px}
+.hide{display:none}
+#toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:#222;color:#fff;padding:10px 16px;border-radius:20px;font-size:.85rem;opacity:0;transition:opacity .25s;pointer-events:none;z-index:99;max-width:90%;text-align:center}
+#toast.on{opacity:1}
+.sandbox-banner{background:#e5b400;color:#222;text-align:center;font-size:.8rem;font-weight:700;padding:5px}
+.resumen b{color:#c62828}
+</style>
+</head>
+<body>
+
+<div id="loginScreen">
+  <div class="header"><h1>POSTECSA &middot; Checklist de equipos</h1><small>v1.0</small></div>
+  <div class="wrap">
+    <div class="card">
+      <h2>Ingreso</h2>
+      <label for="loginCorreo">Correo</label>
+      <input id="loginCorreo" class="form-control" type="email" autocomplete="username" placeholder="correo@postecsa.com">
+      <label for="loginPin">PIN</label>
+      <input id="loginPin" class="form-control" type="password" autocomplete="current-password" maxlength="20" placeholder="Tu PIN">
+      <div class="err" id="loginErr"></div>
+      <button class="btn" onclick="hacerLogin()">Entrar</button>
+    </div>
+  </div>
+</div>
+
+<div id="appMain" class="hide">
+  <div class="header"><h1 id="hdrTitulo">Checklist</h1><small id="hdrUser"></small></div>
+  <div id="sbBanner" class="sandbox-banner hide">MODO PRUEBA &mdash; nada se guarda</div>
+  <div class="wrap">
+
+    <div id="pasoInicio">
+      <div class="card">
+        <h2>1. Operario</h2>
+        <label for="opNombre">Nombre del operario</label>
+        <input id="opNombre" class="form-control" type="text" placeholder="Nombre y apellido">
+      </div>
+      <div class="card">
+        <h2>2. Categor&iacute;a del equipo</h2>
+        <div class="cats">
+          <div class="cat" id="catVEH" onclick="elegirCat('VEHICULO')">Veh&iacute;culos<span>Camioneta, cami&oacute;n, moto</span></div>
+          <div class="cat" id="catMAQ" onclick="elegirCat('MAQUINARIA')">Maquinaria amarilla<span>Komatsu, Case, cargador</span></div>
+        </div>
+        <label for="equipoSel">Equipo</label>
+        <select id="equipoSel" class="form-control" onchange="equipoCambio()"></select>
+        <input id="equipoManual" class="form-control hide" type="text" placeholder="Escribe placa o nombre del equipo" style="margin-top:6px">
+        <label for="horometro">Hor&oacute;metro / Kilometraje (opcional)</label>
+        <input id="horometro" class="form-control" type="number" inputmode="decimal" placeholder="Lectura actual">
+        <div class="err" id="iniErr"></div>
+        <button class="btn" onclick="iniciarInspeccion()">Iniciar inspecci&oacute;n</button>
+      </div>
+    </div>
+
+    <div id="pasoInsp" class="hide">
+      <div class="card">
+        <b id="inspTitulo"></b>
+        <div class="prog"><i id="progBar"></i></div>
+        <small id="progTxt"></small>
+      </div>
+      <div id="zonas"></div>
+
+      <div class="card hide" id="cardAut">
+        <h2>Autorizaci&oacute;n para operar con fallas</h2>
+        <div class="warn">Hay <b id="autN">0</b> no conformidad(es). Para operar o trasladar el equipo, un supervisor debe autorizarlo aqu&iacute; mismo.</div>
+        <label><input type="checkbox" id="chkOperar" onchange="toggleAut()"> Necesito operar o trasladar el equipo con estas fallas</label>
+        <div id="autBox" class="hide">
+          <label for="supSel">Supervisor que autoriza</label>
+          <select id="supSel" class="form-control"></select>
+          <label for="supPin">PIN del supervisor</label>
+          <input id="supPin" class="form-control" type="password" maxlength="20" autocomplete="off">
+          <button class="btn sec" type="button" onclick="validarSupervisor()">Autorizar</button>
+          <div class="err" id="autMsg"></div>
+        </div>
+      </div>
+
+      <div class="err" id="saveErr"></div>
+      <button class="btn" id="btnGuardar" onclick="guardarChecklist()">Guardar reporte</button>
+      <button class="btn gris" onclick="cancelar()">Cancelar</button>
+    </div>
+
+    <div id="pasoFin" class="hide">
+      <div class="card resumen">
+        <h2>Reporte guardado</h2>
+        <p id="finTxt"></p>
+        <div id="waBtns"></div>
+        <button class="btn sec" onclick="nuevo()">Nueva inspecci&oacute;n</button>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<input type="file" id="fileFoto" accept="image/*" capture="environment" style="display:none" onchange="fotoElegida(this)">
+<div id="toast"></div>
+
+<script>
+/* ===== CONFIG ===== */
+const VERSION = 'v1.0';
+const SHEET_ID = '1IlxWD6QiCsntzyjEnJfE5KlB36Q39wJsQLnR0HE9gM4';
+const GAS_URL = 'https://script.google.com/macros/s/AKfycbw_xoH7HoqvHK4x9RdWJpuTnXXVupxL_dsP08yMw-NBJD3WcZt8Zb1Es13QW4_SSnk0/exec';
+const WA_DESTINOS = [
+  {nombre:'Abdiel', numero:'573136264397'},
+  {nombre:'Wbeimer', numero:'573176549574'}
+].filter(function(d){ return d.numero.indexOf('X')<0; });
+const SUPERUSUARIOS = ['acmv0921@gmail.com'];
+const ROLES_APP = ['OPERARIO','TECNICO','SUPERVISOR','ADMIN','GERENTE'];
+const ROLES_SUP = ['SUPERVISOR','ADMIN','GERENTE'];
+
+/* Zonas y puntos por categoria (editables) */
+const PLANTILLAS = {
+  VEHICULO: [
+    {z:'Frente', items:['Luces delanteras (bajas/altas)','Pito','Parabrisas y limpiaparabrisas','Placa y documentos']},
+    {z:'Lateral', items:['Espejos retrovisores','Puertas y cerraduras','Carrocería sin daños']},
+    {z:'Motor', items:['Nivel de aceite','Nivel de refrigerante','Nivel de líquido de frenos','Fugas visibles','Batería']},
+    {z:'Cabina', items:['Frenos y freno de mano','Dirección','Cinturones de seguridad','Tablero sin alertas','Luces direccionales y de freno']},
+    {z:'Llantas', items:['Presión y desgaste','Llanta de repuesto','Kit de carretera y extintor']}
+  ],
+  MAQUINARIA: [
+    {z:'Frente', items:['Luces de trabajo','Alarma de reversa / pito','Cucharón / implemento sin daños','Pasadores y bujes']},
+    {z:'Lateral', items:['Mangueras hidráulicas sin fugas','Cilindros hidráulicos','Tanque hidráulico (nivel)','Tanque de combustible']},
+    {z:'Motor', items:['Nivel de aceite del motor','Nivel de refrigerante','Filtro de aire','Correas','Fugas visibles','Batería']},
+    {z:'Cabina', items:['Frenos y freno de parqueo','Controles y palancas','Cinturón de seguridad','Tablero sin alertas','Extintor','Vidrios y espejos']},
+    {z:'Llantas / Orugas', items:['Llantas o tren de rodaje','Presión y desgaste','Engrase general']}
+  ]
+};
+
+/* ===== ESTADO ===== */
+const STATE = { usuario:null, rol:'', nombre:'', cat:'', equipo:'', respuestas:{}, autorizado:null, ultimoNC:[], ultimoEquipo:'' };
+let _SANDBOX = false;
+let _guardando = false;
+let _fotoTarget = null;
+let _equiposCat = [];
+let _usuarios = [];
+
+/* ===== UTIL ===== */
+function $(id){ return document.getElementById(id); }
+function toast(m){ const t=$('toast'); t.textContent=m; t.classList.add('on'); setTimeout(()=>t.classList.remove('on'),2600); }
+function show(id,v){ $(id).classList.toggle('hide', !v); }
+
+async function leerGVIZ(hoja){
+  const url='https://docs.google.com/spreadsheets/d/'+SHEET_ID+'/gviz/tq?tqx=out:json&sheet='+encodeURIComponent(hoja);
+  const r=await fetch(url); const t=await r.text();
+  const j=JSON.parse(t.substring(47,t.length-2));
+  const cols=j.table.cols.map(c=>c.label||c.id);
+  return j.table.rows.map(row=>{ const o={}; cols.forEach((c,i)=>{ const cell=row.c[i]; o[c]=cell?cell.v:''; }); return o; });
+}
+
+async function escribirGAS(body){
+  if(_SANDBOX){ await new Promise(r=>setTimeout(r,500)); toast('[PRUEBA] '+(body.accion||'op')+' simulada'); return; }
+  try{
+    await fetch(GAS_URL,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain'},body:JSON.stringify(body)});
+  }catch(e){
+    const x=new XMLHttpRequest(); x.open('POST',GAS_URL,true); x.setRequestHeader('Content-Type','text/plain'); x.send(JSON.stringify(body));
+  }
+  await new Promise(r=>setTimeout(r,900));
+}
+
+/* ===== LOGIN ===== */
+async function hacerLogin(){
+  const correo=$('loginCorreo').value.trim().toLowerCase();
+  const pin=$('loginPin').value.trim();
+  const err=$('loginErr');
+  if(!correo||!pin){ err.textContent='Completa correo y PIN'; return; }
+  err.textContent='Verificando...';
+  try{
+    _usuarios=await leerGVIZ('USUARIOS_MAESTRO');
+    const u=_usuarios.find(x=>String(x.correo||'').toLowerCase().trim()===correo);
+    if(!u){ err.textContent='Correo no registrado'; return; }
+    const est=String(u.estado||'').trim().toUpperCase();
+    if(est!=='ACTIVO'){ err.textContent='Usuario inactivo'; return; }
+    if(pin!==String(u.pin_individual||u.pin||'').trim()){ err.textContent='PIN incorrecto'; return; }
+    const rol=String(u.rol||u.cargo||'').trim().toUpperCase();
+    if(SUPERUSUARIOS.indexOf(correo)<0 && ROLES_APP.indexOf(rol)<0){ err.textContent='Sin acceso a esta app ('+rol+')'; return; }
+    STATE.usuario=correo; STATE.rol=rol;
+    STATE.nombre=u.nombre_completo||u.nombre||correo;
+    $('hdrUser').textContent=STATE.nombre;
+    if(correo==='acmv0921@gmail.com'){ activarSandbox(); }
+    iniciarApp();
+  }catch(e){ err.textContent='Error de conexión: '+e.message; console.error(e); }
+}
+function activarSandbox(){ _SANDBOX=true; show('sbBanner',true); }
+
+function iniciarApp(){
+  show('loginScreen',false); show('appMain',true);
+  $('hdrTitulo').textContent='Checklist de equipos';
+  $('opNombre').value=STATE.nombre;
+  llenarSupervisores();
+}
+
+function llenarSupervisores(){
+  const s=$('supSel'); s.innerHTML='';
+  _usuarios.filter(u=>ROLES_SUP.indexOf(String(u.rol||'').trim().toUpperCase())>=0 && String(u.estado||'').trim().toUpperCase()==='ACTIVO')
+    .forEach(u=>{ const o=document.createElement('option'); o.value=String(u.correo||'').toLowerCase(); o.textContent=u.nombre_completo||u.correo; s.appendChild(o); });
+}
+
+/* ===== PASO 1: categoria y equipo ===== */
+async function elegirCat(c){
+  STATE.cat=c;
+  $('catVEH').classList.toggle('on',c==='VEHICULO');
+  $('catMAQ').classList.toggle('on',c==='MAQUINARIA');
+  const sel=$('equipoSel'); sel.innerHTML='<option>Cargando...</option>';
+  try{
+    const todos=await leerGVIZ('EQUIPOS_CHECKLIST');
+    _equiposCat=todos.filter(e=>String(e.categoria||'').toUpperCase()===c && String(e.estado||'ACTIVO').toUpperCase()==='ACTIVO');
+  }catch(e){ _equiposCat=[]; }
+  sel.innerHTML='';
+  _equiposCat.forEach(e=>{ const o=document.createElement('option'); o.value=e.codigo||e.nombre; o.textContent=(e.codigo?e.codigo+' - ':'')+(e.nombre||''); sel.appendChild(o); });
+  const o2=document.createElement('option'); o2.value='__OTRO__'; o2.textContent='Otro (escribir)'; sel.appendChild(o2);
+  equipoCambio();
+}
+function equipoCambio(){ show('equipoManual', $('equipoSel').value==='__OTRO__'); }
+
+function iniciarInspeccion(){
+  const err=$('iniErr');
+  const nom=$('opNombre').value.trim();
+  if(!nom){ err.textContent='Escribe el nombre del operario'; return; }
+  if(!STATE.cat){ err.textContent='Elige la categoría del equipo'; return; }
+  let eq=$('equipoSel').value;
+  if(eq==='__OTRO__') eq=$('equipoManual').value.trim();
+  if(!eq){ err.textContent='Elige o escribe el equipo'; return; }
+  err.textContent='';
+  STATE.nombre=nom; STATE.equipo=eq; STATE.respuestas={}; STATE.autorizado=null;
+  construirZonas();
+  show('pasoInicio',false); show('pasoInsp',true);
+  $('inspTitulo').textContent=(STATE.cat==='VEHICULO'?'Vehículo: ':'Maquinaria: ')+eq;
+  actualizar();
+  window.scrollTo(0,0);
+}
+
+/* ===== PASO 2: inspeccion por zonas ===== */
+function construirZonas(){
+  const cont=$('zonas'); cont.innerHTML='';
+  PLANTILLAS[STATE.cat].forEach((zona,zi)=>{
+    const card=document.createElement('div'); card.className='card zona';
+    const h=document.createElement('h3'); h.textContent=zona.z; card.appendChild(h);
+    zona.items.forEach((txt,ii)=>{
+      const k=zi+'_'+ii;
+      STATE.respuestas[k]={zona:zona.z,punto:txt,estado:'',obs:'',foto:''};
+      const it=document.createElement('div'); it.className='item'; it.id='it_'+k;
+      const t=document.createElement('div'); t.className='t'; t.textContent=txt; it.appendChild(t);
+      const cn=document.createElement('div'); cn.className='cn';
+      const bo=document.createElement('button'); bo.type='button'; bo.className='ok'; bo.textContent='Conforme'; bo.onclick=()=>marcar(k,'C');
+      const bn=document.createElement('button'); bn.type='button'; bn.className='nc'; bn.textContent='No conforme'; bn.onclick=()=>marcar(k,'NC');
+      cn.appendChild(bo); cn.appendChild(bn); it.appendChild(cn);
+      const nb=document.createElement('div'); nb.className='ncbox hide'; nb.id='nc_'+k;
+      nb.innerHTML='<b style="font-size:.8rem">Describe la falla o toma una foto (obligatorio)</b>'+
+        '<textarea placeholder="Observación..." oninput="obsCambio(\''+k+'\',this.value)"></textarea>'+
+        '<div class="foto"><button type="button" class="btn sec" style="margin-top:6px;padding:9px" onclick="pedirFoto(\''+k+'\')">Tomar foto de la falla</button><div id="img_'+k+'"></div></div>';
+      it.appendChild(nb);
+      card.appendChild(it);
+    });
+    cont.appendChild(card);
+  });
+}
+
+function marcar(k,e){
+  const r=STATE.respuestas[k]; r.estado=e;
+  const it=$('it_'+k);
+  it.querySelector('.ok').classList.toggle('on',e==='C');
+  it.querySelector('.nc').classList.toggle('on',e==='NC');
+  show('nc_'+k, e==='NC');
+  if(e==='C'){ r.obs=''; r.foto=''; $('img_'+k).innerHTML=''; it.querySelector('textarea').value=''; }
+  actualizar();
+}
+function obsCambio(k,v){ STATE.respuestas[k].obs=v.trim(); actualizar(); }
+function pedirFoto(k){ _fotoTarget=k; $('fileFoto').value=''; $('fileFoto').click(); }
+
+async function fotoElegida(inp){
+  const f=inp.files&&inp.files[0]; if(!f||!_fotoTarget) return;
+  const k=_fotoTarget;
+  try{
+    const gps=await capturarGPS().catch(()=>null);
+    const dataUrl=await marcaDeAgua(f,gps);
+    STATE.respuestas[k].foto=dataUrl;
+    $('img_'+k).innerHTML='<img src="'+dataUrl+'" alt="Foto de la falla">';
+    actualizar();
+  }catch(e){ toast('No se pudo procesar la foto'); console.error(e); }
+}
+
+function capturarGPS(){
+  return new Promise((res,rej)=>{
+    if(!navigator.geolocation){ rej(new Error('sin GPS')); return; }
+    navigator.geolocation.getCurrentPosition(p=>res({lat:p.coords.latitude,lng:p.coords.longitude}),e=>rej(e),{enableHighAccuracy:true,timeout:8000,maximumAge:0});
+  });
+}
+
+function marcaDeAgua(file,gps){
+  return new Promise((resolve,reject)=>{
+    const img=new Image();
+    img.onload=()=>{
+      const max=1280; let w=img.width,h=img.height;
+      if(w>max||h>max){ const r=Math.min(max/w,max/h); w*=r; h*=r; }
+      const c=document.createElement('canvas'); c.width=w; c.height=h;
+      const x=c.getContext('2d'); x.drawImage(img,0,0,w,h);
+      const b=Math.max(60,h*0.12);
+      x.fillStyle='rgba(0,0,0,0.55)'; x.fillRect(0,h-b,w,b);
+      const d=new Date();
+      x.fillStyle='#fff'; x.font=Math.max(12,w*0.025)+'px Arial';
+      x.fillText(d.toLocaleDateString('es-CO')+' '+d.toLocaleTimeString('es-CO')+'  '+STATE.equipo,10,h-b+b*0.4);
+      if(gps) x.fillText('GPS: '+gps.lat.toFixed(6)+', '+gps.lng.toFixed(6),10,h-b+b*0.75);
+      resolve(c.toDataURL('image/jpeg',0.7));
+    };
+    img.onerror=reject;
+    img.src=URL.createObjectURL(file);
+  });
+}
+
+function contarNC(){ return Object.values(STATE.respuestas).filter(r=>r.estado==='NC'); }
+
+function actualizar(){
+  const todas=Object.values(STATE.respuestas);
+  const resp=todas.filter(r=>r.estado).length;
+  $('progBar').style.width=(todas.length?resp*100/todas.length:0)+'%';
+  $('progTxt').textContent=resp+' de '+todas.length+' puntos evaluados';
+  const nc=contarNC();
+  $('autN').textContent=nc.length;
+  show('cardAut', nc.length>0);
+  if(nc.length===0){ STATE.autorizado=null; $('chkOperar').checked=false; show('autBox',false); }
+}
+
+function toggleAut(){
+  const on=$('chkOperar').checked;
+  show('autBox',on);
+  if(!on){ STATE.autorizado=null; $('autMsg').textContent=''; }
+}
+
+function validarSupervisor(){
+  const correo=$('supSel').value;
+  const pin=$('supPin').value.trim();
+  const u=_usuarios.find(x=>String(x.correo||'').toLowerCase()===correo);
+  const msg=$('autMsg');
+  if(!u||pin!==String(u.pin_individual||u.pin||'').trim()){ msg.style.color='#b3261e'; msg.textContent='PIN del supervisor incorrecto'; STATE.autorizado=null; return; }
+  STATE.autorizado={correo:correo,nombre:u.nombre_completo||correo,ts:new Date().toISOString()};
+  msg.style.color='#2e7d32'; msg.textContent='Autorizado por '+STATE.autorizado.nombre;
+  $('supPin').value='';
+}
+
+/* ===== GUARDAR ===== */
+async function guardarChecklist(){
+  if(_guardando) return;
+  const err=$('saveErr'); err.textContent='';
+  const todas=Object.values(STATE.respuestas);
+  const sin=todas.filter(r=>!r.estado);
+  if(sin.length){ err.textContent='Faltan '+sin.length+' punto(s) por evaluar.'; return; }
+  const nc=contarNC();
+  const falta=nc.filter(r=>!r.foto && !r.obs);
+  if(falta.length){ err.textContent='Cada no conformidad necesita una foto o una observación ('+falta.length+' pendiente/s).'; return; }
+  if(nc.length>0 && $('chkOperar').checked && !STATE.autorizado){ err.textContent='Falta la autorización del supervisor para operar con fallas.'; return; }
+  _guardando=true; $('btnGuardar').disabled=true;
+  try{
+    const id='CHK-'+Date.now();
+    const body={
+      accion:'guardarChecklist', id:id, version:VERSION,
+      fecha:new Date().toISOString(), operario:STATE.nombre, usuario:STATE.usuario,
+      categoria:STATE.cat, equipo:STATE.equipo, lectura:$('horometro').value||'',
+      total_puntos:todas.length, total_nc:nc.length,
+      opera_con_fallas:($('chkOperar').checked&&nc.length>0)?'SI':'NO',
+      autorizado_por:STATE.autorizado?STATE.autorizado.nombre:'',
+      autorizado_correo:STATE.autorizado?STATE.autorizado.correo:'',
+      autorizado_ts:STATE.autorizado?STATE.autorizado.ts:'',
+      detalle:todas.map(r=>({zona:r.zona,punto:r.punto,estado:r.estado,obs:r.obs,foto:r.foto?r.foto.split(',')[1]:''}))
+    };
+    await escribirGAS(body);
+    STATE.ultimoNC=nc; STATE.ultimoEquipo=STATE.equipo;
+    $('finTxt').innerHTML='Equipo <b>'+STATE.equipo+'</b>: '+todas.length+' puntos revisados, <b>'+nc.length+'</b> no conformidad(es).'+
+      (nc.length>0?(body.opera_con_fallas==='SI'?' Opera con fallas autorizado por '+body.autorizado_por+'.':' El equipo NO debe operar hasta ser revisado.'):' Sin novedades.');
+    pintarWA(nc.length>0);
+    show('pasoInsp',false); show('pasoFin',true);
+    window.scrollTo(0,0);
+  }catch(e){ err.textContent='Error al guardar: '+e.message; console.error(e); }
+  finally{ _guardando=false; $('btnGuardar').disabled=false; }
+}
+
+function pintarWA(ver){
+  const c=$('waBtns'); c.innerHTML='';
+  if(!ver) return;
+  WA_DESTINOS.forEach(function(d){
+    const b=document.createElement('button'); b.type='button'; b.className='btn';
+    b.textContent='Enviar alerta por WhatsApp a '+d.nombre;
+    b.onclick=function(){ abrirWA(d.numero); };
+    c.appendChild(b);
+  });
+}
+function abrirWA(numero){
+  const nc=STATE.ultimoNC;
+  let m='*ALERTA CHECKLIST* - '+STATE.ultimoEquipo+'\nOperario: '+STATE.nombre+'\nNo conformidades ('+nc.length+'):\n';
+  nc.forEach(r=>{ m+='- '+r.zona+' / '+r.punto+(r.obs?': '+r.obs:'')+'\n'; });
+  window.open('https://wa.me/'+numero+'?text='+encodeURIComponent(m),'_blank');
+}
+
+function cancelar(){ if(confirm('¿Descartar esta inspección?')) nuevo(); }
+function nuevo(){
+  STATE.cat=''; STATE.equipo=''; STATE.respuestas={}; STATE.autorizado=null;
+  $('catVEH').classList.remove('on'); $('catMAQ').classList.remove('on');
+  $('equipoSel').innerHTML=''; $('horometro').value=''; $('chkOperar').checked=false; $('autMsg').textContent='';
+  show('equipoManual',false); show('pasoInsp',false); show('pasoFin',false); show('pasoInicio',true);
+  window.scrollTo(0,0);
+}
+
+if('serviceWorker' in navigator){
+  window.addEventListener('load',function(){ navigator.serviceWorker.register('./sw.js',{scope:'./'}).catch(function(e){console.warn('SW error',e);}); });
+}
+</script>
+</body>
+</html>

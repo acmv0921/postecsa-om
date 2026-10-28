@@ -1,0 +1,20 @@
+{
+  "name": "POSTECSA Checklist de Equipos",
+  "short_name": "Checklist",
+  "description": "Lista de chequeo digital de vehiculos y maquinaria - POSTECSA",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "display_override": ["standalone", "minimal-ui", "browser"],
+  "orientation": "any",
+  "background_color": "#1a3a5c",
+  "theme_color": "#1a3a5c",
+  "lang": "es-CO",
+  "prefer_related_applications": false,
+  "icons": [
+    { "src": "./icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "./icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable" },
+    { "src": "./icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "./icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
