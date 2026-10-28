@@ -6,7 +6,7 @@
 <meta name="theme-color" content="#1a3a5c">
 <link rel="manifest" href="./manifest.json">
 <link rel="icon" href="./icon-192.png">
-<title>POSTECSA Checklist v1.1</title>
+<title>POSTECSA Checklist v1.3</title>
 <!-- deploy: 2026-10-28 -->
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
@@ -36,6 +36,11 @@ label{display:block;font-size:.8rem;font-weight:700;margin:8px 0 4px}
 .cn button{flex:1;padding:11px;border-radius:7px;border:2px solid #b8c4d0;background:#fff;font-weight:700;font-size:.9rem;cursor:pointer}
 .cn button.ok.on{background:#2e7d32;border-color:#2e7d32;color:#fff}
 .cn button.nc.on{background:#c62828;border-color:#c62828;color:#fff}
+.cn button.na{flex:.6;font-weight:600;color:#555}
+.cn button.na.on{background:#6b7785;border-color:#6b7785;color:#fff}
+.cn button.rl.on{background:#1a3a5c;border-color:#1a3a5c;color:#fff}
+.zona.mp{border-left-color:#e05c1a}
+.hint{font-size:.8rem;color:#b3261e;margin-top:6px}
 .ncbox{background:#fdecea;border-radius:7px;padding:10px;margin-top:8px}
 .ncbox textarea{width:100%;min-height:60px;padding:8px;border:1px solid #d99;border-radius:6px;font-size:.9rem}
 .ncbox .foto{margin-top:6px;font-size:.8rem}
@@ -53,7 +58,7 @@ label{display:block;font-size:.8rem;font-weight:700;margin:8px 0 4px}
 <body>
 
 <div id="appMain">
-  <div class="header"><h1 id="hdrTitulo">POSTECSA &middot; Checklist de equipos</h1><small>v1.1</small></div>
+  <div class="header"><h1 id="hdrTitulo">POSTECSA &middot; Checklist de equipos</h1><small>v1.3</small></div>
   <div id="sbBanner" class="sandbox-banner hide">MODO PRUEBA &mdash; nada se guarda</div>
   <div class="wrap">
 
@@ -65,18 +70,16 @@ label{display:block;font-size:.8rem;font-weight:700;margin:8px 0 4px}
         <datalist id="listaOperarios"></datalist>
       </div>
       <div class="card">
-        <h2>2. Categor&iacute;a del equipo</h2>
-        <div class="cats">
-          <div class="cat" id="catVEH" onclick="elegirCat('VEHICULO')">Veh&iacute;culos<span>Camioneta, cami&oacute;n, moto</span></div>
-          <div class="cat" id="catMON" onclick="elegirCat('MONTACARGAS')">Montacargas<span>Yale, Caterpillar, Komatsu</span></div>
-          <div class="cat" id="catMAQ" onclick="elegirCat('MAQUINARIA')">Maquinaria amarilla<span>Minicargador Case</span></div>
-        </div>
+        <h2>2. &Aacute;rea y equipo</h2>
+        <label for="areaSel">&Aacute;rea</label>
+        <select id="areaSel" class="form-control" onchange="areaCambio()"></select>
         <label for="equipoSel">Equipo</label>
         <select id="equipoSel" class="form-control" onchange="equipoCambio()"></select>
-        <input id="equipoManual" class="form-control hide" type="text" placeholder="Escribe placa o nombre del equipo" style="margin-top:6px">
-        <select id="combSel" class="form-control hide" style="margin-top:6px"><option value="MONTACARGA_GAS">Montacarga a gas</option><option value="MONTACARGA_DIESEL">Montacarga di&eacute;sel</option></select>
-        <label for="horometro">Hor&oacute;metro / Kilometraje (opcional)</label>
+        <div class="hint hide" id="sinLista">Esta &aacute;rea todav&iacute;a no tiene lista de chequeo en el FP-15-09.</div>
+        <label for="horometro">Hor&oacute;metro / lectura del d&iacute;a (opcional)</label>
         <input id="horometro" class="form-control" type="number" inputmode="decimal" placeholder="Lectura actual">
+        <label for="proxMto">Pr&oacute;ximo mantenimiento (opcional)</label>
+        <input id="proxMto" class="form-control" type="text" placeholder="Horas, fecha o kilometraje">
         <div class="err" id="iniErr"></div>
         <button class="btn" onclick="iniciarInspeccion()">Iniciar inspecci&oacute;n</button>
       </div>
@@ -126,7 +129,7 @@ label{display:block;font-size:.8rem;font-weight:700;margin:8px 0 4px}
 
 <script>
 /* ===== CONFIG ===== */
-const VERSION = 'v1.2';
+const VERSION = 'v1.3';
 const SHEET_ID = '1IlxWD6QiCsntzyjEnJfE5KlB36Q39wJsQLnR0HE9gM4';
 const GAS_URL = 'https://script.google.com/macros/s/AKfycbw_xoH7HoqvHK4x9RdWJpuTnXXVupxL_dsP08yMw-NBJD3WcZt8Zb1Es13QW4_SSnk0/exec';
 const WA_DESTINOS = [
@@ -134,44 +137,71 @@ const WA_DESTINOS = [
   {nombre:'Wbeimer', numero:'573176549574'}
 ].filter(function(d){ return d.numero.indexOf('X')<0; });
 
-/* Zonas y puntos por categoria (editables) */
-const PLANTILLAS = {
-  VEHICULO: [
-    {z:'Frente', items:['Luces delanteras (bajas/altas)','Pito','Parabrisas y limpiaparabrisas','Placa y documentos']},
-    {z:'Lateral', items:['Espejos retrovisores','Puertas y cerraduras','Carrocería sin daños']},
-    {z:'Motor', items:['Nivel de aceite','Nivel de refrigerante','Nivel de líquido de frenos','Fugas visibles','Batería']},
-    {z:'Cabina', items:['Frenos y freno de mano','Dirección','Cinturones de seguridad','Tablero sin alertas','Luces direccionales y de freno']},
-    {z:'Llantas', items:['Presión y desgaste','Llanta de repuesto','Kit de carretera y extintor']}
-  ],
-  MONTACARGA_GAS: [
-    {z:'Mástil y horquillas', items:['Horquillas sin grietas, desgaste ni deformación','Cadenas del mástil lubricadas y sin holgura','Mástil y rodillos sin daños','Respaldo de carga firme','Cilindros de elevación e inclinación sin fugas']},
-    {z:'Seguridad', items:['Luces y baliza','Alarma de reversa / pito','Extintor vigente','Cinturón de seguridad','Techo protector (cabina de seguridad)','Placa de capacidad legible']},
-    {z:'Motor y gas', items:['Nivel de aceite del motor','Nivel de refrigerante','Filtro de aire','Cilindro de GLP bien sujeto y sin fugas (olor a gas)','Mangueras, regulador y válvula del GLP','Fugas visibles','Batería y bornes']},
-    {z:'Operación', items:['Frenos y freno de parqueo','Dirección','Nivel de aceite hidráulico','Mangueras hidráulicas sin fugas','Tablero sin alertas','Controles y palancas']},
-    {z:'Llantas', items:['Estado y desgaste de llantas','Tuercas de las ruedas completas']}
-  ],
-  MONTACARGA_DIESEL: [
-    {z:'Mástil y horquillas', items:['Horquillas sin grietas, desgaste ni deformación','Cadenas del mástil lubricadas y sin holgura','Mástil y rodillos sin daños','Respaldo de carga firme','Cilindros de elevación e inclinación sin fugas']},
-    {z:'Seguridad', items:['Luces y baliza','Alarma de reversa / pito','Extintor vigente','Cinturón de seguridad','Techo protector (cabina de seguridad)','Placa de capacidad legible']},
-    {z:'Motor y combustible', items:['Nivel de aceite del motor','Nivel de refrigerante','Filtro de aire','Nivel de combustible','Fugas de combustible, filtro y separador de agua','Correas','Fugas visibles','Batería y bornes','Humo de escape normal']},
-    {z:'Operación', items:['Frenos y freno de parqueo','Dirección','Nivel de aceite hidráulico','Mangueras hidráulicas sin fugas','Tablero sin alertas','Controles y palancas']},
-    {z:'Llantas', items:['Estado y desgaste de llantas','Tuercas de las ruedas completas']}
-  ],
-  MAQUINARIA: [
-    {z:'Frente', items:['Luces de trabajo','Alarma de reversa / pito','Cucharón / implemento sin daños','Pasadores y bujes']},
-    {z:'Lateral', items:['Mangueras hidráulicas sin fugas','Cilindros hidráulicos','Tanque hidráulico (nivel)','Tanque de combustible']},
-    {z:'Motor', items:['Nivel de aceite del motor','Nivel de refrigerante','Filtro de aire','Correas','Fugas visibles','Batería']},
-    {z:'Cabina', items:['Frenos y freno de parqueo','Controles y palancas','Cinturón de seguridad','Tablero sin alertas','Extintor','Vidrios y espejos']},
-    {z:'Llantas / Orugas', items:['Llantas o tren de rodaje','Presión y desgaste','Engrase general']}
-  ]
+/* Area -> equipos: IDENTICO a OM (AREAS_EQUIPOS) */
+const AREAS_EQUIPOS = {
+  'QFT': ['BICAPA','COMPACTADORA','MEZCLADORA','SISTEMA HIDRAULICO','GATOS ESTIBADORES','CHILLER','MOLDES'],
+  'AMARILLA': ['MEZCLADORA','COMPACTADORA','CARROS DE TRANSP PROD TERMINADO','MOLDES','CORTADORA','SPLITEADORA'],
+  'POSTES': ['PUENTE GRUA','FORMALETAS','MEZCLADORA','SISTEMA DE VAPOR','CASTILLERIA'],
+  'PREFABRICADOS': ['TROMPOS','FORMALETAS','VIBRADOR','MESA VIBRADORA'],
+  'VEHICULOS': ['MONTACARGA YALE','MONTACARGA CATERPILLAR','MINI CARGADOR','KOMATSU'],
+  'PLANTA': ['ALMACEN','OFICINA','T. MECANICO','T. ELECTRICO','PLANTA FISICA','PORTERIA','LABORATORIO'],
+  'ARQUITECTONICA': ['MEZCLADORA','MOLDES','SISTEMA DE VAPOR','MESA VIBRADORA']
 };
 
+/* Listas de chequeo: transcritas del FP-15-09 R6 (z = zona, mp = mantenimiento periodico) */
+const CHECKLISTS = {
+  VEHICULOS: [
+    {z:'Laterales', items:['Llantas','Presión llantas','Latonería']},
+    {z:'Frente', items:['Horquilla','Tablero porta horquillas','Mástil','Sistema de izaje y/o carga']},
+    {z:'Motor', items:['Agua radiador','Agua tanque de expansión','Nivel de aceite motor','Nivel de aceite caja','Sistema hidráulico','Inspección general del motor','Limpieza de filtro de aire','Estado de correa','Sistema a gas / ACPM','Sistemas de aislamiento de baterías']},
+    {z:'Cabina', items:['Espejo','Carcasas','Extintor','Mandos','Silla','Cinturón','Pedales','Sistema eléctrico de encendido y apagado del motor','Freno','Pito','Luces','Alarma de retroceso']},
+    {z:'Mantenimiento periódico (marque lo realizado)', mp:true, items:['Engrase','Aceite','Líquido de frenos','Limpieza','Líquido de batería']}
+  ],
+  AMARILLA: [
+    {z:'Inspección máquina amarilla', items:['Bandas transportadoras','Cadenas (3)','Carros transportadores','Chumaceras (12 unidades)','Desmoldante mezcladora','Desmoldante molde','Láminas','Mezcladora','Molde','Nivel aceite motor reductor','Piñonería (3)','Rodamientos compactadora (16)','Rodillos de las bandas']},
+    {z:'Mantenimiento periódico (marque lo realizado)', mp:true, items:['Engrase','Lubricación']}
+  ],
+  QFT: [
+    {z:'Inspección QFT', items:['Bandas transportadoras (5)','Barra molde (10)','Básculas (2)','Cadenas (11)','Carro agregados (2)','Desmoldante mezcladora base y bicapa','Gatos hidráulicos (13)','Gatos transportadores','Guaya y poleas carro agregado (2)','Limpieza área tolvas','Limpieza general','Manómetros (5)','Mezcladora base y bicapa','Molde','Motores de bandas (6)','Motores hidráulicos (2)','Motores mezcladoras (2)','Motores varios (11)','Reductores (11)','Rodillos de las bandas','Sensores (30)','Sistema de enfriamiento','Tolvas','Transportadora láminas','Válvulas (12)','Vibrador (3)']},
+    {z:'Mantenimiento periódico (marque lo realizado)', mp:true, items:['Engrase vibrador y barras','Engrase mezcladora','Ajuste de máquina','Nivel aceite motor reductor (6)','Nivel aceite sistema hidráulico']}
+  ],
+  POSTES: [
+    {z:'Caldera', items:['Agua niveles','Gas','Motores - quemador','Válvulas','Bomba de agua','Manómetro','Control de temperatura']},
+    {z:'Mezcladora y formaletas', items:['Báscula','Trompo','Motor','Reductor','Chumaceras','Piñonería','Cadenas','Carretos y guaya','Tolvas','Vibrador','Compresor','Pistola neumática','Manguera','Extensión eléctrica','Bugui transportadores de mezcla']},
+    {z:'Formaletas a utilizar', items:['Estado','Vibradores','Motores','Correas','Poleas','Desencofrante','Aseo']},
+    {z:'Mantenimiento periódico (marque lo realizado)', mp:true, items:['Engrase','Ajuste de máquina']}
+  ],
+  PUENTE_GRUA: [
+    {z:'Inspección diaria', items:['Motores','Reductores','Cadenas','Piñones','Chumaceras','Funcionamiento de polipasto','Sistema eléctrico']},
+    {z:'Mantenimiento periódico (marque lo realizado)', mp:true, items:['Engrase']}
+  ],
+  PREFABRICADOS: [
+    {z:'Trompo pequeño (diésel o eléctrico)', items:['Correas','Mezcladora','Motor','Piñones','Polea']},
+    {z:'Trompo grande', items:['Cadenas','Carretos y guaya','Chumaceras','Mezcladora','Motor','Piñonería','Reductor','Tolvas']},
+    {z:'Área de producción', items:['Bugui transportadores de mezcla','Formaletas','Vibrados de apliqué','Mesa vibradora']},
+    {z:'Mantenimiento periódico (marque lo realizado)', mp:true, items:['Engrase','Ajuste de máquina']}
+  ],
+  CASTILLERIA: [
+    {z:'Entorchadora', items:['Cisalla eléctrica','Dados','Guaya','Motor','Piñones','Reductores (2)']},
+    {z:'Área de aros', items:['Cilindros','Cisalla','Dados','Switch eléctrico','Motor']},
+    {z:'Mesa de armado', items:['Burros','Cable','Cadena','Chumaceras','Masa','Motoreductor','Pinzas','Piñones','Soldadores']},
+    {z:'Mantenimiento periódico (marque lo realizado)', mp:true, items:['Engrase','Ajuste de máquina']}
+  ]
+};
+function claveLista(area,equipo){
+  if(area==='VEHICULOS') return 'VEHICULOS';
+  if(area==='AMARILLA') return 'AMARILLA';
+  if(area==='QFT') return 'QFT';
+  if(area==='PREFABRICADOS') return 'PREFABRICADOS';
+  if(area==='POSTES') return equipo==='PUENTE GRUA'?'PUENTE_GRUA':(equipo==='CASTILLERIA'?'CASTILLERIA':'POSTES');
+  return null;
+}
+
 /* ===== ESTADO ===== */
-const STATE = { usuario:null, rol:'', nombre:'', cat:'', tpl:'', equipo:'', respuestas:{}, autorizado:null, ultimoNC:[], ultimoEquipo:'' };
+const STATE = { usuario:null, rol:'', nombre:'', area:'', tpl:'', equipo:'', respuestas:{}, autorizado:null, ultimoNC:[], ultimoEquipo:'' };
 let _SANDBOX = false;
 let _guardando = false;
 let _fotoTarget = null;
-let _equiposCat = [];
 let _usuarios = [];
 
 /* ===== UTIL ===== */
@@ -212,6 +242,7 @@ async function iniciarApp(){
   }catch(e){ console.warn('Sin lista de operarios',e); }
   try{ _usuarios=await leerGVIZ('SUPERVISORES_CHECKLIST'); }catch(e){ _usuarios=[]; }
   llenarSupervisores();
+  llenarAreas();
 }
 
 function llenarSupervisores(){
@@ -220,50 +251,37 @@ function llenarSupervisores(){
     .forEach(function(u){ const o=document.createElement('option'); o.value=String(u.nombre).trim(); o.textContent=String(u.nombre).trim(); s.appendChild(o); });
 }
 
-/* ===== PASO 1: categoria y equipo ===== */
-async function elegirCat(c){
-  STATE.cat=c;
-  $('catVEH').classList.toggle('on',c==='VEHICULO');
-  $('catMAQ').classList.toggle('on',c==='MAQUINARIA');
-  $('catMON').classList.toggle('on',c==='MONTACARGAS');
-  const sel=$('equipoSel'); sel.innerHTML='<option>Cargando...</option>';
-  try{
-    const todos=await leerGVIZ('EQUIPOS_CHECKLIST');
-    _equiposCat=todos.filter(e=>{
-      const k=String(e.categoria||'').toUpperCase();
-      const ok=(c==='MONTACARGAS')?(k.indexOf('MONTACARGA')===0):(k===c);
-      return ok && String(e.estado||'ACTIVO').toUpperCase()==='ACTIVO';
-    });
-  }catch(e){ _equiposCat=[]; }
-  sel.innerHTML='';
-  _equiposCat.forEach(e=>{ const o=document.createElement('option'); o.value=e.codigo||e.nombre; o.textContent=(e.codigo?e.codigo+' - ':'')+(e.nombre||''); sel.appendChild(o); });
-  const o2=document.createElement('option'); o2.value='__OTRO__'; o2.textContent='Otro (escribir)'; sel.appendChild(o2);
+/* ===== PASO 1: area y equipo (igual que OM) ===== */
+function llenarAreas(){
+  const s=$('areaSel'); s.innerHTML='<option value="">--- Seleccionar área ---</option>';
+  Object.keys(AREAS_EQUIPOS).forEach(a=>{ const o=document.createElement('option'); o.value=a; o.textContent=a; s.appendChild(o); });
+  areaCambio();
+}
+function areaCambio(){
+  const a=$('areaSel').value; const s=$('equipoSel');
+  s.innerHTML='<option value="">--- Seleccionar equipo ---</option>';
+  (AREAS_EQUIPOS[a]||[]).forEach(q=>{ const o=document.createElement('option'); o.value=q; o.textContent=q; s.appendChild(o); });
   equipoCambio();
 }
 function equipoCambio(){
-  const otro=$('equipoSel').value==='__OTRO__';
-  show('equipoManual', otro);
-  show('combSel', otro && STATE.cat==='MONTACARGAS');
+  const a=$('areaSel').value, q=$('equipoSel').value;
+  show('sinLista', !!a && !claveLista(a,q));
 }
 
 function iniciarInspeccion(){
   const err=$('iniErr');
   const nom=$('opNombre').value.trim();
   if(!nom){ err.textContent='Escribe el nombre del operario'; return; }
-  if(!STATE.cat){ err.textContent='Elige la categoría del equipo'; return; }
-  let eq=$('equipoSel').value;
-  if(eq==='__OTRO__') eq=$('equipoManual').value.trim();
-  if(!eq){ err.textContent='Elige o escribe el equipo'; return; }
+  const a=$('areaSel').value, eq=$('equipoSel').value;
+  if(!a){ err.textContent='Elige el área'; return; }
+  if(!eq){ err.textContent='Elige el equipo'; return; }
+  const k=claveLista(a,eq);
+  if(!k){ err.textContent='Esta área no tiene lista de chequeo en el FP-15-09 todavía.'; return; }
   err.textContent='';
-  if(STATE.cat==='MONTACARGAS'){
-    if($('equipoSel').value==='__OTRO__') STATE.tpl=$('combSel').value;
-    else { const f=_equiposCat.find(e=>(e.codigo||e.nombre)===$('equipoSel').value); STATE.tpl=String((f&&f.categoria)||'MONTACARGA_GAS').toUpperCase(); }
-    if(!PLANTILLAS[STATE.tpl]) STATE.tpl='MONTACARGA_GAS';
-  } else STATE.tpl=STATE.cat;
-  STATE.nombre=nom; STATE.equipo=eq; STATE.respuestas={}; STATE.autorizado=null;
+  STATE.nombre=nom; STATE.area=a; STATE.equipo=eq; STATE.tpl=k; STATE.respuestas={}; STATE.autorizado=null;
   construirZonas();
   show('pasoInicio',false); show('pasoInsp',true);
-  $('inspTitulo').textContent=(STATE.cat==='VEHICULO'?'Vehículo: ':(STATE.cat==='MONTACARGAS'?(STATE.tpl==='MONTACARGA_DIESEL'?'Montacarga diésel: ':'Montacarga a gas: '):'Maquinaria: '))+eq;
+  $('inspTitulo').textContent=a+' · '+eq;
   actualizar();
   window.scrollTo(0,0);
 }
@@ -271,18 +289,23 @@ function iniciarInspeccion(){
 /* ===== PASO 2: inspeccion por zonas ===== */
 function construirZonas(){
   const cont=$('zonas'); cont.innerHTML='';
-  PLANTILLAS[STATE.tpl].forEach((zona,zi)=>{
-    const card=document.createElement('div'); card.className='card zona';
+  CHECKLISTS[STATE.tpl].forEach((zona,zi)=>{
+    const card=document.createElement('div'); card.className='card zona'+(zona.mp?' mp':'');
     const h=document.createElement('h3'); h.textContent=zona.z; card.appendChild(h);
     zona.items.forEach((txt,ii)=>{
       const k=zi+'_'+ii;
-      STATE.respuestas[k]={zona:zona.z,punto:txt,estado:'',obs:'',foto:''};
+      STATE.respuestas[k]={zona:zona.z,punto:txt,estado:'',obs:'',foto:'',mp:!!zona.mp};
       const it=document.createElement('div'); it.className='item'; it.id='it_'+k;
       const t=document.createElement('div'); t.className='t'; t.textContent=txt; it.appendChild(t);
       const cn=document.createElement('div'); cn.className='cn';
-      const bo=document.createElement('button'); bo.type='button'; bo.className='ok'; bo.textContent='Conforme'; bo.onclick=()=>marcar(k,'C');
-      const bn=document.createElement('button'); bn.type='button'; bn.className='nc'; bn.textContent='No conforme'; bn.onclick=()=>marcar(k,'NC');
-      cn.appendChild(bo); cn.appendChild(bn); it.appendChild(cn);
+      if(zona.mp){
+        const br=document.createElement('button'); br.type='button'; br.className='rl'; br.textContent='Realizado'; br.onclick=()=>marcar(k,STATE.respuestas[k].estado==='R'?'':'R');
+        cn.appendChild(br); it.appendChild(cn); card.appendChild(it); return;
+      }
+      const bo=document.createElement('button'); bo.type='button'; bo.className='ok'; bo.textContent='Cumple'; bo.onclick=()=>marcar(k,'C');
+      const bn=document.createElement('button'); bn.type='button'; bn.className='nc'; bn.textContent='No cumple'; bn.onclick=()=>marcar(k,'NC');
+      const ba=document.createElement('button'); ba.type='button'; ba.className='na'; ba.textContent='No aplica'; ba.onclick=()=>marcar(k,'NA');
+      cn.appendChild(bo); cn.appendChild(bn); cn.appendChild(ba); it.appendChild(cn);
       const nb=document.createElement('div'); nb.className='ncbox hide'; nb.id='nc_'+k;
       nb.innerHTML='<b style="font-size:.8rem">Describe la falla o toma una foto (obligatorio)</b>'+
         '<textarea placeholder="Observación..." oninput="obsCambio(\''+k+'\',this.value)"></textarea>'+
@@ -297,10 +320,12 @@ function construirZonas(){
 function marcar(k,e){
   const r=STATE.respuestas[k]; r.estado=e;
   const it=$('it_'+k);
+  if(r.mp){ it.querySelector('.rl').classList.toggle('on',e==='R'); actualizar(); return; }
   it.querySelector('.ok').classList.toggle('on',e==='C');
   it.querySelector('.nc').classList.toggle('on',e==='NC');
+  it.querySelector('.na').classList.toggle('on',e==='NA');
   show('nc_'+k, e==='NC');
-  if(e==='C'){ r.obs=''; r.foto=''; $('img_'+k).innerHTML=''; it.querySelector('textarea').value=''; }
+  if(e!=='NC'){ r.obs=''; r.foto=''; $('img_'+k).innerHTML=''; it.querySelector('textarea').value=''; }
   actualizar();
 }
 function obsCambio(k,v){ STATE.respuestas[k].obs=v.trim(); actualizar(); }
@@ -349,7 +374,7 @@ function marcaDeAgua(file,gps){
 function contarNC(){ return Object.values(STATE.respuestas).filter(r=>r.estado==='NC'); }
 
 function actualizar(){
-  const todas=Object.values(STATE.respuestas);
+  const todas=Object.values(STATE.respuestas).filter(r=>!r.mp);
   const resp=todas.filter(r=>r.estado).length;
   $('progBar').style.width=(todas.length?resp*100/todas.length:0)+'%';
   $('progTxt').textContent=resp+' de '+todas.length+' puntos evaluados';
@@ -380,8 +405,9 @@ function validarSupervisor(){
 async function guardarChecklist(){
   if(_guardando) return;
   const err=$('saveErr'); err.textContent='';
-  const todas=Object.values(STATE.respuestas);
-  const sin=todas.filter(r=>!r.estado);
+  const todasR=Object.values(STATE.respuestas);
+  const evalu=todasR.filter(r=>!r.mp);
+  const sin=evalu.filter(r=>!r.estado);
   if(sin.length){ err.textContent='Faltan '+sin.length+' punto(s) por evaluar.'; return; }
   const nc=contarNC();
   const falta=nc.filter(r=>!r.foto && !r.obs);
@@ -390,20 +416,23 @@ async function guardarChecklist(){
   _guardando=true; $('btnGuardar').disabled=true;
   try{
     const id='CHK-'+Date.now();
+    const puntos=evalu.filter(r=>r.estado!=='NA');
+    const realizados=todasR.filter(r=>r.mp&&r.estado==='R').map(r=>({zona:r.zona,punto:r.punto+' (realizado)',estado:'C',obs:'',foto:''}));
     const body={
       accion:'guardarChecklist', id:id, version:VERSION,
       fecha:new Date().toISOString(), operario:STATE.nombre, usuario:'',
-      categoria:STATE.tpl, equipo:STATE.equipo, lectura:$('horometro').value||'',
-      total_puntos:todas.length, total_nc:nc.length,
+      categoria:STATE.area, equipo:STATE.equipo,
+      lectura:($('horometro').value||'')+($('proxMto').value.trim()?(($('horometro').value?' | ':'')+'próx. mto: '+$('proxMto').value.trim()):''),
+      total_puntos:puntos.length, total_nc:nc.length,
       opera_con_fallas:($('chkOperar').checked&&nc.length>0)?'SI':'NO',
       autorizado_por:STATE.autorizado?STATE.autorizado.nombre:'',
       autorizado_correo:STATE.autorizado?STATE.autorizado.correo:'',
       autorizado_ts:STATE.autorizado?STATE.autorizado.ts:'',
-      detalle:todas.map(r=>({zona:r.zona,punto:r.punto,estado:r.estado,obs:r.obs,foto:r.foto?r.foto.split(',')[1]:''}))
+      detalle:puntos.map(r=>({zona:r.zona,punto:r.punto,estado:r.estado,obs:r.obs,foto:r.foto?r.foto.split(',')[1]:''})).concat(realizados)
     };
     await escribirGAS(body);
     STATE.ultimoNC=nc; STATE.ultimoEquipo=STATE.equipo;
-    $('finTxt').innerHTML='Equipo <b>'+STATE.equipo+'</b>: '+todas.length+' puntos revisados, <b>'+nc.length+'</b> no conformidad(es).'+
+    $('finTxt').innerHTML='Equipo <b>'+STATE.equipo+'</b>: '+puntos.length+' puntos revisados, <b>'+nc.length+'</b> no conformidad(es).'+
       (nc.length>0?(body.opera_con_fallas==='SI'?' Opera con fallas autorizado por '+body.autorizado_por+'.':' El equipo NO debe operar hasta ser revisado.'):' Sin novedades.');
     pintarWA(nc.length>0);
     show('pasoInsp',false); show('pasoFin',true);
@@ -431,10 +460,9 @@ function abrirWA(numero){
 
 function cancelar(){ if(confirm('¿Descartar esta inspección?')) nuevo(); }
 function nuevo(){
-  STATE.cat=''; STATE.tpl=''; STATE.equipo=''; STATE.respuestas={}; STATE.autorizado=null;
-  $('catVEH').classList.remove('on'); $('catMAQ').classList.remove('on');
-  $('equipoSel').innerHTML=''; $('horometro').value=''; $('chkOperar').checked=false; $('autMsg').textContent='';
-  show('equipoManual',false); show('pasoInsp',false); show('pasoFin',false); show('pasoInicio',true);
+  STATE.area=''; STATE.tpl=''; STATE.equipo=''; STATE.respuestas={}; STATE.autorizado=null;
+  $('areaSel').value=''; areaCambio(); $('horometro').value=''; $('proxMto').value=''; $('chkOperar').checked=false; $('autMsg').textContent='';
+  show('pasoInsp',false); show('pasoFin',false); show('pasoInicio',true);
   window.scrollTo(0,0);
 }
 
