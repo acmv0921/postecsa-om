@@ -68,11 +68,13 @@ label{display:block;font-size:.8rem;font-weight:700;margin:8px 0 4px}
         <h2>2. Categor&iacute;a del equipo</h2>
         <div class="cats">
           <div class="cat" id="catVEH" onclick="elegirCat('VEHICULO')">Veh&iacute;culos<span>Camioneta, cami&oacute;n, moto</span></div>
-          <div class="cat" id="catMAQ" onclick="elegirCat('MAQUINARIA')">Maquinaria amarilla<span>Komatsu, Case, cargador</span></div>
+          <div class="cat" id="catMON" onclick="elegirCat('MONTACARGAS')">Montacargas<span>Yale, Caterpillar, Komatsu</span></div>
+          <div class="cat" id="catMAQ" onclick="elegirCat('MAQUINARIA')">Maquinaria amarilla<span>Minicargador Case</span></div>
         </div>
         <label for="equipoSel">Equipo</label>
         <select id="equipoSel" class="form-control" onchange="equipoCambio()"></select>
         <input id="equipoManual" class="form-control hide" type="text" placeholder="Escribe placa o nombre del equipo" style="margin-top:6px">
+        <select id="combSel" class="form-control hide" style="margin-top:6px"><option value="MONTACARGA_GAS">Montacarga a gas</option><option value="MONTACARGA_DIESEL">Montacarga di&eacute;sel</option></select>
         <label for="horometro">Hor&oacute;metro / Kilometraje (opcional)</label>
         <input id="horometro" class="form-control" type="number" inputmode="decimal" placeholder="Lectura actual">
         <div class="err" id="iniErr"></div>
@@ -124,7 +126,7 @@ label{display:block;font-size:.8rem;font-weight:700;margin:8px 0 4px}
 
 <script>
 /* ===== CONFIG ===== */
-const VERSION = 'v1.1';
+const VERSION = 'v1.2';
 const SHEET_ID = '1IlxWD6QiCsntzyjEnJfE5KlB36Q39wJsQLnR0HE9gM4';
 const GAS_URL = 'https://script.google.com/macros/s/AKfycbw_xoH7HoqvHK4x9RdWJpuTnXXVupxL_dsP08yMw-NBJD3WcZt8Zb1Es13QW4_SSnk0/exec';
 const WA_DESTINOS = [
@@ -141,6 +143,20 @@ const PLANTILLAS = {
     {z:'Cabina', items:['Frenos y freno de mano','Dirección','Cinturones de seguridad','Tablero sin alertas','Luces direccionales y de freno']},
     {z:'Llantas', items:['Presión y desgaste','Llanta de repuesto','Kit de carretera y extintor']}
   ],
+  MONTACARGA_GAS: [
+    {z:'Mástil y horquillas', items:['Horquillas sin grietas, desgaste ni deformación','Cadenas del mástil lubricadas y sin holgura','Mástil y rodillos sin daños','Respaldo de carga firme','Cilindros de elevación e inclinación sin fugas']},
+    {z:'Seguridad', items:['Luces y baliza','Alarma de reversa / pito','Extintor vigente','Cinturón de seguridad','Techo protector (cabina de seguridad)','Placa de capacidad legible']},
+    {z:'Motor y gas', items:['Nivel de aceite del motor','Nivel de refrigerante','Filtro de aire','Cilindro de GLP bien sujeto y sin fugas (olor a gas)','Mangueras, regulador y válvula del GLP','Fugas visibles','Batería y bornes']},
+    {z:'Operación', items:['Frenos y freno de parqueo','Dirección','Nivel de aceite hidráulico','Mangueras hidráulicas sin fugas','Tablero sin alertas','Controles y palancas']},
+    {z:'Llantas', items:['Estado y desgaste de llantas','Tuercas de las ruedas completas']}
+  ],
+  MONTACARGA_DIESEL: [
+    {z:'Mástil y horquillas', items:['Horquillas sin grietas, desgaste ni deformación','Cadenas del mástil lubricadas y sin holgura','Mástil y rodillos sin daños','Respaldo de carga firme','Cilindros de elevación e inclinación sin fugas']},
+    {z:'Seguridad', items:['Luces y baliza','Alarma de reversa / pito','Extintor vigente','Cinturón de seguridad','Techo protector (cabina de seguridad)','Placa de capacidad legible']},
+    {z:'Motor y combustible', items:['Nivel de aceite del motor','Nivel de refrigerante','Filtro de aire','Nivel de combustible','Fugas de combustible, filtro y separador de agua','Correas','Fugas visibles','Batería y bornes','Humo de escape normal']},
+    {z:'Operación', items:['Frenos y freno de parqueo','Dirección','Nivel de aceite hidráulico','Mangueras hidráulicas sin fugas','Tablero sin alertas','Controles y palancas']},
+    {z:'Llantas', items:['Estado y desgaste de llantas','Tuercas de las ruedas completas']}
+  ],
   MAQUINARIA: [
     {z:'Frente', items:['Luces de trabajo','Alarma de reversa / pito','Cucharón / implemento sin daños','Pasadores y bujes']},
     {z:'Lateral', items:['Mangueras hidráulicas sin fugas','Cilindros hidráulicos','Tanque hidráulico (nivel)','Tanque de combustible']},
@@ -151,7 +167,7 @@ const PLANTILLAS = {
 };
 
 /* ===== ESTADO ===== */
-const STATE = { usuario:null, rol:'', nombre:'', cat:'', equipo:'', respuestas:{}, autorizado:null, ultimoNC:[], ultimoEquipo:'' };
+const STATE = { usuario:null, rol:'', nombre:'', cat:'', tpl:'', equipo:'', respuestas:{}, autorizado:null, ultimoNC:[], ultimoEquipo:'' };
 let _SANDBOX = false;
 let _guardando = false;
 let _fotoTarget = null;
@@ -209,17 +225,26 @@ async function elegirCat(c){
   STATE.cat=c;
   $('catVEH').classList.toggle('on',c==='VEHICULO');
   $('catMAQ').classList.toggle('on',c==='MAQUINARIA');
+  $('catMON').classList.toggle('on',c==='MONTACARGAS');
   const sel=$('equipoSel'); sel.innerHTML='<option>Cargando...</option>';
   try{
     const todos=await leerGVIZ('EQUIPOS_CHECKLIST');
-    _equiposCat=todos.filter(e=>String(e.categoria||'').toUpperCase()===c && String(e.estado||'ACTIVO').toUpperCase()==='ACTIVO');
+    _equiposCat=todos.filter(e=>{
+      const k=String(e.categoria||'').toUpperCase();
+      const ok=(c==='MONTACARGAS')?(k.indexOf('MONTACARGA')===0):(k===c);
+      return ok && String(e.estado||'ACTIVO').toUpperCase()==='ACTIVO';
+    });
   }catch(e){ _equiposCat=[]; }
   sel.innerHTML='';
   _equiposCat.forEach(e=>{ const o=document.createElement('option'); o.value=e.codigo||e.nombre; o.textContent=(e.codigo?e.codigo+' - ':'')+(e.nombre||''); sel.appendChild(o); });
   const o2=document.createElement('option'); o2.value='__OTRO__'; o2.textContent='Otro (escribir)'; sel.appendChild(o2);
   equipoCambio();
 }
-function equipoCambio(){ show('equipoManual', $('equipoSel').value==='__OTRO__'); }
+function equipoCambio(){
+  const otro=$('equipoSel').value==='__OTRO__';
+  show('equipoManual', otro);
+  show('combSel', otro && STATE.cat==='MONTACARGAS');
+}
 
 function iniciarInspeccion(){
   const err=$('iniErr');
@@ -230,10 +255,15 @@ function iniciarInspeccion(){
   if(eq==='__OTRO__') eq=$('equipoManual').value.trim();
   if(!eq){ err.textContent='Elige o escribe el equipo'; return; }
   err.textContent='';
+  if(STATE.cat==='MONTACARGAS'){
+    if($('equipoSel').value==='__OTRO__') STATE.tpl=$('combSel').value;
+    else { const f=_equiposCat.find(e=>(e.codigo||e.nombre)===$('equipoSel').value); STATE.tpl=String((f&&f.categoria)||'MONTACARGA_GAS').toUpperCase(); }
+    if(!PLANTILLAS[STATE.tpl]) STATE.tpl='MONTACARGA_GAS';
+  } else STATE.tpl=STATE.cat;
   STATE.nombre=nom; STATE.equipo=eq; STATE.respuestas={}; STATE.autorizado=null;
   construirZonas();
   show('pasoInicio',false); show('pasoInsp',true);
-  $('inspTitulo').textContent=(STATE.cat==='VEHICULO'?'Vehículo: ':'Maquinaria: ')+eq;
+  $('inspTitulo').textContent=(STATE.cat==='VEHICULO'?'Vehículo: ':(STATE.cat==='MONTACARGAS'?(STATE.tpl==='MONTACARGA_DIESEL'?'Montacarga diésel: ':'Montacarga a gas: '):'Maquinaria: '))+eq;
   actualizar();
   window.scrollTo(0,0);
 }
@@ -241,7 +271,7 @@ function iniciarInspeccion(){
 /* ===== PASO 2: inspeccion por zonas ===== */
 function construirZonas(){
   const cont=$('zonas'); cont.innerHTML='';
-  PLANTILLAS[STATE.cat].forEach((zona,zi)=>{
+  PLANTILLAS[STATE.tpl].forEach((zona,zi)=>{
     const card=document.createElement('div'); card.className='card zona';
     const h=document.createElement('h3'); h.textContent=zona.z; card.appendChild(h);
     zona.items.forEach((txt,ii)=>{
@@ -363,7 +393,7 @@ async function guardarChecklist(){
     const body={
       accion:'guardarChecklist', id:id, version:VERSION,
       fecha:new Date().toISOString(), operario:STATE.nombre, usuario:'',
-      categoria:STATE.cat, equipo:STATE.equipo, lectura:$('horometro').value||'',
+      categoria:STATE.tpl, equipo:STATE.equipo, lectura:$('horometro').value||'',
       total_puntos:todas.length, total_nc:nc.length,
       opera_con_fallas:($('chkOperar').checked&&nc.length>0)?'SI':'NO',
       autorizado_por:STATE.autorizado?STATE.autorizado.nombre:'',
@@ -401,7 +431,7 @@ function abrirWA(numero){
 
 function cancelar(){ if(confirm('¿Descartar esta inspección?')) nuevo(); }
 function nuevo(){
-  STATE.cat=''; STATE.equipo=''; STATE.respuestas={}; STATE.autorizado=null;
+  STATE.cat=''; STATE.tpl=''; STATE.equipo=''; STATE.respuestas={}; STATE.autorizado=null;
   $('catVEH').classList.remove('on'); $('catMAQ').classList.remove('on');
   $('equipoSel').innerHTML=''; $('horometro').value=''; $('chkOperar').checked=false; $('autMsg').textContent='';
   show('equipoManual',false); show('pasoInsp',false); show('pasoFin',false); show('pasoInicio',true);
