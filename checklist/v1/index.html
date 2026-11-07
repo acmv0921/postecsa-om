@@ -6,6 +6,11 @@
 <meta name="theme-color" content="#12304f">
 <link rel="manifest" href="./manifest.json">
 <link rel="icon" href="./icon-192.png">
+<link rel="apple-touch-icon" href="./apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Checklist">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <title>POSTECSA Checklist v2.0</title>
 <!-- deploy: 2026-11-06 -->
 <style>
@@ -85,6 +90,12 @@ label{display:block;font-size:.78rem;font-weight:700;margin:12px 0 5px;color:var
   <div class="header"><img class="logo" src="./logo.png" alt="POSTECSA de Colombia SAS"><h1>Checklist de equipos<small>Mantenimiento y Confiabilidad &middot; FP-15-09</small></h1><span class="ver">v2.0</span></div>
   <div id="sbBanner" class="sandbox-banner hide">MODO PRUEBA &mdash; nada se guarda (PIN 0000)</div>
   <div class="wrap">
+
+    <div id="cardInstalar" class="card hide">
+      <h2>Instala la app</h2>
+      <p id="instTxt" style="font-size:.9rem;line-height:1.4;color:#44566a"></p>
+      <button class="btn sec" id="btnInstalar" onclick="instalarApp()">Instalar en este celular</button>
+    </div>
 
     <div id="pasoLogin">
       <div class="card">
@@ -615,6 +626,29 @@ function nuevo(sinMostrar){
   show('pasoInsp',false); show('pasoFin',false); show('pasoInicio',true);
   window.scrollTo(0,0);
 }
+
+/* ===== INSTALAR COMO APP ===== */
+let _evInstalar=null;
+function esStandalone(){ return (window.matchMedia&&matchMedia('(display-mode: standalone)').matches)||navigator.standalone===true; }
+function prepararInstalar(){
+  if(esStandalone()) return;
+  const ios=/iphone|ipad|ipod/i.test(navigator.userAgent);
+  if(ios){
+    $('instTxt').innerHTML='En iPhone: toca el botón <b>Compartir</b> del navegador (Safari) y elige <b>Agregar a pantalla de inicio</b>.';
+    show('btnInstalar',false); show('cardInstalar',true);
+  }
+}
+window.addEventListener('beforeinstallprompt',function(e){
+  e.preventDefault(); _evInstalar=e;
+  $('instTxt').textContent='Instálala para abrirla con un toque, como cualquier app, sin buscar el enlace.';
+  show('btnInstalar',true); show('cardInstalar',!esStandalone());
+});
+window.addEventListener('appinstalled',function(){ show('cardInstalar',false); toast('App instalada'); });
+async function instalarApp(){
+  if(!_evInstalar){ toast('Usa el menú del navegador > Instalar app'); return; }
+  _evInstalar.prompt(); try{ await _evInstalar.userChoice; }catch(e){} _evInstalar=null; show('cardInstalar',false);
+}
+prepararInstalar();
 
 iniciarApp();
 if('serviceWorker' in navigator){
