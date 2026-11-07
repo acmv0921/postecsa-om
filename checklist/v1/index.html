@@ -3,80 +3,124 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="theme-color" content="#1a3a5c">
+<meta name="theme-color" content="#12304f">
 <link rel="manifest" href="./manifest.json">
 <link rel="icon" href="./icon-192.png">
-<title>POSTECSA Checklist v1.4</title>
-<!-- deploy: 2026-10-28 -->
+<title>POSTECSA Checklist v2.0</title>
+<!-- deploy: 2026-11-06 -->
 <style>
-*{box-sizing:border-box;margin:0;padding:0}
-body{font-family:Arial,Helvetica,sans-serif;background:#eef2f6;color:#1d2b3a;min-height:100vh}
-.header{background:#1a3a5c;color:#fff;padding:12px 14px;display:flex;align-items:center;gap:10px}
-.header h1{font-size:1rem;flex:1}
-.header small{opacity:.8;font-size:.7rem}
-.header .logo{height:34px;width:auto;background:#fff;border-radius:6px;padding:3px 6px}
-.wrap{max-width:640px;margin:0 auto;padding:12px}
-.card{background:#fff;border-radius:10px;padding:14px;margin-bottom:12px;box-shadow:0 1px 4px rgba(0,0,0,.12)}
-.card h2{font-size:.95rem;margin-bottom:10px;color:#1a3a5c}
-label{display:block;font-size:.8rem;font-weight:700;margin:8px 0 4px}
-.form-control{width:100%;padding:10px;border:1px solid #b8c4d0;border-radius:7px;font-size:1rem}
-.btn{display:block;width:100%;padding:13px;border:0;border-radius:8px;font-size:1rem;font-weight:700;cursor:pointer;background:#e05c1a;color:#fff;margin-top:12px}
-.btn.sec{background:#1a3a5c}
-.btn.gris{background:#8794a1}
+:root{--navy:#12304f;--navy2:#1d4a75;--or:#f26a21;--or2:#d4540f;--ok:#2e7d32;--nc:#c62828;--bg:#e9eef4;--ink:#1b2a3a;--mut:#5f6f7f;--line:#dbe3ec}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+body{font-family:"Segoe UI",system-ui,-apple-system,Roboto,Arial,sans-serif;background:var(--bg);color:var(--ink);min-height:100vh;padding-bottom:40px}
+.header{background:linear-gradient(135deg,var(--navy) 0%,var(--navy2) 100%);color:#fff;padding:12px 14px calc(14px + 8px);display:flex;align-items:center;gap:10px;position:sticky;top:0;z-index:20;box-shadow:0 3px 12px rgba(10,30,55,.35)}
+.header::after{content:"";position:absolute;left:0;right:0;bottom:0;height:4px;background:linear-gradient(90deg,var(--or),#ffb27a)}
+.header .logo{height:36px;width:auto;background:#fff;border-radius:8px;padding:3px 7px}
+.header h1{font-size:1.02rem;flex:1;letter-spacing:.2px;line-height:1.15}
+.header h1 small{display:block;font-weight:400;opacity:.75;font-size:.68rem;margin-top:2px}
+.header .ver{font-size:.65rem;opacity:.7}
+.wrap{max-width:640px;margin:0 auto;padding:14px 12px}
+.card{background:#fff;border-radius:16px;padding:16px;margin-bottom:14px;box-shadow:0 2px 10px rgba(18,48,79,.10);border:1px solid #edf1f6}
+.card h2{font-size:1rem;margin-bottom:12px;color:var(--navy);display:flex;align-items:center;gap:8px}
+.card h2 .n{background:var(--or);color:#fff;width:24px;height:24px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:.8rem}
+label{display:block;font-size:.78rem;font-weight:700;margin:12px 0 5px;color:var(--mut);text-transform:uppercase;letter-spacing:.4px}
+.form-control{width:100%;padding:12px;border:1.5px solid #c5d1de;border-radius:10px;font-size:1rem;background:#fbfcfe;color:var(--ink)}
+.form-control:focus{outline:none;border-color:var(--or);box-shadow:0 0 0 3px rgba(242,106,33,.18)}
+.btn{display:block;width:100%;padding:14px;border:0;border-radius:12px;font-size:1rem;font-weight:700;cursor:pointer;background:linear-gradient(180deg,var(--or),var(--or2));color:#fff;margin-top:14px;box-shadow:0 3px 8px rgba(212,84,15,.35)}
+.btn:active{transform:translateY(1px)}
+.btn.sec{background:linear-gradient(180deg,var(--navy2),var(--navy));box-shadow:0 3px 8px rgba(18,48,79,.3)}
+.btn.gris{background:#8794a1;box-shadow:none}
 .btn:disabled{opacity:.5}
-.err{color:#b3261e;font-size:.8rem;margin-top:8px;min-height:1em}
-.cats{display:flex;gap:10px}
-.cat{flex:1;padding:16px 8px;border:2px solid #b8c4d0;border-radius:10px;text-align:center;font-weight:700;cursor:pointer;background:#fff}
-.cat.on{border-color:#e05c1a;background:#fff1ea}
-.cat span{display:block;font-size:.7rem;font-weight:400;color:#555;margin-top:4px}
-.zona{border-left:5px solid #1a3a5c}
-.zona h3{font-size:.9rem;margin-bottom:8px}
-.item{border-top:1px solid #e3e8ee;padding:10px 0}
-.item .t{font-size:.9rem;margin-bottom:8px}
+.err{color:var(--nc);font-size:.82rem;margin-top:8px;min-height:1em;font-weight:600}
+.seg{display:flex;background:#e3eaf2;border-radius:12px;padding:4px;gap:4px}
+.seg button{flex:1;padding:12px 6px;border:0;border-radius:9px;background:transparent;font-weight:700;font-size:.95rem;color:var(--mut);cursor:pointer}
+.seg button.on{background:#fff;color:var(--navy);box-shadow:0 2px 6px rgba(18,48,79,.18)}
+.pin{letter-spacing:.6em;text-align:center;font-size:1.5rem;font-weight:700}
+.hola{display:flex;align-items:center;gap:12px}
+.avatar{width:46px;height:46px;border-radius:50%;background:linear-gradient(135deg,var(--or),#ff9a5c);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:1.1rem;flex:none}
+.hola b{display:block;font-size:1rem}
+.chip{display:inline-block;font-size:.68rem;font-weight:700;padding:2px 9px;border-radius:20px;background:#e3eaf2;color:var(--navy);margin-top:3px}
+.chip.sup{background:#fff1ea;color:var(--or2)}
+.salir{margin-left:auto;background:none;border:1.5px solid #c5d1de;border-radius:9px;padding:7px 11px;font-size:.8rem;font-weight:700;color:var(--mut);cursor:pointer}
+.tiles{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+.tile{border:2px solid var(--line);background:#fff;border-radius:14px;padding:14px 8px;text-align:center;font-weight:700;font-size:.85rem;cursor:pointer;color:var(--navy)}
+.tile .ic{display:block;font-size:1.7rem;margin-bottom:4px}
+.tile.on{border-color:var(--or);background:#fff1ea;box-shadow:0 3px 10px rgba(242,106,33,.22)}
+.eqs{display:flex;flex-direction:column;gap:8px}
+.eq{border:2px solid var(--line);background:#fff;border-radius:12px;padding:13px 14px;font-weight:600;font-size:.95rem;text-align:left;cursor:pointer;color:var(--ink);display:flex;align-items:center;justify-content:space-between}
+.eq::after{content:"\203A";font-size:1.3rem;color:var(--mut)}
+.eq.on{border-color:var(--or);background:#fff1ea}
+.eq.on::after{color:var(--or)}
+.zona{border-left:6px solid var(--navy)}
+.zona h3{font-size:.92rem;margin-bottom:6px;color:var(--navy);text-transform:uppercase;letter-spacing:.4px}
+.zona.mp{border-left-color:var(--or)}
+.item{border-top:1px solid var(--line);padding:11px 0}
+.item .t{font-size:.95rem;margin-bottom:9px;font-weight:600}
 .cn{display:flex;gap:8px}
-.cn button{flex:1;padding:11px;border-radius:7px;border:2px solid #b8c4d0;background:#fff;font-weight:700;font-size:.9rem;cursor:pointer}
-.cn button.ok.on{background:#2e7d32;border-color:#2e7d32;color:#fff}
-.cn button.nc.on{background:#c62828;border-color:#c62828;color:#fff}
-.cn button.na{flex:.6;font-weight:600;color:#555}
+.cn button{flex:1;padding:12px 4px;border-radius:10px;border:2px solid #c5d1de;background:#fff;font-weight:700;font-size:.9rem;cursor:pointer;color:var(--mut)}
+.cn button.ok.on{background:var(--ok);border-color:var(--ok);color:#fff}
+.cn button.nc.on{background:var(--nc);border-color:var(--nc);color:#fff}
+.cn button.na{flex:.7;font-weight:600}
 .cn button.na.on{background:#6b7785;border-color:#6b7785;color:#fff}
-.cn button.rl.on{background:#1a3a5c;border-color:#1a3a5c;color:#fff}
-.zona.mp{border-left-color:#e05c1a}
-.hint{font-size:.8rem;color:#b3261e;margin-top:6px}
-.ncbox{background:#fdecea;border-radius:7px;padding:10px;margin-top:8px}
-.ncbox textarea{width:100%;min-height:60px;padding:8px;border:1px solid #d99;border-radius:6px;font-size:.9rem}
+.cn button.rl.on{background:var(--navy);border-color:var(--navy);color:#fff}
+.hint{font-size:.82rem;color:var(--nc);margin-top:8px;font-weight:600}
+.ncbox{background:#fdecea;border-radius:10px;padding:11px;margin-top:9px;border:1px solid #f3c1bd}
+.ncbox textarea{width:100%;min-height:64px;padding:9px;border:1.5px solid #e0a7a2;border-radius:8px;font-size:.92rem;margin-top:6px}
 .ncbox .foto{margin-top:6px;font-size:.8rem}
-.ncbox img{max-width:100%;border-radius:6px;margin-top:6px;display:block}
-.prog{height:8px;background:#d5dde6;border-radius:5px;overflow:hidden;margin:6px 0 12px}
-.prog i{display:block;height:100%;background:#2e7d32;width:0}
-.warn{background:#fff4d6;border:1px solid #e5b400;border-radius:8px;padding:10px;font-size:.85rem;margin-top:8px}
+.ncbox img{max-width:100%;border-radius:8px;margin-top:6px;display:block}
+.progbox{position:sticky;top:62px;z-index:10;background:#fff;border-radius:14px;padding:12px 14px;margin-bottom:14px;box-shadow:0 3px 12px rgba(18,48,79,.14);border:1px solid #edf1f6}
+.prog{height:10px;background:#dbe3ec;border-radius:6px;overflow:hidden;margin:7px 0 4px}
+.prog i{display:block;height:100%;background:linear-gradient(90deg,var(--ok),#66bb6a);width:0;transition:width .25s}
+.warn{background:#fff4d6;border:1px solid #e5b400;border-radius:10px;padding:11px;font-size:.88rem}
 .hide{display:none}
-#toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:#222;color:#fff;padding:10px 16px;border-radius:20px;font-size:.85rem;opacity:0;transition:opacity .25s;pointer-events:none;z-index:99;max-width:90%;text-align:center}
+#toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);background:#1b2a3a;color:#fff;padding:11px 18px;border-radius:22px;font-size:.85rem;opacity:0;transition:opacity .25s;pointer-events:none;z-index:99;max-width:90%;text-align:center}
 #toast.on{opacity:1}
-.sandbox-banner{background:#e5b400;color:#222;text-align:center;font-size:.8rem;font-weight:700;padding:5px}
-.resumen b{color:#c62828}
+.sandbox-banner{background:#e5b400;color:#222;text-align:center;font-size:.8rem;font-weight:700;padding:6px}
+.resumen b{color:var(--nc)}
+.okbig{font-size:2.6rem;text-align:center;margin-bottom:6px}
 </style>
 </head>
 <body>
 
 <div id="appMain">
-  <div class="header"><img class="logo" src="./logo.png" alt="POSTECSA de Colombia SAS"><h1 id="hdrTitulo">Checklist de equipos</h1><small>v1.4</small></div>
-  <div id="sbBanner" class="sandbox-banner hide">MODO PRUEBA &mdash; nada se guarda</div>
+  <div class="header"><img class="logo" src="./logo.png" alt="POSTECSA de Colombia SAS"><h1>Checklist de equipos<small>Mantenimiento y Confiabilidad &middot; FP-15-09</small></h1><span class="ver">v2.0</span></div>
+  <div id="sbBanner" class="sandbox-banner hide">MODO PRUEBA &mdash; nada se guarda (PIN 0000)</div>
   <div class="wrap">
 
-    <div id="pasoInicio">
+    <div id="pasoLogin">
       <div class="card">
-        <h2>1. Operario</h2>
-        <label for="opNombre">Nombre del operario</label>
-        <input id="opNombre" class="form-control" type="text" list="listaOperarios" placeholder="Nombre y apellido" autocomplete="off">
-        <datalist id="listaOperarios"></datalist>
+        <h2>Ingreso</h2>
+        <div class="seg">
+          <button type="button" id="rolOp" class="on" onclick="elegirRol('OPERARIO')">Soy operario</button>
+          <button type="button" id="rolSup" onclick="elegirRol('SUPERVISOR')">Soy supervisor</button>
+        </div>
+        <label for="loginNombre">Mi nombre</label>
+        <select id="loginNombre" class="form-control"></select>
+        <label for="loginPin">PIN</label>
+        <input id="loginPin" class="form-control pin" type="password" inputmode="numeric" maxlength="8" autocomplete="off" placeholder="&bull;&bull;&bull;&bull;" onkeydown="if(event.key==='Enter')ingresar()">
+        <div class="err" id="loginErr"></div>
+        <button class="btn" id="btnIngresar" onclick="ingresar()">Ingresar</button>
+      </div>
+    </div>
+
+    <div id="pasoInicio" class="hide">
+      <div class="card">
+        <div class="hola">
+          <div class="avatar" id="avatar"></div>
+          <div><b id="holaNombre"></b><span class="chip" id="holaRol"></span></div>
+          <button class="salir" onclick="salir()">Salir</button>
+        </div>
       </div>
       <div class="card">
-        <h2>2. &Aacute;rea y equipo</h2>
-        <label for="areaSel">&Aacute;rea</label>
-        <select id="areaSel" class="form-control" onchange="areaCambio()"></select>
-        <label for="equipoSel">Equipo</label>
-        <select id="equipoSel" class="form-control" onchange="equipoCambio()"></select>
+        <h2><span class="n">1</span> &Aacute;rea</h2>
+        <div class="tiles" id="tilesAreas"></div>
+      </div>
+      <div class="card hide" id="cardEquipos">
+        <h2><span class="n">2</span> Equipo</h2>
+        <div class="eqs" id="listaEquipos"></div>
         <div class="hint hide" id="sinLista">Esta &aacute;rea todav&iacute;a no tiene lista de chequeo en el FP-15-09.</div>
+      </div>
+      <div class="card hide" id="cardLectura">
+        <h2><span class="n">3</span> Lectura</h2>
         <label for="horometro">Hor&oacute;metro / lectura del d&iacute;a (opcional)</label>
         <input id="horometro" class="form-control" type="number" inputmode="decimal" placeholder="Lectura actual">
         <label for="proxMto">Pr&oacute;ximo mantenimiento (opcional)</label>
@@ -87,7 +131,7 @@ label{display:block;font-size:.8rem;font-weight:700;margin:8px 0 4px}
     </div>
 
     <div id="pasoInsp" class="hide">
-      <div class="card">
+      <div class="progbox">
         <b id="inspTitulo"></b>
         <div class="prog"><i id="progBar"></i></div>
         <small id="progTxt"></small>
@@ -97,12 +141,12 @@ label{display:block;font-size:.8rem;font-weight:700;margin:8px 0 4px}
       <div class="card hide" id="cardAut">
         <h2>Autorizaci&oacute;n para operar con fallas</h2>
         <div class="warn">Hay <b id="autN">0</b> no conformidad(es). Para operar o trasladar el equipo, un supervisor debe autorizarlo aqu&iacute; mismo.</div>
-        <label><input type="checkbox" id="chkOperar" onchange="toggleAut()"> Necesito operar o trasladar el equipo con estas fallas</label>
+        <label style="text-transform:none;font-size:.9rem"><input type="checkbox" id="chkOperar" onchange="toggleAut()"> Necesito operar o trasladar el equipo con estas fallas</label>
         <div id="autBox" class="hide">
           <label for="supSel">Supervisor que autoriza</label>
           <select id="supSel" class="form-control"></select>
           <label for="supPin">PIN del supervisor</label>
-          <input id="supPin" class="form-control" type="password" maxlength="20" autocomplete="off">
+          <input id="supPin" class="form-control pin" type="password" inputmode="numeric" maxlength="8" autocomplete="off">
           <button class="btn sec" type="button" onclick="validarSupervisor()">Autorizar</button>
           <div class="err" id="autMsg"></div>
         </div>
@@ -115,7 +159,8 @@ label{display:block;font-size:.8rem;font-weight:700;margin:8px 0 4px}
 
     <div id="pasoFin" class="hide">
       <div class="card resumen">
-        <h2>Reporte guardado</h2>
+        <div class="okbig">&#9989;</div>
+        <h2 style="justify-content:center">Reporte guardado</h2>
         <p id="finTxt"></p>
         <div id="waBtns"></div>
         <button class="btn sec" onclick="nuevo()">Nueva inspecci&oacute;n</button>
@@ -130,7 +175,7 @@ label{display:block;font-size:.8rem;font-weight:700;margin:8px 0 4px}
 
 <script>
 /* ===== CONFIG ===== */
-const VERSION = 'v1.4';
+const VERSION = 'v2.0';
 const SHEET_ID = '1IlxWD6QiCsntzyjEnJfE5KlB36Q39wJsQLnR0HE9gM4';
 const GAS_URL = 'https://script.google.com/macros/s/AKfycbw_xoH7HoqvHK4x9RdWJpuTnXXVupxL_dsP08yMw-NBJD3WcZt8Zb1Es13QW4_SSnk0/exec';
 const WA_DESTINOS = [
@@ -199,7 +244,8 @@ function claveLista(area,equipo){
 }
 
 /* ===== ESTADO ===== */
-const STATE = { usuario:null, rol:'', nombre:'', area:'', tpl:'', equipo:'', respuestas:{}, autorizado:null, ultimoNC:[], ultimoEquipo:'' };
+const ICONOS = {QFT:'\u{1F9F1}',AMARILLA:'\u{1F7E1}',POSTES:'\u{1F5FC}',PREFABRICADOS:'\u{1F3D7}️',VEHICULOS:'\u{1F69C}',PLANTA:'\u{1F3ED}',ARQUITECTONICA:'\u{1F9F1}'};
+const STATE = { sesion:null, rolSel:'OPERARIO', permitido:{}, area:'', tpl:'', equipo:'', nombre:'', respuestas:{}, autorizado:null, ultimoNC:[], ultimoEquipo:'' };
 let _SANDBOX = false;
 let _guardando = false;
 let _fotoTarget = null;
@@ -209,6 +255,7 @@ let _usuarios = [];
 function $(id){ return document.getElementById(id); }
 function toast(m){ const t=$('toast'); t.textContent=m; t.classList.add('on'); setTimeout(()=>t.classList.remove('on'),2600); }
 function show(id,v){ $(id).classList.toggle('hide', !v); }
+function norm(s){ return String(s||'').toUpperCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/\s+/g,' ').trim(); }
 
 async function leerGVIZ(hoja){
   const url='https://docs.google.com/spreadsheets/d/'+SHEET_ID+'/gviz/tq?tqx=out:json&headers=1&sheet='+encodeURIComponent(hoja);
@@ -218,6 +265,7 @@ async function leerGVIZ(hoja){
   return j.table.rows.map(row=>{ const o={}; cols.forEach((c,i)=>{ const cell=row.c[i]; o[c]=cell?cell.v:''; }); return o; });
 }
 
+/* Escritura sin respuesta legible (no-cors) */
 async function escribirGAS(body){
   if(_SANDBOX){ await new Promise(r=>setTimeout(r,500)); toast('[PRUEBA] '+(body.accion||'op')+' simulada'); return; }
   try{
@@ -228,58 +276,150 @@ async function escribirGAS(body){
   await new Promise(r=>setTimeout(r,900));
 }
 
-/* ===== INICIO (sin login, como OM: el operario se identifica por nombre) ===== */
+/* POST con respuesta legible (login) */
+async function postJSON(body){
+  const r=await fetch(GAS_URL,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify(body)});
+  return await r.json();
+}
+
+/* Valida nombre+PIN en el servidor. En modo prueba acepta PIN 0000 */
+async function validarPIN(nombre,pin,rolEsperado){
+  if(_SANDBOX){
+    if(pin!=='0000') return {ok:false,error:'PIN_INCORRECTO'};
+    const u=_usuarios.find(x=>norm(x.nombre)===norm(nombre))||{};
+    return {ok:true,nombre:nombre,rol:String(u.rol||rolEsperado).toUpperCase(),areas:String(u.areas||'TODAS'),token:'prueba'};
+  }
+  const r=await postJSON({accion:'chkLogin',nombre:nombre,pin:pin});
+  if(r && r.ok && String(r.rol).toUpperCase()!==rolEsperado) return {ok:false,error:'ROL'};
+  return r;
+}
+
+function textoError(r){
+  if(!r) return 'No se pudo validar. Revisa la conexión.';
+  if(r.error==='BLOQUEADO') return 'Demasiados intentos. Espera 15 minutos.';
+  if(r.error==='ROL') return 'Ese nombre no tiene ese perfil.';
+  if(r.error==='SIN_USUARIOS') return 'Aún no hay usuarios cargados.';
+  return 'PIN incorrecto'+(r.restantes!==undefined?' ('+r.restantes+' intento/s restantes)':'');
+}
+
+/* ===== INGRESO (como OM: soy operario / supervisor + PIN) ===== */
 function activarSandbox(){ _SANDBOX=true; show('sbBanner',true); }
 
 async function iniciarApp(){
   if(/[?&]prueba=1/.test(location.search)) activarSandbox();
+  try{ _usuarios=(await leerGVIZ('OPERARIOS_CHECKLIST')).filter(u=>String(u.estado||'ACTIVO').toUpperCase()==='ACTIVO'); }catch(e){ _usuarios=[]; }
+  if(_SANDBOX && !_usuarios.length){
+    _usuarios=[{nombre:'OPERARIO DE PRUEBA',rol:'OPERARIO',areas:'QFT;VEHICULOS'},{nombre:'SUPERVISOR DE PRUEBA',rol:'SUPERVISOR',areas:'TODAS'}];
+  }
+  llenarNombres();
   try{
-    const m=await leerGVIZ('Mecanicos');
-    const dl=$('listaOperarios'); const vistos={};
-    m.forEach(function(r){
-      const n=String(r.Nombre||r.nombre||'').trim();
-      if(n && !vistos[n]){ vistos[n]=1; const o=document.createElement('option'); o.value=n; dl.appendChild(o); }
-    });
-  }catch(e){ console.warn('Sin lista de operarios',e); }
-  try{ _usuarios=await leerGVIZ('SUPERVISORES_CHECKLIST'); }catch(e){ _usuarios=[]; }
-  llenarSupervisores();
+    const s=JSON.parse(sessionStorage.getItem('chk_sesion')||'null');
+    if(s && s.nombre && s.token){ abrirSesion(s); }
+  }catch(e){}
+}
+
+function elegirRol(r){
+  STATE.rolSel=r;
+  $('rolOp').classList.toggle('on',r==='OPERARIO'); $('rolSup').classList.toggle('on',r==='SUPERVISOR');
+  llenarNombres(); $('loginErr').textContent='';
+}
+function llenarNombres(){
+  const s=$('loginNombre'); s.innerHTML='<option value="">--- Elige tu nombre ---</option>';
+  _usuarios.filter(u=>String(u.rol||'OPERARIO').toUpperCase()===STATE.rolSel && String(u.nombre||'').trim())
+    .forEach(u=>{ const o=document.createElement('option'); o.value=String(u.nombre).trim(); o.textContent=String(u.nombre).trim(); s.appendChild(o); });
+  const sp=$('supSel'); sp.innerHTML='';
+  _usuarios.filter(u=>String(u.rol||'').toUpperCase()==='SUPERVISOR')
+    .forEach(u=>{ const o=document.createElement('option'); o.value=String(u.nombre).trim(); o.textContent=String(u.nombre).trim(); sp.appendChild(o); });
+}
+
+async function ingresar(){
+  const nombre=$('loginNombre').value, pin=$('loginPin').value.trim(), err=$('loginErr');
+  if(!nombre){ err.textContent='Elige tu nombre'; return; }
+  if(!pin){ err.textContent='Escribe tu PIN'; return; }
+  const b=$('btnIngresar'); b.disabled=true; err.textContent='Validando...';
+  try{
+    const r=await validarPIN(nombre,pin,STATE.rolSel);
+    if(r && r.ok){ $('loginPin').value=''; err.textContent=''; abrirSesion(r); }
+    else err.textContent=textoError(r);
+  }catch(e){ err.textContent='No se pudo validar. Revisa la conexión.'; console.error(e); }
+  finally{ b.disabled=false; }
+}
+
+/* "QFT;VEHICULOS" | "POSTES:CASTILLERIA" | "TODAS"  ->  {area:[equipos]} */
+function parsearAreas(txt){
+  const t=String(txt||'').trim().toUpperCase();
+  const out={};
+  if(t==='TODAS'||t==='*'){ Object.keys(AREAS_EQUIPOS).forEach(a=>{ out[a]=AREAS_EQUIPOS[a].slice(); }); return out; }
+  t.split(/[;,]/).forEach(p=>{
+    p=p.trim(); if(!p) return;
+    const q=p.split(':'); const a=q[0].trim();
+    if(!AREAS_EQUIPOS[a]) return;
+    if(q.length>1){
+      const e=q[1].trim(); const real=AREAS_EQUIPOS[a].find(x=>norm(x)===norm(e));
+      if(real){ out[a]=(out[a]||[]).concat([real]); }
+    } else out[a]=AREAS_EQUIPOS[a].slice();
+  });
+  return out;
+}
+
+function abrirSesion(s){
+  STATE.sesion=s; STATE.nombre=s.nombre; STATE.permitido=parsearAreas(s.areas);
+  try{ sessionStorage.setItem('chk_sesion',JSON.stringify(s)); }catch(e){}
+  $('avatar').textContent=String(s.nombre).trim().charAt(0).toUpperCase();
+  $('holaNombre').textContent=s.nombre;
+  const esSup=String(s.rol).toUpperCase()==='SUPERVISOR';
+  const chip=$('holaRol'); chip.textContent=esSup?'Supervisor':'Operario'; chip.className='chip'+(esSup?' sup':'');
   llenarAreas();
+  show('pasoLogin',false); show('pasoInicio',true);
+  window.scrollTo(0,0);
+}
+function salir(){
+  try{ sessionStorage.removeItem('chk_sesion'); }catch(e){}
+  STATE.sesion=null; STATE.permitido={}; nuevo(true);
+  show('pasoInicio',false); show('pasoInsp',false); show('pasoFin',false); show('pasoLogin',true);
 }
 
-function llenarSupervisores(){
-  const s=$('supSel'); s.innerHTML='';
-  _usuarios.filter(function(u){ return String(u.nombre||'').trim() && String(u.estado||'ACTIVO').trim().toUpperCase()==='ACTIVO'; })
-    .forEach(function(u){ const o=document.createElement('option'); o.value=String(u.nombre).trim(); o.textContent=String(u.nombre).trim(); s.appendChild(o); });
-}
-
-/* ===== PASO 1: area y equipo (igual que OM) ===== */
+/* ===== PASO 1: area y equipo (solo lo que le compete al usuario) ===== */
 function llenarAreas(){
-  const s=$('areaSel'); s.innerHTML='<option value="">--- Seleccionar área ---</option>';
-  Object.keys(AREAS_EQUIPOS).forEach(a=>{ const o=document.createElement('option'); o.value=a; o.textContent=a; s.appendChild(o); });
-  areaCambio();
+  const c=$('tilesAreas'); c.innerHTML='';
+  const areas=Object.keys(STATE.permitido);
+  if(!areas.length){ c.innerHTML='<div class="hint">Tu usuario no tiene áreas asignadas. Avisa a Mantenimiento.</div>'; }
+  areas.forEach(a=>{
+    const b=document.createElement('button'); b.type='button'; b.className='tile'; b.dataset.area=a;
+    b.innerHTML='<span class="ic">'+(ICONOS[a]||'\u{1F527}')+'</span>'+a;
+    b.onclick=()=>elegirArea(a); c.appendChild(b);
+  });
+  show('cardEquipos',false); show('cardLectura',false);
+  if(areas.length===1) elegirArea(areas[0]);
 }
-function areaCambio(){
-  const a=$('areaSel').value; const s=$('equipoSel');
-  s.innerHTML='<option value="">--- Seleccionar equipo ---</option>';
-  (AREAS_EQUIPOS[a]||[]).forEach(q=>{ const o=document.createElement('option'); o.value=q; o.textContent=q; s.appendChild(o); });
-  equipoCambio();
+function elegirArea(a){
+  STATE.area=a; STATE.equipo='';
+  document.querySelectorAll('.tile').forEach(t=>t.classList.toggle('on',t.dataset.area===a));
+  const c=$('listaEquipos'); c.innerHTML='';
+  (STATE.permitido[a]||[]).forEach(q=>{
+    const b=document.createElement('button'); b.type='button'; b.className='eq'; b.textContent=q;
+    b.onclick=()=>elegirEquipo(q,b); c.appendChild(b);
+  });
+  show('cardEquipos',true); show('cardLectura',false);
+  show('sinLista', !claveLista(a,'X') && a!=='POSTES');
+  if((STATE.permitido[a]||[]).length===1) elegirEquipo(STATE.permitido[a][0], c.firstChild);
 }
-function equipoCambio(){
-  const a=$('areaSel').value, q=$('equipoSel').value;
-  show('sinLista', !!a && !claveLista(a,q));
+function elegirEquipo(q,btn){
+  STATE.equipo=q;
+  document.querySelectorAll('.eq').forEach(e=>e.classList.toggle('on',e===btn));
+  const ok=!!claveLista(STATE.area,q);
+  show('sinLista',!ok); show('cardLectura',ok);
+  if(ok) setTimeout(()=>$('cardLectura').scrollIntoView({behavior:'smooth',block:'start'}),50);
 }
 
 function iniciarInspeccion(){
   const err=$('iniErr');
-  const nom=$('opNombre').value.trim();
-  if(!nom){ err.textContent='Escribe el nombre del operario'; return; }
-  const a=$('areaSel').value, eq=$('equipoSel').value;
-  if(!a){ err.textContent='Elige el área'; return; }
-  if(!eq){ err.textContent='Elige el equipo'; return; }
+  const a=STATE.area, eq=STATE.equipo;
+  if(!a||!eq){ err.textContent='Elige área y equipo'; return; }
   const k=claveLista(a,eq);
   if(!k){ err.textContent='Esta área no tiene lista de chequeo en el FP-15-09 todavía.'; return; }
   err.textContent='';
-  STATE.nombre=nom; STATE.area=a; STATE.equipo=eq; STATE.tpl=k; STATE.respuestas={}; STATE.autorizado=null;
+  STATE.tpl=k; STATE.respuestas={}; STATE.autorizado=null;
   construirZonas();
   show('pasoInicio',false); show('pasoInsp',true);
   $('inspTitulo').textContent=a+' · '+eq;
@@ -391,15 +531,17 @@ function toggleAut(){
   if(!on){ STATE.autorizado=null; $('autMsg').textContent=''; }
 }
 
-function validarSupervisor(){
-  const nombre=$('supSel').value;
-  const pin=$('supPin').value.trim();
-  const u=_usuarios.find(function(x){ return String(x.nombre||'').trim()===nombre; });
-  const msg=$('autMsg');
-  if(!u||!pin||pin!==String(u.pin||'').trim()){ msg.style.color='#b3261e'; msg.textContent='PIN del supervisor incorrecto'; STATE.autorizado=null; return; }
-  STATE.autorizado={correo:'',nombre:nombre,ts:new Date().toISOString()};
-  msg.style.color='#2e7d32'; msg.textContent='Autorizado por '+nombre;
-  $('supPin').value='';
+async function validarSupervisor(){
+  const nombre=$('supSel').value, pin=$('supPin').value.trim(), msg=$('autMsg');
+  if(!nombre||!pin){ msg.style.color='#b3261e'; msg.textContent='Elige supervisor y escribe su PIN'; return; }
+  msg.style.color='#5f6f7f'; msg.textContent='Validando...';
+  try{
+    const r=await validarPIN(nombre,pin,'SUPERVISOR');
+    if(r && r.ok){
+      STATE.autorizado={correo:'',nombre:r.nombre,token:r.token,ts:new Date().toISOString()};
+      msg.style.color='#2e7d32'; msg.textContent='Autorizado por '+r.nombre; $('supPin').value='';
+    } else { STATE.autorizado=null; msg.style.color='#b3261e'; msg.textContent=textoError(r); }
+  }catch(e){ STATE.autorizado=null; msg.style.color='#b3261e'; msg.textContent='No se pudo validar. Revisa la conexión.'; }
 }
 
 /* ===== GUARDAR ===== */
@@ -419,22 +561,26 @@ async function guardarChecklist(){
     const id='CHK-'+Date.now();
     const puntos=evalu.filter(r=>r.estado!=='NA');
     const realizados=todasR.filter(r=>r.mp&&r.estado==='R').map(r=>({zona:r.zona,punto:r.punto+' (realizado)',estado:'C',obs:'',foto:''}));
+    const opera=($('chkOperar').checked&&nc.length>0)?'SI':'NO';
     const body={
       accion:'guardarChecklist', id:id, version:VERSION,
       fecha:new Date().toISOString(), operario:STATE.nombre, usuario:'',
+      rol_sesion:STATE.sesion?String(STATE.sesion.rol).toUpperCase():'OPERARIO',
+      token:STATE.sesion?STATE.sesion.token:'',
       categoria:STATE.area, equipo:STATE.equipo,
       lectura:($('horometro').value||'')+($('proxMto').value.trim()?(($('horometro').value?' | ':'')+'próx. mto: '+$('proxMto').value.trim()):''),
       total_puntos:puntos.length, total_nc:nc.length,
-      opera_con_fallas:($('chkOperar').checked&&nc.length>0)?'SI':'NO',
+      opera_con_fallas:opera,
       autorizado_por:STATE.autorizado?STATE.autorizado.nombre:'',
-      autorizado_correo:STATE.autorizado?STATE.autorizado.correo:'',
+      autorizado_correo:'',
       autorizado_ts:STATE.autorizado?STATE.autorizado.ts:'',
+      autorizado_token:STATE.autorizado?STATE.autorizado.token:'',
       detalle:puntos.map(r=>({zona:r.zona,punto:r.punto,estado:r.estado,obs:r.obs,foto:r.foto?r.foto.split(',')[1]:''})).concat(realizados)
     };
     await escribirGAS(body);
     STATE.ultimoNC=nc; STATE.ultimoEquipo=STATE.equipo;
     $('finTxt').innerHTML='Equipo <b>'+STATE.equipo+'</b>: '+puntos.length+' puntos revisados, <b>'+nc.length+'</b> no conformidad(es).'+
-      (nc.length>0?(body.opera_con_fallas==='SI'?' Opera con fallas autorizado por '+body.autorizado_por+'.':' El equipo NO debe operar hasta ser revisado.'):' Sin novedades.');
+      (nc.length>0?(opera==='SI'?' Opera con fallas autorizado por '+body.autorizado_por+'.':' El equipo NO debe operar hasta ser revisado.'):' Sin novedades.');
     pintarWA(nc.length>0);
     show('pasoInsp',false); show('pasoFin',true);
     window.scrollTo(0,0);
@@ -460,9 +606,12 @@ function abrirWA(numero){
 }
 
 function cancelar(){ if(confirm('¿Descartar esta inspección?')) nuevo(); }
-function nuevo(){
+function nuevo(sinMostrar){
   STATE.area=''; STATE.tpl=''; STATE.equipo=''; STATE.respuestas={}; STATE.autorizado=null;
-  $('areaSel').value=''; areaCambio(); $('horometro').value=''; $('proxMto').value=''; $('chkOperar').checked=false; $('autMsg').textContent='';
+  $('horometro').value=''; $('proxMto').value=''; $('chkOperar').checked=false; $('autMsg').textContent=''; $('supPin').value='';
+  show('autBox',false);
+  if(sinMostrar===true) return;
+  llenarAreas();
   show('pasoInsp',false); show('pasoFin',false); show('pasoInicio',true);
   window.scrollTo(0,0);
 }
