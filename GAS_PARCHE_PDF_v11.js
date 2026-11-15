@@ -1,26 +1,32 @@
 // ═══════════════════════════════════════════════════════════════
-// PARCHE GAS — PDFs de OM a Drive (v11)  ·  POSTECSA OM v8.0
+// PARCHE GAS v11.1 — PDFs de OM a Drive  (APLICADO y publicado el 15/11/2026,
+// versión 31 de la implementación de POSTECSA-Materiales)
 // Carpeta destino: "INFORMES PDF OM" (dentro de OM POSTECSA)
-// ═══════════════════════════════════════════════════════════════
-// CÓMO APLICAR (3 pasos, en el proyecto "POSTECSA-Materiales"):
-//  1) Pegue este bloque completo al final del script.
-//  2) En doPost, dentro de   if(body.accion==='subir_pdf'){ ... }
-//     reemplace TODO el contenido por:   return subirPdfOM_(body);
-//  3) En doGet agregue (junto a los demás if de accion):
-//       if(e.parameter.accion==='get_pdf_link') return getPdfLink_(e.parameter.otNum);
-//     Luego: Implementar > Administrar implementaciones > Editar > Nueva versión.
-//
-// CORRIGE: la versión anterior escribía el link en la columna 13 de
-// OMs-Pendientes, que es Ts_Cerrada (la sobrescribía). Ahora el link
-// solo se guarda en Resumen-OMs, col 12 (Link_PDF).
+// Cambios en el script publicado (Código.gs):
+//   · doPost: if (body.accion === 'subir_pdf') { return subirPdfOM_(body); }
+//   · doGet : if (accion === 'get_pdf_link')   { return getPdfLink_(p.otNum); }
+//   · funciones de abajo al final del archivo.
+// Los links quedan en la hoja nueva "PDFs-OM" (N_OM, Fecha, Archivo, Link_PDF);
+// no se toca OMs-Pendientes (la col. 13 es Ts_Cerrada).
 // ═══════════════════════════════════════════════════════════════
 
 var PDF_FOLDER_ID = '1ytXqUSe6ZOXktOfRDE61MRRGxKtUkf5-'; // INFORMES PDF OM
+var HOJA_PDFS = 'PDFs-OM';
+
+function _pdfsH_() {
+  var ss = _ss(), h = ss.getSheetByName(HOJA_PDFS);
+  if (!h) {
+    h = ss.insertSheet(HOJA_PDFS);
+    h.appendRow(['N_OM','Fecha','Archivo','Link_PDF']);
+    h.getRange(1,1,1,4).setBackground('#E65100').setFontColor('#fff').setFontWeight('bold');
+  }
+  return h;
+}
 
 function _pdfFolderMes_(mes) {
   var root;
   try { root = DriveApp.getFolderById(PDF_FOLDER_ID); }
-  catch (ex) { // respaldo: carpeta por nombre en el Drive del script
+  catch (ex) {
     var it = DriveApp.getFoldersByName('INFORMES PDF OM');
     root = it.hasNext() ? it.next() : DriveApp.createFolder('INFORMES PDF OM');
   }
@@ -32,30 +38,29 @@ function subirPdfOM_(body) {
   var otNum  = String(body.otNum || '');
   var nombre = body.nombre || ('OM_' + otNum + '_POSTECSA.pdf');
   if (!body.pdf) return _err('PDF vacio');
-
   var blob = Utilities.newBlob(Utilities.base64Decode(body.pdf), 'application/pdf', nombre);
   var mes  = Utilities.formatDate(new Date(), 'America/Bogota', 'yyyy-MM');
   var folder = _pdfFolderMes_(mes);
-
-  // Si ya existe un PDF de esa OM en la carpeta del mes, se reemplaza (evita duplicados)
   var previos = folder.getFilesByName(nombre);
   while (previos.hasNext()) previos.next().setTrashed(true);
-
   var file = folder.createFile(blob);
   file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
   var link = file.getUrl();
-
-  var hr = _resH(), rr = hr.getDataRange().getValues();
-  for (var j = 1; j < rr.length; j++) {
-    if (String(rr[j][0]) === otNum) { hr.getRange(j + 1, 12).setValue(link); break; }
+  var h = _pdfsH_(), rows = h.getDataRange().getValues(), hecho = false;
+  for (var i = 1; i < rows.length; i++) {
+    if (String(rows[i][0]) === otNum) {
+      h.getRange(i+1,2,1,3).setValues([[new Date(), nombre, link]]);
+      hecho = true; break;
+    }
   }
+  if (!hecho) h.appendRow([otNum, new Date(), nombre, link]);
   return _ok({guardado: true, link: link});
 }
 
 function getPdfLink_(otNum) {
-  var hr = _resH(), rr = hr.getDataRange().getValues();
-  for (var j = 1; j < rr.length; j++) {
-    if (String(rr[j][0]) === String(otNum)) return _ok({link: String(rr[j][11] || '')});
+  var rows = _pdfsH_().getDataRange().getValues();
+  for (var i = 1; i < rows.length; i++) {
+    if (String(rows[i][0]) === String(otNum)) return _ok({link: String(rows[i][3] || '')});
   }
   return _ok({link: ''});
 }
