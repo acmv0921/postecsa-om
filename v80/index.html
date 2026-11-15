@@ -828,7 +828,7 @@ function limpiarFotosAntiguas(){
   let liberado=false;
   Object.values(d).forEach(om=>{
     if(om.etapa==='CERRADA'&&(om.fotos_i||om.fotos_a||om.fotos_c)){
-      delete om.fotos_i; delete om.fotos_a; delete om.fotos_c;
+      delete om.fotos_i; delete om.fotos_a; delete om.fotos_c; delete om.chk_foto_a; delete om.chk_foto_c;
       d[om.num]=om; liberado=true;
     }
   });
@@ -2519,6 +2519,7 @@ function renderTab(et){
       ${ckList.map((it,i)=>{
         const marcado=ckSaved[i]===true||ckSaved[i]==='true'||ckSaved[i]===1;
         const justSaved=(OM['chk_just_'+et]||[])[i]||'';
+        const fotoSaved=(OM['chk_foto_'+et]||[])[i]||'';
         return `<div class="chk-item" style="flex-direction:column;align-items:flex-start;gap:0">
           <div style="display:flex;align-items:center;gap:10px;width:100%">
             <input type="checkbox" class="chk-${et}" data-idx="${i}"
@@ -2531,10 +2532,16 @@ function renderTab(et){
           </div>
           <div id="chk-just-${et}-${i}" style="display:${marcado?'none':'block'};width:100%;margin-top:6px;padding-left:30px">
             <input type="text" class="chk-just-${et}" data-idx="${i}"
-              placeholder="Motivo por el que no se cumple..."
+              placeholder="Obligatorio: explica por qu\u00e9 no se cumple (m\u00edn. 10 letras) o toma una foto"
               value="${justSaved}"
               oninput="guardarJustLive('${et}',${i},this.value)"
               style="width:100%;padding:8px;border:1.5px solid var(--rojo);border-radius:6px;font-size:13px;color:var(--rojo)">
+            <div style="display:flex;align-items:center;gap:8px;margin-top:6px">
+              <label style="display:inline-block;padding:6px 10px;border:1.5px solid var(--rojo);border-radius:6px;font-size:12px;color:var(--rojo);cursor:pointer">\ud83d\udcf7 Foto del hallazgo
+                <input type="file" accept="image/*" capture="environment" style="display:none" onchange="chkFotoPick('${et}',${i},this.files);this.value=''">
+              </label>
+              <span id="chk-foto-${et}-${i}">${fotoSaved?('<img src="'+fotoSaved+'" style="height:36px;border-radius:4px;vertical-align:middle"> <button onclick="chkFotoDel(\''+et+'\','+i+')" style="background:#c62828;color:#fff;border:none;border-radius:50%;width:20px;height:20px;cursor:pointer">\u00d7</button>'):''}</span>
+            </div>
           </div>
         </div>`;
       }).join('')}
@@ -2952,6 +2959,71 @@ function toggleChkJust(et,idx,checked){
   }
 }
 
+// v8.1: checklist no cumplido => obligatorio explicar (>=10 letras) o tomar foto
+function _chkFotoRender(et,idx){
+  var el=document.getElementById('chk-foto-'+et+'-'+idx); if(!el) return;
+  var f=(OM['chk_foto_'+et]||[])[idx];
+  el.innerHTML=f?('<img src="'+f+'" style="height:36px;border-radius:4px;vertical-align:middle"> <button onclick="chkFotoDel(\''+et+'\','+idx+')" style="background:#c62828;color:#fff;border:none;border-radius:50%;width:20px;height:20px;cursor:pointer">\u00d7</button>'):'';
+}
+function chkFotoDel(et,idx){
+  var k='chk_foto_'+et, arr=OM[k]||[]; arr[idx]=''; OM[k]=arr;
+  try{ DB.saveOM(OM); }catch(e){}
+  _chkFotoRender(et,idx);
+}
+function chkFotoPick(et,idx,files){
+  if(!files||!files.length) return;
+  var reader=new FileReader();
+  reader.onload=function(e){
+    var img=new Image();
+    img.onload=function(){
+      var MAX=800,w=img.width,h=img.height;
+      if(w>MAX){h=Math.round(h*MAX/w);w=MAX;}
+      if(h>MAX){w=Math.round(w*MAX/h);h=MAX;}
+      var cv=document.createElement('canvas'); cv.width=w; cv.height=h;
+      cv.getContext('2d').drawImage(img,0,0,w,h);
+      var data=cv.toDataURL('image/jpeg',0.45);
+      var k='chk_foto_'+et, arr=OM[k]||[]; arr[idx]=data; OM[k]=arr;
+      try{ DB.saveOM(OM); }
+      catch(err){ if(err.name==='QuotaExceededError'){ limpiarFotosAntiguas(); try{ DB.saveOM(OM); }catch(e2){} } }
+      _chkFotoRender(et,idx);
+      toast('Foto del hallazgo guardada');
+    };
+    img.src=e.target.result;
+  };
+  reader.readAsDataURL(files[0]);
+}
+function _chkPendientes(et){
+  var lista=et==='a'?CHECKLIST_AVANCE:CHECKLIST_CIERRE;
+  var ok=et==='a'?(OM.chk_a||[]):(OM.chk_c||[]);
+  var just=et==='a'?(OM.chk_just_a||[]):(OM.chk_just_c||[]);
+  var fot=OM['chk_foto_'+et]||[];
+  var pend=[];
+  lista.forEach(function(it,i){
+    var marcado=ok[i]===true||ok[i]==='true'||ok[i]===1;
+    if(marcado) return;
+    var tieneMotivo=String(just[i]||'').trim().length>=10;
+    if(!tieneMotivo&&!fot[i]) pend.push(i);
+  });
+  return pend;
+}
+function _validarChecklist(et){
+  try{ capturar(); }catch(e){}
+  if(et==='a'&&!OM.chk_a) return true; // Avance nunca diligenciado: no se exige
+  var pend=_chkPendientes(et);
+  if(!pend.length) return true;
+  TAB_ACTUAL=et;
+  if(document.getElementById('tab-content')){
+    document.getElementById('tab-content').innerHTML=renderTab(et);
+    setTimeout(function(){
+      initFirmas();
+      var el=document.getElementById('chk-just-'+et+'-'+pend[0]);
+      if(el&&el.scrollIntoView) el.scrollIntoView({behavior:'smooth',block:'center'});
+    },200);
+  }
+  toast('\u26a0\ufe0f Checklist '+(et==='a'?'Avance':'Cierre')+': '+pend.length+' \u00edtem(s) sin cumplir. Explica el motivo o toma una foto');
+  return false;
+}
+
 function initFirmas(){
   document.querySelectorAll('.firma-canvas').forEach(cv=>{
     const k=cv.dataset.key;
@@ -3063,6 +3135,8 @@ function avanzarEtapa(nuevaEtapa){
 // CERRAR OM
 // ═══════════════════════════════════════════════
 function cerrarOM(){
+  // v8.1: no cerrar con items del checklist sin cumplir y sin explicacion/foto
+  if(!_validarChecklist('a')||!_validarChecklist('c')) return;
   // Validar mínimo 3 fotos en cierre usando _fotosEtapa()
   const fotosC = _fotosEtapa('c');
   if(fotosC.length < 3){
@@ -3658,7 +3732,8 @@ function _generarPDF(){
     items.forEach(function(it,i){
       const ok=saved[i]===true||saved[i]==='true'||saved[i]===1;
       const just=(justArr&&justArr[i])||'';
-      const alto=(!ok&&just)?11:6;
+      const fotoChk=(!ok&&OM['chk_foto_'+et]&&OM['chk_foto_'+et][i])||'';
+      const alto=(!ok&&(just||fotoChk))?(fotoChk?(just?25:20):11):6;
       nP(alto+2);
       const cx=M, cy=y-3.5, cs=4.5;
       doc.setLineWidth(0.5);
@@ -3692,6 +3767,11 @@ function _generarPDF(){
           doc.roundedRect(cx+cs+2,y+1.5,CW-(cs+2),5.5,0.5,0.5,'F');
           doc.setFontSize(6.5);doc.setFont('helvetica','italic');doc.setTextColor(198,40,40);
           doc.text('Motivo: '+just,cx+cs+4,y+5);
+        }
+        if(fotoChk){
+          try{ doc.addImage(fotoChk,'JPEG',cx+cs+2,y+(just?8:2),22,16); }catch(eF){}
+          doc.setFontSize(6.5);doc.setFont('helvetica','italic');doc.setTextColor(198,40,40);
+          doc.text('Foto del hallazgo adjunta',cx+cs+27,y+(just?17:11));
         }
       }
       rC();y+=alto;
@@ -3759,6 +3839,7 @@ function _generarPDF(){
 // ═══════════════════════════════════════════════
 function reportarEtapaWA(et){
   capturar();
+  if((et==='a'||et==='c')&&!_validarChecklist(et)) return;
   const etNom=et==='i'?'INICIO':et==='a'?'AVANCE':'CIERRE';
   // Actividades de la etapa
   const acts=[...(ACTS[et]||[]),...(OM['acts_'+et]||[])].filter(function(a){return a&&a.desc;});
@@ -4120,8 +4201,9 @@ document.addEventListener('DOMContentLoaded',()=>{
 // version nueva, para saber con certeza que la actualizacion
 // realmente se cargo (evita la confusion de version cacheada).
 // ============================================================
-var VERSION_ACTUAL = 'v8.0';
+var VERSION_ACTUAL = 'v8.1';
 var NOVEDADES_VERSION = [
+  'Checklist: si un item NO se cumple ya no se puede cerrar la OM ni reportar la etapa sin explicar el motivo (min. 10 letras) o tomar una foto del hallazgo',
   'Al enviar una OM a WhatsApp, el PDF tambien se guarda solo en Drive (carpeta INFORMES PDF OM)',
   'Compras ahora puede adjuntar una foto de cada cotizacion (Cot.1 y Cot.2) al guardarlas'
 ];
