@@ -3185,6 +3185,8 @@ function cerrarOM(){
   _gasGet(GAS_GERENCIA+'?accion=actualizar_estado_get&num='+encodeURIComponent(String(OM.num||''))+'&estado=CERRADA');
 
   showExito();
+  // v8.3: al cerrar la OM el PDF se archiva solo en Drive, sin depender de ningun boton
+  setTimeout(function(){ try{ _guardarPDFenDrive(); }catch(e){ console.warn('Drive PDF err:',e); } },400);
 }
 
 // ═══════════════════════════════════════════════
@@ -3455,7 +3457,9 @@ function generarPDF(){
   toast('⏳ Generando PDF...');
   setTimeout(()=>{
     try{ _generarPDF(); }
-    catch(e){ console.error('PDF error:',e); toast('❌ Error al generar PDF: '+e.message); }
+    catch(e){ console.error('PDF error:',e); toast('❌ Error al generar PDF: '+e.message); return; }
+    // v8.3: tambien se archiva en Drive (INFORMES PDF OM)
+    try{ _guardarPDFenDrive(); }catch(e){ console.warn('Drive PDF err:',e); }
   },100);
 }
 
@@ -3499,7 +3503,7 @@ function _addImgContain(doc,data,x,y,boxW,boxH,bg){
   }
   try{doc.addImage(data,'JPEG',x,y,boxW,boxH);}catch(e2){}
 }
-function _generarPDF(){
+function _generarPDF(opts){
   const {jsPDF}=window.jspdf;
   const doc=new jsPDF({orientation:'portrait',unit:'mm',format:'a4'});
   const W=210,M=14,CW=W-M*2;
@@ -3851,6 +3855,8 @@ function _generarPDF(){
     doc.setFontSize(6.5);doc.setFont('helvetica','italic');doc.setTextColor(180,180,180);
     doc.text('Dise\u00f1o & Desarrollo: ABDIEL CICAR MORENO  \u00b7  POSTECSA OM v'+VERSION,W/2,292,'center');
   }
+  // v8.3: la copia de Drive es el MISMO PDF oficial (antes era un resumen distinto)
+  if(opts&&opts.base64){ return doc.output('datauristring').split(',')[1]; }
   doc.save('OM_'+String(OM.num||'')+'_POSTECSA.pdf');
   toast('\u2705 PDF generado');
 }
@@ -4058,7 +4064,7 @@ function _subirYcompartir(){
   });
 }
 
-function _generarPDFBase64(){
+function _generarPDFBase64_RESUMEN_OLD(){
   // Igual que _generarPDF pero retorna base64 en vez de descargar
   try{
     const {jsPDF}=window.jspdf;
@@ -4114,6 +4120,11 @@ function _generarPDFBase64(){
     addF('i','Inicio');addF('a','Avance');addF('c','Cierre');
     return doc.output('datauristring').split(',')[1];
   }catch(e){console.error('_generarPDFBase64 err:',e);return null;}
+}
+
+function _generarPDFBase64(){
+  try{ return _generarPDF({base64:true}); }
+  catch(e){ console.error('_generarPDFBase64 err:',e); return null; }
 }
 
 function _subirPDFDrive_OLD(txtResumen){
@@ -4242,6 +4253,7 @@ document.addEventListener('DOMContentLoaded',()=>{
 // ============================================================
 var VERSION_ACTUAL = 'v8.3';
 var NOVEDADES_VERSION = [
+  'El PDF se archiva solo en Drive al CERRAR la OM y tambien con GENERAR PDF (ya no depende de WhatsApp); es el mismo PDF oficial con fotos y checklists',
   'El PDF y la app ahora muestran la version real (v8.3)',
   'El aviso "PDF guardado en Drive" solo sale cuando el servidor lo confirma; si falla, el PDF queda en cola y se reintenta',
   'Acceso de administrador al modo Supervisor',
