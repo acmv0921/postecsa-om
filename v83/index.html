@@ -204,6 +204,10 @@ const MECANICOS_BASE = [
   {cc:'16613688',nombre:'JESÚS ALFREDO VARGAS OCAMPO',cargo:'ELECTRICISTA'},
 ];
 let MECANICOS = MECANICOS_BASE.slice();
+// v8.3: mecanicos dados de baja (fallecimiento, retiro). Se conservan en MECANICOS para que
+// sus OM historicas sigan mostrando su nombre, pero ya no salen al asignar ni al elegir mecanico.
+const MEC_BAJA = ['16462594']; // MAURICIO LÓPEZ LÓPEZ
+function _mecActivos(){ return MECANICOS.filter(function(m){ return MEC_BAJA.indexOf(String(m.cc))<0; }); }
 
 const AREAS_EQUIPOS = {
   'QFT': [
@@ -1063,7 +1067,7 @@ function seleccionarRol(rol){
 }
 
 function showSeleccionMecanico(){
-  var mecOpts=MECANICOS.map(function(m){var pref=m.tipo==='EXTERNO'?'[EXT] ':'';return '<option value="'+m.cc+'">'+pref+m.nombre+' ('+m.cargo+')</option>';}).join('');
+  var mecOpts=_mecActivos().map(function(m){var pref=m.tipo==='EXTERNO'?'[EXT] ':'';return '<option value="'+m.cc+'">'+pref+m.nombre+' ('+m.cargo+')</option>';}).join('');
   R('<div style="min-height:100vh;background:linear-gradient(160deg,#E65100,#FF6D00);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px">'
   +'<div style="background:#fff;border-radius:16px;padding:32px 24px;width:100%;max-width:360px;box-shadow:0 8px 32px rgba(0,0,0,.3)">'
   +'<div style="text-align:center;margin-bottom:24px"><span style="font-size:48px">\ud83d\udea7</span>'
@@ -1084,7 +1088,7 @@ function showSeleccionMecanico(){
     var sel=document.getElementById('sel-mec');
     if(!sel) return;
     var cur=sel.value;
-    var opts=MECANICOS.map(function(m){var pref=m.tipo==='EXTERNO'?'[EXT] ':'';return '<option value="'+m.cc+'">'+pref+m.nombre+' ('+m.cargo+')</option>';}).join('');
+    var opts=_mecActivos().map(function(m){var pref=m.tipo==='EXTERNO'?'[EXT] ':'';return '<option value="'+m.cc+'">'+pref+m.nombre+' ('+m.cargo+')</option>';}).join('');
     sel.innerHTML='<option value="">--- Seleccionar ---</option>'+opts+'<option value="__nuevo__">\u2795 Agregar mec\u00e1nico nuevo...</option>';
     sel.value=cur;
   });
@@ -1845,7 +1849,7 @@ function borrarListaSupervisor(nums,titulo){
 }
 
 function showCrearOM(){
-  var mecOpts=MECANICOS.map(function(m){var pref=m.tipo==='EXTERNO'?'[EXT] ':'';return '<option value="'+m.cc+'|'+m.nombre+'">'+pref+m.nombre+' ('+m.cargo+')</option>';}).join('');
+  var mecOpts=_mecActivos().map(function(m){var pref=m.tipo==='EXTERNO'?'[EXT] ':'';return '<option value="'+m.cc+'|'+m.nombre+'">'+pref+m.nombre+' ('+m.cargo+')</option>';}).join('');
   var areaOpts=Object.keys(AREAS_EQUIPOS).map(function(a){return '<option value="'+a+'">'+a+'</option>';}).join('');
   var fallaOpts=FALLAS.map(function(f){return '<option value="'+f+'">'+f+'</option>';}).join('');
   R('<div class="hdr">'
@@ -1867,7 +1871,7 @@ function showCrearOM(){
     var sel=document.getElementById('sup-mec');
     if(!sel) return;
     var cur=sel.value;
-    var opts=MECANICOS.map(function(m){var pref=m.tipo==='EXTERNO'?'[EXT] ':'';return '<option value="'+m.cc+'|'+m.nombre+'">'+pref+m.nombre+' ('+m.cargo+')</option>';}).join('');
+    var opts=_mecActivos().map(function(m){var pref=m.tipo==='EXTERNO'?'[EXT] ':'';return '<option value="'+m.cc+'|'+m.nombre+'">'+pref+m.nombre+' ('+m.cargo+')</option>';}).join('');
     sel.innerHTML='<option value="">--- Seleccionar ---</option>'+opts;
     sel.value=cur;
   });
@@ -2255,7 +2259,7 @@ function showNuevaOM(){
   CHK={a:[],c:[]};
   TAB_ACTUAL='i';
 
-  const mecOpts = MECANICOS.map(m=>`<option value="${m.cc}">${m.nombre} (${m.cargo})</option>`).join('')
+  const mecOpts = _mecActivos().map(m=>`<option value="${m.cc}">${m.nombre} (${m.cargo})</option>`).join('')
     + '<option value="__nuevo__">➕ Agregar mecánico nuevo...</option>';
   const areaOpts = Object.keys(AREAS_EQUIPOS).map(a=>`<option value="${a}">${a}</option>`).join('');
   const fallaOpts = FALLAS.map(f=>`<option value="${f}">${f}</option>`).join('');
@@ -2656,7 +2660,7 @@ function renderTab(et){
 // ═══════════════════════════════════════════════
 function showAddActividad(et){
   capturar();
-  const mecOpts = MECANICOS.map(m=>`<option value="${m.nombre}" ${OM.mecanico_nombre===m.nombre?'selected':''}>${m.nombre}</option>`).join('');
+  const mecOpts = _mecActivos().concat(MECANICOS.filter(m=>MEC_BAJA.indexOf(String(m.cc))>=0&&m.nombre===OM.mecanico_nombre)).map(m=>`<option value="${m.nombre}" ${OM.mecanico_nombre===m.nombre?'selected':''}>${m.nombre}</option>`).join('');
   const ets = et==='i'?'Inicio':et==='a'?'Avance':'Cierre';
 
   R(`
@@ -4253,6 +4257,7 @@ document.addEventListener('DOMContentLoaded',()=>{
 // ============================================================
 var VERSION_ACTUAL = 'v8.3';
 var NOVEDADES_VERSION = [
+  'Mecanicos dados de baja: ya no aparecen para asignar OM y su historial se conserva',
   'El PDF se archiva solo en Drive al CERRAR la OM y tambien con GENERAR PDF (ya no depende de WhatsApp); es el mismo PDF oficial con fotos y checklists',
   'El PDF y la app ahora muestran la version real (v8.3)',
   'El aviso "PDF guardado en Drive" solo sale cuando el servidor lo confirma; si falla, el PDF queda en cola y se reintenta',
