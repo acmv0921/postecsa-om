@@ -4270,15 +4270,15 @@ function mostrarNovedadesSiAplica(){
   try{
     var vista = localStorage.getItem('pst_version_vista');
     if(vista === VERSION_ACTUAL) return;
-    var html = '<div id="modal-novedades" style="position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:99999;display:flex;align-items:center;justify-content:center;padding:20px">'
-      +'<div style="background:#fff;border-radius:16px;padding:24px;max-width:360px;width:100%;box-shadow:0 8px 30px rgba(0,0,0,.3)">'
+    var html = '<div id="modal-novedades" style="position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:99999;display:flex;align-items:center;justify-content:center;padding:12px">'
+      +'<div style="background:#fff;border-radius:16px;padding:20px;max-width:360px;width:100%;max-height:92vh;max-height:92dvh;display:flex;flex-direction:column;box-shadow:0 8px 30px rgba(0,0,0,.3)">'
       +'<div style="font-size:36px;margin-bottom:8px">\ud83c\udf89</div>'
       +'<h2 style="font-size:18px;margin-bottom:2px;color:#263238">Novedades '+VERSION_ACTUAL+'</h2>'
       +'<p style="font-size:12px;color:#90A4AE;margin-bottom:14px">Si ves esta pantalla, la actualizaci\u00f3n s\u00ed se carg\u00f3 en tu celular</p>'
-      +'<ul style="margin:0 0 16px;padding-left:18px;font-size:13px;color:#546E7A;line-height:1.7">'
+      +'<ul style="margin:0 0 14px;padding-left:18px;font-size:13px;color:#546E7A;line-height:1.6;overflow-y:auto;flex:1 1 auto;min-height:0;-webkit-overflow-scrolling:touch">'
       +NOVEDADES_VERSION.map(function(i){return '<li>'+i+'</li>';}).join('')
       +'</ul>'
-      +'<button onclick="localStorage.setItem(\'pst_version_vista\',\''+VERSION_ACTUAL+'\');document.getElementById(\'modal-novedades\').remove();" style="width:100%;padding:13px;background:#E65100;color:#fff;border:none;border-radius:10px;font-size:15px;font-weight:700;cursor:pointer">Entendido</button>'
+      +'<button onclick="localStorage.setItem(\'pst_version_vista\',\''+VERSION_ACTUAL+'\');document.getElementById(\'modal-novedades\').remove();" style="width:100%;padding:13px;background:#E65100;color:#fff;border:none;border-radius:10px;font-size:15px;font-weight:700;cursor:pointer;flex:0 0 auto">Entendido</button>'
       +'</div></div>';
     var wrap=document.createElement('div');
     wrap.innerHTML=html;
