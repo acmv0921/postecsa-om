@@ -155,7 +155,7 @@ input[type=number]{-moz-appearance:textfield}
 <input type="file" id="fi-cam-cot" accept="image/*" capture="environment" style="position:fixed;left:-9999px" aria-hidden="true">
 <input type="file" id="fi-gal-cot" accept="image/*" style="position:fixed;left:-9999px" aria-hidden="true">
 
-<div id="credito-acm">Diseño &amp; Desarrollo: ABDIEL CICAR MORENO &nbsp;···&nbsp; POSTECSA OM v7.9</div>
+<div id="credito-acm">Diseño &amp; Desarrollo: ABDIEL CICAR MORENO &nbsp;···&nbsp; POSTECSA OM v8.3</div>
 <div id="toast"></div>
 <div id="app"></div>
 
@@ -185,7 +185,7 @@ const LOGO_SRC = 'data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAMCAgI
 // ═══════════════════════════════════════════════
 // CONSTANTES
 // ═══════════════════════════════════════════════
-const VERSION = '7.3';
+const VERSION = '8.3';
 const CLAVE_DB='pst_om_v6';
 const CLAVE_ROL='pst_rol';
 const CLAVE_USER='pst_user_cc';
@@ -204,6 +204,10 @@ const MECANICOS_BASE = [
   {cc:'16613688',nombre:'JESÚS ALFREDO VARGAS OCAMPO',cargo:'ELECTRICISTA'},
 ];
 let MECANICOS = MECANICOS_BASE.slice();
+// v8.3: mecanicos dados de baja (fallecimiento, retiro). Se conservan en MECANICOS para que
+// sus OM historicas sigan mostrando su nombre, pero ya no salen al asignar ni al elegir mecanico.
+const MEC_BAJA = ['16462594']; // MAURICIO LÓPEZ LÓPEZ
+function _mecActivos(){ return MECANICOS.filter(function(m){ return MEC_BAJA.indexOf(String(m.cc))<0; }); }
 
 const AREAS_EQUIPOS = {
   'QFT': [
@@ -984,6 +988,20 @@ function pedirClaveSupervisor(){
   setTimeout(function(){var i=document.getElementById('inp-clave-sup');if(i){i.focus();i.addEventListener('keydown',function(e){if(e.key==='Enter')verificarClaveSup();});}},200);
 }
 
+/* v8.2: acceso de administrador (no depende de la clave guardada en el celular).
+   Solo se guarda el hash PBKDF2-SHA256 (200.000 iteraciones); la clave no esta en el codigo. */
+var ADM_SALT='66fda868aa2e8539619c85424de6ac6b', ADM_HASH='ae94e3d81116b34fadbdfb0598c09475344f8797ada12362b560e4504f783b47', ADM_ITER=200000;
+function _hex2buf(h){var a=new Uint8Array(h.length/2);for(var i=0;i<a.length;i++)a[i]=parseInt(h.substr(i*2,2),16);return a;}
+function _buf2hex(b){return Array.from(new Uint8Array(b)).map(function(x){return ('0'+x.toString(16)).slice(-2);}).join('');}
+function _esClaveAdmin(clave){
+  try{
+    if(!(window.crypto&&crypto.subtle)) return Promise.resolve(false);
+    return crypto.subtle.importKey('raw',new TextEncoder().encode(clave),'PBKDF2',false,['deriveBits'])
+      .then(function(k){return crypto.subtle.deriveBits({name:'PBKDF2',salt:_hex2buf(ADM_SALT),iterations:ADM_ITER,hash:'SHA-256'},k,256);})
+      .then(function(b){return _buf2hex(b)===ADM_HASH;})
+      .catch(function(){return false;});
+  }catch(e){return Promise.resolve(false);}
+}
 function verificarClaveSup(){
   var inp=document.getElementById('inp-clave-sup');
   if(!inp) return;
@@ -991,7 +1009,15 @@ function verificarClaveSup(){
   var claves=_getClavesSup();
   if(claves.indexOf(clave)>=0){
     seleccionarRol('supervisor');
-  } else {
+  } else if(clave.length>=8){
+    _esClaveAdmin(clave).then(function(ok){
+      if(ok){ seleccionarRol('supervisor'); }
+      else { _claveSupMala(inp); }
+    });
+  } else { _claveSupMala(inp); }
+}
+function _claveSupMala(inp){
+  {
     inp.style.borderColor='#c00';
     inp.style.background='#FFF3F3';
     inp.value='';
@@ -1041,7 +1067,7 @@ function seleccionarRol(rol){
 }
 
 function showSeleccionMecanico(){
-  var mecOpts=MECANICOS.map(function(m){var pref=m.tipo==='EXTERNO'?'[EXT] ':'';return '<option value="'+m.cc+'">'+pref+m.nombre+' ('+m.cargo+')</option>';}).join('');
+  var mecOpts=_mecActivos().map(function(m){var pref=m.tipo==='EXTERNO'?'[EXT] ':'';return '<option value="'+m.cc+'">'+pref+m.nombre+' ('+m.cargo+')</option>';}).join('');
   R('<div style="min-height:100vh;background:linear-gradient(160deg,#E65100,#FF6D00);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px">'
   +'<div style="background:#fff;border-radius:16px;padding:32px 24px;width:100%;max-width:360px;box-shadow:0 8px 32px rgba(0,0,0,.3)">'
   +'<div style="text-align:center;margin-bottom:24px"><span style="font-size:48px">\ud83d\udea7</span>'
@@ -1062,7 +1088,7 @@ function showSeleccionMecanico(){
     var sel=document.getElementById('sel-mec');
     if(!sel) return;
     var cur=sel.value;
-    var opts=MECANICOS.map(function(m){var pref=m.tipo==='EXTERNO'?'[EXT] ':'';return '<option value="'+m.cc+'">'+pref+m.nombre+' ('+m.cargo+')</option>';}).join('');
+    var opts=_mecActivos().map(function(m){var pref=m.tipo==='EXTERNO'?'[EXT] ':'';return '<option value="'+m.cc+'">'+pref+m.nombre+' ('+m.cargo+')</option>';}).join('');
     sel.innerHTML='<option value="">--- Seleccionar ---</option>'+opts+'<option value="__nuevo__">\u2795 Agregar mec\u00e1nico nuevo...</option>';
     sel.value=cur;
   });
@@ -1823,7 +1849,7 @@ function borrarListaSupervisor(nums,titulo){
 }
 
 function showCrearOM(){
-  var mecOpts=MECANICOS.map(function(m){var pref=m.tipo==='EXTERNO'?'[EXT] ':'';return '<option value="'+m.cc+'|'+m.nombre+'">'+pref+m.nombre+' ('+m.cargo+')</option>';}).join('');
+  var mecOpts=_mecActivos().map(function(m){var pref=m.tipo==='EXTERNO'?'[EXT] ':'';return '<option value="'+m.cc+'|'+m.nombre+'">'+pref+m.nombre+' ('+m.cargo+')</option>';}).join('');
   var areaOpts=Object.keys(AREAS_EQUIPOS).map(function(a){return '<option value="'+a+'">'+a+'</option>';}).join('');
   var fallaOpts=FALLAS.map(function(f){return '<option value="'+f+'">'+f+'</option>';}).join('');
   R('<div class="hdr">'
@@ -1845,7 +1871,7 @@ function showCrearOM(){
     var sel=document.getElementById('sup-mec');
     if(!sel) return;
     var cur=sel.value;
-    var opts=MECANICOS.map(function(m){var pref=m.tipo==='EXTERNO'?'[EXT] ':'';return '<option value="'+m.cc+'|'+m.nombre+'">'+pref+m.nombre+' ('+m.cargo+')</option>';}).join('');
+    var opts=_mecActivos().map(function(m){var pref=m.tipo==='EXTERNO'?'[EXT] ':'';return '<option value="'+m.cc+'|'+m.nombre+'">'+pref+m.nombre+' ('+m.cargo+')</option>';}).join('');
     sel.innerHTML='<option value="">--- Seleccionar ---</option>'+opts;
     sel.value=cur;
   });
@@ -1896,6 +1922,7 @@ function crearOMSupervisor(){
   setTimeout(sincronizarSupervisor, 2000);
 }
 
+var _restSes={};
 function cargarOMsAsignadas(){
   if(!navigator.onLine||!USER_CC) return;
   fetch(GAS_URL+'?accion=mis_oms&cc='+encodeURIComponent(USER_CC)+'&_t='+Date.now())
@@ -1910,6 +1937,8 @@ function cargarOMsAsignadas(){
       var restauradas=oms.filter(function(o){
         if(o.estado!=='CERRADA') return false;
         var loc=local[o.num];
+        if(_restSes[o.num]) return false; // ya restaurada en esta sesion (evita el ciclo)
+        if(loc&&loc.restaurado_v2) return false; // ya restaurada una vez
         if(!loc) return true; // falta por completo
         // Un cierre real SIEMPRE tiene minimo 3 fotos de cierre (fotos_c) —
         // si no las tiene y el costo quedo en 0, es una restauracion vieja
@@ -1920,6 +1949,7 @@ function cargarOMsAsignadas(){
         return false;
       });
       if(restauradas.length){
+        restauradas.forEach(function(o){ _restSes[o.num]=1; });
         // Traer los materiales/mano de obra reales para calcular el costo verdadero
         // de cada OM que se está restaurando, en vez de dejarlas en $0
         fetch(GAS_GERENCIA+'?accion=get_datos&_t='+Date.now())
@@ -1935,7 +1965,7 @@ function cargarOMsAsignadas(){
                 falla:o.falla,prioridad:o.prioridad,
                 mec_cc:o.mec_cc,mecanico_nombre:o.mec_nom,
                 obs_i:o.obs_i,etapa:'CERRADA',
-                costo_mo:costo,restaurado:true,
+                costo_mo:costo,restaurado:true,restaurado_v2:true,
                 ts_inicio:tsFecha,ts_cierre_final:tsFecha});
             });
             toast('\ud83d\udd04 '+restauradas.length+' OM(s) cerrada(s) restaurada(s) desde el servidor');
@@ -1948,7 +1978,7 @@ function cargarOMsAsignadas(){
               DB.saveOM({num:o.num,equipo:o.equipo,area:o.area,
                 falla:o.falla,prioridad:o.prioridad,
                 mec_cc:o.mec_cc,mecanico_nombre:o.mec_nom,
-                obs_i:o.obs_i,etapa:'CERRADA',restaurado:true,
+                obs_i:o.obs_i,etapa:'CERRADA',restaurado:true,restaurado_v2:true,
                 ts_inicio:tsFecha,ts_cierre_final:tsFecha});
             });
             showHomeMecanico();
@@ -2233,7 +2263,7 @@ function showNuevaOM(){
   CHK={a:[],c:[]};
   TAB_ACTUAL='i';
 
-  const mecOpts = MECANICOS.map(m=>`<option value="${m.cc}">${m.nombre} (${m.cargo})</option>`).join('')
+  const mecOpts = _mecActivos().map(m=>`<option value="${m.cc}">${m.nombre} (${m.cargo})</option>`).join('')
     + '<option value="__nuevo__">➕ Agregar mecánico nuevo...</option>';
   const areaOpts = Object.keys(AREAS_EQUIPOS).map(a=>`<option value="${a}">${a}</option>`).join('');
   const fallaOpts = FALLAS.map(f=>`<option value="${f}">${f}</option>`).join('');
@@ -2634,7 +2664,7 @@ function renderTab(et){
 // ═══════════════════════════════════════════════
 function showAddActividad(et){
   capturar();
-  const mecOpts = MECANICOS.map(m=>`<option value="${m.nombre}" ${OM.mecanico_nombre===m.nombre?'selected':''}>${m.nombre}</option>`).join('');
+  const mecOpts = _mecActivos().concat(MECANICOS.filter(m=>MEC_BAJA.indexOf(String(m.cc))>=0&&m.nombre===OM.mecanico_nombre)).map(m=>`<option value="${m.nombre}" ${OM.mecanico_nombre===m.nombre?'selected':''}>${m.nombre}</option>`).join('');
   const ets = et==='i'?'Inicio':et==='a'?'Avance':'Cierre';
 
   R(`
@@ -3163,6 +3193,8 @@ function cerrarOM(){
   _gasGet(GAS_GERENCIA+'?accion=actualizar_estado_get&num='+encodeURIComponent(String(OM.num||''))+'&estado=CERRADA');
 
   showExito();
+  // v8.3: al cerrar la OM el PDF se archiva solo en Drive, sin depender de ningun boton
+  setTimeout(function(){ try{ _guardarPDFenDrive(); }catch(e){ console.warn('Drive PDF err:',e); } },400);
 }
 
 // ═══════════════════════════════════════════════
@@ -3433,7 +3465,9 @@ function generarPDF(){
   toast('⏳ Generando PDF...');
   setTimeout(()=>{
     try{ _generarPDF(); }
-    catch(e){ console.error('PDF error:',e); toast('❌ Error al generar PDF: '+e.message); }
+    catch(e){ console.error('PDF error:',e); toast('❌ Error al generar PDF: '+e.message); return; }
+    // v8.3: tambien se archiva en Drive (INFORMES PDF OM)
+    try{ _guardarPDFenDrive(); }catch(e){ console.warn('Drive PDF err:',e); }
   },100);
 }
 
@@ -3477,7 +3511,7 @@ function _addImgContain(doc,data,x,y,boxW,boxH,bg){
   }
   try{doc.addImage(data,'JPEG',x,y,boxW,boxH);}catch(e2){}
 }
-function _generarPDF(){
+function _generarPDF(opts){
   const {jsPDF}=window.jspdf;
   const doc=new jsPDF({orientation:'portrait',unit:'mm',format:'a4'});
   const W=210,M=14,CW=W-M*2;
@@ -3829,6 +3863,8 @@ function _generarPDF(){
     doc.setFontSize(6.5);doc.setFont('helvetica','italic');doc.setTextColor(180,180,180);
     doc.text('Dise\u00f1o & Desarrollo: ABDIEL CICAR MORENO  \u00b7  POSTECSA OM v'+VERSION,W/2,292,'center');
   }
+  // v8.3: la copia de Drive es el MISMO PDF oficial (antes era un resumen distinto)
+  if(opts&&opts.base64){ return doc.output('datauristring').split(',')[1]; }
   doc.save('OM_'+String(OM.num||'')+'_POSTECSA.pdf');
   toast('\u2705 PDF generado');
 }
@@ -3967,17 +4003,33 @@ function _subirPDFPendientes(){
   if(navigator.onLine===false) return;
   window._pdfSubiendo=true;
   const it=cola[0];
+  const liberar=function(ms){ window._pdfSubiendo=false; if(ms) setTimeout(_subirPDFPendientes,ms); };
+  const marcarIntento=function(){
+    const c=_pdfCola().map(x=>(x.otNum===it.otNum&&x.ts===it.ts)?Object.assign({},x,{intentos:(x.intentos||0)+1}):x);
+    _pdfColaSet(c);
+    return (c.find(x=>x.otNum===it.otNum&&x.ts===it.ts)||{}).intentos||0;
+  };
+  // v8.3: el POST es 'no-cors' (no se puede leer la respuesta). Se confirma consultando
+  // get_pdf_link; solo si el servidor devuelve el link se saca de la cola y se avisa.
   fetch(GAS_GERENCIA,{
     method:'POST',
     body:JSON.stringify({accion:'subir_pdf',pdf:it.pdf,nombre:it.nombre,otNum:it.otNum}),
     headers:{'Content-Type':'text/plain'},
     mode:'no-cors',
-  }).then(()=>{
-    _pdfColaSet(_pdfCola().filter(x=>!(x.otNum===it.otNum&&x.ts===it.ts)));
-    window._pdfSubiendo=false;
-    toast('PDF guardado en Drive');
-    setTimeout(_subirPDFPendientes,1500);
-  }).catch(()=>{ window._pdfSubiendo=false; });
+  }).then(()=>new Promise(r=>setTimeout(r,4000)))
+  .then(()=>fetch(GAS_GERENCIA+'?accion=get_pdf_link&otNum='+encodeURIComponent(it.otNum)))
+  .then(r=>r.json())
+  .then(res=>{
+    if(res&&res.ok&&res.link){
+      _pdfColaSet(_pdfCola().filter(x=>!(x.otNum===it.otNum&&x.ts===it.ts)));
+      toast('PDF guardado en Drive');
+      liberar(1500);
+    } else {
+      const k=marcarIntento();
+      if(k>=3){ toast('PDF NO confirmado en Drive (OM '+it.otNum+'). Avisar a Abdiel'); liberar(0); }
+      else { liberar(30000); }
+    }
+  }).catch(()=>{ marcarIntento(); liberar(0); });
 }
 window.addEventListener('online',()=>setTimeout(_subirPDFPendientes,1500));
 setTimeout(_subirPDFPendientes,4000);
@@ -4020,7 +4072,7 @@ function _subirYcompartir(){
   });
 }
 
-function _generarPDFBase64(){
+function _generarPDFBase64_RESUMEN_OLD(){
   // Igual que _generarPDF pero retorna base64 en vez de descargar
   try{
     const {jsPDF}=window.jspdf;
@@ -4076,6 +4128,11 @@ function _generarPDFBase64(){
     addF('i','Inicio');addF('a','Avance');addF('c','Cierre');
     return doc.output('datauristring').split(',')[1];
   }catch(e){console.error('_generarPDFBase64 err:',e);return null;}
+}
+
+function _generarPDFBase64(){
+  try{ return _generarPDF({base64:true}); }
+  catch(e){ console.error('_generarPDFBase64 err:',e); return null; }
 }
 
 function _subirPDFDrive_OLD(txtResumen){
@@ -4202,8 +4259,13 @@ document.addEventListener('DOMContentLoaded',()=>{
 // version nueva, para saber con certeza que la actualizacion
 // realmente se cargo (evita la confusion de version cacheada).
 // ============================================================
-var VERSION_ACTUAL = 'v8.1';
+var VERSION_ACTUAL = 'v8.3';
 var NOVEDADES_VERSION = [
+  'Mecanicos dados de baja: ya no aparecen para asignar OM y su historial se conserva',
+  'El PDF se archiva solo en Drive al CERRAR la OM y tambien con GENERAR PDF (ya no depende de WhatsApp); es el mismo PDF oficial con fotos y checklists',
+  'El PDF y la app ahora muestran la version real (v8.3)',
+  'El aviso "PDF guardado en Drive" solo sale cuando el servidor lo confirma; si falla, el PDF queda en cola y se reintenta',
+  'Acceso de administrador al modo Supervisor',
   'Checklist: si un item NO se cumple ya no se puede cerrar la OM ni reportar la etapa sin explicar el motivo (min. 10 letras) o tomar una foto del hallazgo',
   'Al enviar una OM a WhatsApp, el PDF tambien se guarda solo en Drive (carpeta INFORMES PDF OM)',
   'Compras ahora puede adjuntar una foto de cada cotizacion (Cot.1 y Cot.2) al guardarlas'
@@ -4212,15 +4274,15 @@ function mostrarNovedadesSiAplica(){
   try{
     var vista = localStorage.getItem('pst_version_vista');
     if(vista === VERSION_ACTUAL) return;
-    var html = '<div id="modal-novedades" style="position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:99999;display:flex;align-items:center;justify-content:center;padding:20px">'
-      +'<div style="background:#fff;border-radius:16px;padding:24px;max-width:360px;width:100%;box-shadow:0 8px 30px rgba(0,0,0,.3)">'
+    var html = '<div id="modal-novedades" style="position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:99999;display:flex;align-items:center;justify-content:center;padding:12px">'
+      +'<div style="background:#fff;border-radius:16px;padding:20px;max-width:360px;width:100%;max-height:92vh;max-height:92dvh;display:flex;flex-direction:column;box-shadow:0 8px 30px rgba(0,0,0,.3)">'
       +'<div style="font-size:36px;margin-bottom:8px">\ud83c\udf89</div>'
       +'<h2 style="font-size:18px;margin-bottom:2px;color:#263238">Novedades '+VERSION_ACTUAL+'</h2>'
       +'<p style="font-size:12px;color:#90A4AE;margin-bottom:14px">Si ves esta pantalla, la actualizaci\u00f3n s\u00ed se carg\u00f3 en tu celular</p>'
-      +'<ul style="margin:0 0 16px;padding-left:18px;font-size:13px;color:#546E7A;line-height:1.7">'
+      +'<ul style="margin:0 0 14px;padding-left:18px;font-size:13px;color:#546E7A;line-height:1.6;overflow-y:auto;flex:1 1 auto;min-height:0;-webkit-overflow-scrolling:touch">'
       +NOVEDADES_VERSION.map(function(i){return '<li>'+i+'</li>';}).join('')
       +'</ul>'
-      +'<button onclick="localStorage.setItem(\'pst_version_vista\',\''+VERSION_ACTUAL+'\');document.getElementById(\'modal-novedades\').remove();" style="width:100%;padding:13px;background:#E65100;color:#fff;border:none;border-radius:10px;font-size:15px;font-weight:700;cursor:pointer">Entendido</button>'
+      +'<button onclick="localStorage.setItem(\'pst_version_vista\',\''+VERSION_ACTUAL+'\');document.getElementById(\'modal-novedades\').remove();" style="width:100%;padding:13px;background:#E65100;color:#fff;border:none;border-radius:10px;font-size:15px;font-weight:700;cursor:pointer;flex:0 0 auto">Entendido</button>'
       +'</div></div>';
     var wrap=document.createElement('div');
     wrap.innerHTML=html;
